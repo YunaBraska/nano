@@ -5,58 +5,123 @@ import de.yuna.berlin.nativeapp.core.model.Service;
 import de.yuna.berlin.nativeapp.core.model.Unhandled;
 import de.yuna.berlin.nativeapp.helper.event.EventTypeRegister;
 import de.yuna.berlin.nativeapp.helper.event.model.Event;
+import de.yuna.berlin.nativeapp.helper.threads.Executor;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static java.util.Optional.ofNullable;
 
 public class TestService extends Service {
 
-    public final AtomicInteger startCount = new AtomicInteger(0);
-    public final AtomicInteger stopCount = new AtomicInteger(0);
-    public final List<Unhandled> failures = new CopyOnWriteArrayList<>();
-    public final List<Event> events = new CopyOnWriteArrayList<>();
-    public final AtomicReference<Consumer<Event>> eventConsumer = new AtomicReference<>();
-    public final AtomicReference<Consumer<Unhandled>> failureConsumer = new AtomicReference<>();
-    public final AtomicReference<Consumer<Context>> startConsumer = new AtomicReference<>();
-    public final AtomicReference<Consumer<Context>> stopConsumer = new AtomicReference<>();
+    private final AtomicInteger startCount = new AtomicInteger(0);
+    private final AtomicInteger stopCount = new AtomicInteger(0);
+    private final List<Unhandled> failures = new CopyOnWriteArrayList<>();
+    private final List<Event> events = new CopyOnWriteArrayList<>();
+    private final AtomicReference<Consumer<Event>> doOnEvent = new AtomicReference<>();
+    private final AtomicReference<Consumer<Unhandled>> failureConsumer = new AtomicReference<>();
+    private final AtomicReference<Consumer<Context>> startConsumer = new AtomicReference<>();
+    private final AtomicReference<Consumer<Context>> stopConsumer = new AtomicReference<>();
+    private long startTime = System.currentTimeMillis();
     public static int TEST_EVENT = EventTypeRegister.registerEventType("TEST_EVENT");
 
     public TestService(final boolean isLongRunning) {
-        super(null, -1, isLongRunning, false, true);
+        super(null, -1, isLongRunning, false, false);
     }
 
-    public List<Integer> eventIds() {
-        return events.stream().map(Event::id).toList();
-    }
-
-    public List<String> eventNames() {
-        return events.stream().map(Event::name).toList();
-    }
-
-    public TestService wait(final int eventId) {
-        final long startTime = System.currentTimeMillis();
-        while (!eventIds().contains(eventId) && (System.currentTimeMillis() - startTime) < 2000) {
-            try {
-                Thread.sleep(100);
-            } catch (final InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-        }
-        if (!eventIds().contains(eventId)) {
-            throw new RuntimeException("Timeout waiting for event");
-        }
+    public TestService resetEvents() {
+        events.clear();
         return this;
     }
 
+    public List<Event> events(final int eventId) {
+        getEvent(eventId);
+        return events.stream().filter(event -> event.id() == eventId).toList();
+    }
+
+    public Event getEvent(final int eventId) {
+        return getEvent(eventId, null, 2000);
+    }
+
+    public Event getEvent(final int eventId, final Function<Event, Boolean> condition) {
+        return getEvent(eventId, condition, 2000);
+    }
+
+    public Event getEvent(final int eventId, final long timeoutMs) {
+        return getEvent(eventId, null, timeoutMs);
+    }
+
+    public Event getEvent(final int eventId, final Function<Event, Boolean> condition, final long timeoutMs) {
+        return waitFor(() -> events.stream().filter(event -> event.id() == eventId).filter(event -> condition != null ? condition.apply(event) : true).findFirst().orElse(null), timeoutMs);
+    }
+
+    public int startCount() {
+        return startCount.get();
+    }
+
+    public int stopCount() {
+        return stopCount.get();
+    }
+
+    public List<Unhandled> failures() {
+        return failures;
+    }
+
+    public List<Event> events() {
+        return events;
+    }
+
+    public Consumer<Event> doOnEvent() {
+        return doOnEvent.get();
+    }
+
+    public TestService doOnEvent(final Consumer<Event> onEvent) {
+        this.doOnEvent.set(onEvent);
+        return this;
+    }
+
+    public Consumer<Unhandled> doOnFailure() {
+        return failureConsumer.get();
+    }
+
+    public TestService doOnFailure(final Consumer<Unhandled> onFailure) {
+        this.failureConsumer.set(onFailure);
+        return this;
+    }
+
+    public Consumer<Context> doOnStart() {
+        return startConsumer.get();
+    }
+
+    public TestService doOnStart(final Consumer<Context> onStart) {
+        this.startConsumer.set(onStart);
+        return this;
+    }
+
+    public Consumer<Context> doOnStop() {
+        return stopConsumer.get();
+    }
+
+    public TestService doOnStop(final Consumer<Context> onStop) {
+        this.stopConsumer.set(onStop);
+        return this;
+    }
+
+    public long getStartTime() {
+        return startTime;
+    }
+
+    // ########## DEFAULT METHODS ##########
     @Override
     public void start(final Supplier<Context> contextSub) {
+        if (isReady.compareAndSet(false, true)) {
+            startTime = System.currentTimeMillis();
+        }
         startCount.incrementAndGet();
         if (startConsumer.get() != null)
             startConsumer.get().accept(contextSub.get());
@@ -79,6 +144,20 @@ public class TestService extends Service {
     @Override
     public void onEvent(final Event event) {
         events.add(event);
-        ofNullable(eventConsumer.get()).ifPresent(consumer -> consumer.accept(event));
+        ofNullable(doOnEvent.get()).ifPresent(consumer -> consumer.accept(event));
     }
+
+    public static <T> T waitFor(final Supplier<T> waitFor) {
+        return waitFor(waitFor, 2000);
+    }
+
+    public static <T> T waitFor(final Supplier<T> waitFor, final long timeoutMs) {
+        final long startTime = System.currentTimeMillis();
+        final AtomicReference<T> result = new AtomicReference<>(null);
+        while (result.get() == null && (System.currentTimeMillis() - startTime) < timeoutMs) {
+            ofNullable(waitFor.get()).ifPresentOrElse(result::set, () -> Executor.tryExecute(() -> Thread.sleep(100)));
+        }
+        return result.get();
+    }
+
 }

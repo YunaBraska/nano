@@ -15,6 +15,7 @@ import static java.util.Optional.ofNullable;
 public class Event {
 
     protected final int id;
+    protected final long createdAtMs;
     protected final Context context;
     protected final Consumer<Object> responseListener;
     protected final Object payload;
@@ -24,7 +25,7 @@ public class Event {
      * Constructs an instance of the Event class with specified type, context, payload, and response listener.
      * This event object can be used to trigger specific actions or responses based on the event type and payload.
      *
-     * @param id             The integer representing the type of the event. This typically corresponds to a specific kind of event.
+     * @param id               The integer representing the type of the event. This typically corresponds to a specific kind of event.
      * @param context          The {@link Context} in which the event is created and processed. It provides environmental data and configurations.
      * @param payload          The data or object that is associated with this event. This can be any relevant information that needs to be passed along with the event.
      * @param responseListener A consumer that handles the response of the event processing. It can be used to execute actions based on the event's outcome or data.
@@ -34,6 +35,7 @@ public class Event {
         this.id = id;
         this.responseListener = responseListener;
         this.payload = payload;
+        this.createdAtMs = System.currentTimeMillis();
     }
 
     public String name() {
@@ -46,6 +48,10 @@ public class Event {
 
     public int id() {
         return id;
+    }
+
+    public long createdAtMs() {
+        return createdAtMs;
     }
 
     public Event ifPresent(final int eventType, final Consumer<Event> consumer) {
@@ -69,7 +75,11 @@ public class Event {
     }
 
     public Object payload() {
-        return response;
+        return payload;
+    }
+
+    public boolean isAcknowledged() {
+        return response != null;
     }
 
     public Object payloadOpt() {
@@ -121,5 +131,16 @@ public class Event {
     public Event put(final Object key, final Object value) {
         context.put(key, value);
         return this;
+    }
+
+    @Override
+    public String toString() {
+        return "Event{" +
+            "name=" + name() +
+            ", ack=" + (response != null) +
+            ", listener=" + (response != null) +
+            ", context=" + context.size() +
+            ", createdAtMs=" + createdAtMs +
+            '}';
     }
 }

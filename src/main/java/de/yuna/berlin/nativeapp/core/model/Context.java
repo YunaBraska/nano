@@ -408,7 +408,7 @@ public class Context extends ConcurrentTypeMap {
      * @return The event that was sent.
      */
     public Event sendEventReturn(final int eventType, final Object payload, final boolean await) {
-        return nano().sendEventReturn(eventType, this, payload, null, true, await, false);
+        return nano().sendEventReturn(eventType, this, payload, null, true, await, await);
     }
 
     /**
@@ -422,7 +422,7 @@ public class Context extends ConcurrentTypeMap {
      * @return The event that was sent.
      */
     public Event sendEventReturn(final int eventType, final Object payload, final boolean toFirst, final boolean await) {
-        return nano().sendEventReturn(eventType, this, payload, null, toFirst, await, false);
+        return nano().sendEventReturn(eventType, this, payload, null, toFirst, await, await);
     }
 
     /**

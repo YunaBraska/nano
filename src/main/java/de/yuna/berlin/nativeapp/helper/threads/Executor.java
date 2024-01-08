@@ -2,16 +2,11 @@ package de.yuna.berlin.nativeapp.helper.threads;
 
 import de.yuna.berlin.nativeapp.core.model.Context;
 import de.yuna.berlin.nativeapp.core.model.Service;
+import de.yuna.berlin.nativeapp.core.model.Unhandled;
 import de.yuna.berlin.nativeapp.helper.ExRunnable;
 import de.yuna.berlin.nativeapp.services.ShortTask;
 
-import java.util.concurrent.BrokenBarrierException;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -55,7 +50,7 @@ public class Executor {
             future.join();
             return future;
         } catch (final Exception exception) {
-            handleExecutionExceptions(context, exception, () -> "Error while executing [" + stream(services).map(Service::name).distinct().collect(Collectors.joining()) + "]", services);
+            handleExecutionExceptions(context, new Unhandled(context, services.length == 1 ? services[0] : services, exception), () -> "Error while executing [" + stream(services).map(Service::name).distinct().collect(Collectors.joining()) + "]");
             return CompletableFuture.failedFuture(exception);
         }
     }
@@ -88,11 +83,11 @@ public class Executor {
         })});
     }
 
-    public static void handleExecutionExceptions(final Context context, final Throwable exception, final Supplier<String> errorMsg, final Object payload) {
+    public static void handleExecutionExceptions(final Context context, final Unhandled payload, final Supplier<String> errorMsg) {
         final AtomicBoolean wasHandled = new AtomicBoolean(false);
         context.nano().sendEvent(EVENT_APP_UNHANDLED.id(), context, payload, result -> wasHandled.set(true), true, true, true);
         if (!wasHandled.get()) {
-            context.logger().error(exception, errorMsg);
+            context.logger().error(payload.exception(), errorMsg);
         }
     }
 
@@ -112,11 +107,11 @@ public class Executor {
 
     protected static boolean isConcurrentException(final Throwable ex) {
         return ex instanceof TimeoutException
-                || ex instanceof ExecutionException
-                || ex instanceof CancellationException
-                || ex instanceof BrokenBarrierException
-                || ex instanceof CompletionException
-                || ex instanceof RejectedExecutionException;
+            || ex instanceof ExecutionException
+            || ex instanceof CancellationException
+            || ex instanceof BrokenBarrierException
+            || ex instanceof CompletionException
+            || ex instanceof RejectedExecutionException;
     }
 
     private Executor() {

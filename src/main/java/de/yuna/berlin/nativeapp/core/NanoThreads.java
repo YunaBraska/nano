@@ -105,7 +105,7 @@ public abstract class NanoThreads<T extends NanoThreads<T>> extends NanoBase<T> 
      */
     @SuppressWarnings({"resource", "unchecked"})
     public T schedule(final ExRunnable task, final long delay, final TimeUnit timeUnit) {
-        final ScheduledExecutorService scheduler = asyncFromPool();
+        final Scheduler scheduler = asyncFromPool();
         scheduler.schedule(() -> {
             try {
                 task.run();
@@ -114,7 +114,7 @@ public abstract class NanoThreads<T extends NanoThreads<T>> extends NanoBase<T> 
                 final AtomicBoolean handled = new AtomicBoolean(false);
                 sendEvent(EVENT_APP_UNHANDLED.id(), context, new Unhandled(context, scheduler, e), response -> handled.set(true), false, true, true);
                 if (!handled.get()) {
-                    logger().error(e, () -> "Execution error scheduler [{}]", scheduler instanceof final Scheduler cron ? cron.id() : scheduler);
+                    logger().error(e, () -> "Execution error scheduler [{}]", scheduler.id());
                 }
             } finally {
                 sendEvent(EVENT_APP_SCHEDULER_UNREGISTER.id(), context(this.getClass()), scheduler, null, false, true, true);
@@ -135,7 +135,7 @@ public abstract class NanoThreads<T extends NanoThreads<T>> extends NanoBase<T> 
      */
     @SuppressWarnings({"resource", "unchecked"})
     public T schedule(final Runnable task, final long initialDelay, final long period, final TimeUnit unit, final BooleanSupplier until) {
-        final ScheduledExecutorService scheduler = asyncFromPool();
+        final Scheduler scheduler = asyncFromPool();
 
         // Periodic task
         scheduler.scheduleAtFixedRate(() -> {
@@ -149,11 +149,11 @@ public abstract class NanoThreads<T extends NanoThreads<T>> extends NanoBase<T> 
     }
 
     /**
-     * Creates a {@link ScheduledExecutorService} from the thread pool.
+     * Creates a {@link Scheduler} from the thread pool.
      *
-     * @return The newly created {@link ScheduledExecutorService}.
+     * @return The newly created {@link Scheduler}.
      */
-    protected ScheduledExecutorService asyncFromPool() {
+    protected Scheduler asyncFromPool() {
         final String schedulerId = callerInfoStr(this.getClass()) + "_" + UUID.randomUUID();
         final Scheduler scheduler = new Scheduler(schedulerId) {
             @Override

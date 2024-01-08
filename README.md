@@ -1,4 +1,4 @@
-# Nano Framework
+# 🧬 Nano Framework
 
 _(under construction)_
 
@@ -23,13 +23,29 @@ Welcome to **Nano Framework**, where simplicity meets power in Java development.
 value a **lightweight**, **efficient**, and **straightforward** approach to building applications. It's the essence of
 modern Java, stripped of complexity and enriched with functionality.
 
+## 📐 Concept
+
+![tiny_java_logo](src/test/resources/Nano.png)
+
 ## 🧭 Navigation
 
+* 📐 [Concept](#-concept)
 * 🔖 [Philosophy](#-philosophy-back-to-basics)
 * 🤔 [Why Nano](#-why-nano-the-nano-advantage)
 * ✨ [Benefits](#-benefits-of-nano)
 * 📚 [Getting Started](#-getting-started)
 * 🔬 [Examples](#-examples)
+    * [Start Nano](#start-nano)
+    * [Configuration](#configurations)
+    * [Logger](#logger)
+    * [Events](#events)
+    * [Services](#services)
+    * [Listeners](#listeners)
+    * [Schedulers](#schedulers)
+    * [Context](#context)
+    * [HttpService](#httpservice)
+    * 🔗 [Json](https://github.com/YunaBraska/type-map#json)
+    * 🔗 [TypeConverter](https://github.com/YunaBraska/type-map#typeconverter)
 * 🤝 [Contributing](#-contributing)
 * 📜 [License](#-license)
 * 🙋‍ [Support](#-support)
@@ -83,30 +99,96 @@ handling.
 
 ## ✨ Benefits of Nano:
 
-* ✅ **Modular Design**: Nano's architecture is modular, making it easy to understand, extend, and maintain.
-* ✅ **Concurrency Management**: Efficiently handle asynchronous tasks using advanced thread management.
-* ✅ **Event-Driven Architecture**: Robust event handling that simplifies communication between different parts of your
+* 🧩 **Modular Design**: Nano's architecture is modular, making it easy to understand, extend, and maintain.
+* 🧵 **Concurrency Management**: Efficiently handle asynchronous tasks using advanced thread management.
+* 📡 **Event-Driven Architecture**: Robust event handling that simplifies communication between different parts of your
   application.
-* ✅ **Flexible Configuration**: Configure your application using environment variables, system properties, or
+* ⚙️ **Flexible Configuration**: Configure your application using environment variables, system properties, or
   command-line
   arguments.
-* ✅ **Robust Logging and Error Handling**: Integrated logging and comprehensive error handling mechanisms for reliable
+* 📊 **Robust Logging and Error Handling**: Integrated logging and comprehensive error handling mechanisms for reliable
   operation.
-* ✅ **Scalable and Performant**: Designed with scalability and performance in mind to handle high-concurrency scenarios.
-* ✅ **Lightweight & Fast**: Starts in milliseconds, uses ~10MB memory.
-* ✅ **Pure Java, Pure Simplicity**: No reflections, no regex, no unnecessary magic.
-* ✅ **GraalVM Ready**: For ahead-of-time compilation and faster startup.
-* ✅ **Minimal Dependencies**: Reduces CVE risks and simplifies updates.
-* ✅ **Fluent & Stateless**: Intuitive API design for easy readability and maintenance.
-* ✅ **Rapid Service Development**: Build real services in minutes.
+* 🚀 **Scalable and Performant**: Designed with scalability and performance in mind to handle high-concurrency scenarios.
+* 🪶 **Lightweight & Fast**: Starts in milliseconds, uses ~10MB memory.
+* 🌿 **Pure Java, Pure Simplicity**: No reflections, no regex, no unnecessary magic.
+* ⚡ **GraalVM Ready**: For ahead-of-time compilation and faster startup.
+* 🔒 **Minimal Dependencies**: Reduces CVE risks and simplifies updates.
+* 🌊 **Fluent & Stateless**: Intuitive API design for easy readability and maintenance.
+* 🛠️ **Rapid Service Development**: Build real services in minutes.
 
 # TODO: complete following:
 
 ## 🔬 Examples
 
+Check out various examples demonstrating different capabilities of Nano here.
+
+### Start Nano
+
+* [Config](src/main/java/de/yuna/berlin/nativeapp/core/Nano.java)
+
 _(under construction)_
 
-Check out various examples demonstrating different capabilities of Nano here.
+### Configurations
+
+_(under construction)_
+
+* [Config](src/main/java/de/yuna/berlin/nativeapp/core/model/Config.java)
+
+### Logger
+
+_(under construction)_
+
+1) via config
+2) on runtime
+3) Log Queue
+
+logging [console](src/main/java/de/yuna/berlin/nativeapp/helper/logger/logic/LogFormatterConsole.java) / [json](src/main/java/de/yuna/berlin/nativeapp/helper/logger/logic/LogFormatterJson.java)
+
+* [NanoLogger](src/main/java/de/yuna/berlin/nativeapp/helper/logger/logic/NanoLogger.java)
+* [LogQueue](src/main/java/de/yuna/berlin/nativeapp/helper/logger/logic/LogQueue.java)
+* [LogLevel](src/main/java/de/yuna/berlin/nativeapp/helper/logger/model/LogLevel.java)
+
+### Events
+
+_(under construction)_
+
+* [Event](src/main/java/de/yuna/berlin/nativeapp/helper/event/model/Event.java)
+* [Predefined Event](src/main/java/de/yuna/berlin/nativeapp/helper/event/model/EventType.java)
+* [EventTypeRegister](src/main/java/de/yuna/berlin/nativeapp/helper/event/EventTypeRegister.java)
+
+### Schedulers
+
+_(under construction)_
+
+* [Schedulers](src/main/java/de/yuna/berlin/nativeapp/core/model/Scheduler.java)
+
+### Listeners
+
+_(under construction)_
+
+* [Nano](src/main/java/de/yuna/berlin/nativeapp/core/Nano.java)
+
+### Services
+
+_(under construction)_
+
+* [Service](src/main/java/de/yuna/berlin/nativeapp/core/model/Service.java)
+
+### Context
+
+_(under construction)_
+
+* Tracing
+* Logging
+* Events
+* Schedulers
+* [Context](src/main/java/de/yuna/berlin/nativeapp/core/model/Context.java)
+
+### HttpService
+
+_(under construction)_
+
+* [HttpService](src/main/java/de/yuna/berlin/nativeapp/services/http/HttpService.java)
 
 ## 🤝 Contributing
 

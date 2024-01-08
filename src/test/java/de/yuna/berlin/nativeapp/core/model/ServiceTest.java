@@ -3,6 +3,7 @@ package de.yuna.berlin.nativeapp.core.model;
 import de.yuna.berlin.nativeapp.core.Nano;
 import de.yuna.berlin.nativeapp.helper.event.model.Event;
 import de.yuna.berlin.nativeapp.model.TestService;
+import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -22,34 +23,33 @@ class ServiceTest {
         final Context context = nano.context(this.getClass());
         final TestService service = new TestService(true);
         final Unhandled error = new Unhandled(null, null, null);
-        final Event event = new Event(EVENT_APP_UNHANDLED.id(), context, error, null);
 
         assertThat(service).isNotNull();
         assertThat(service.createdAtMs()).isGreaterThan(startTime);
-        assertThat(service.startCount.get()).isEqualTo(0);
-        assertThat(service.stopCount.get()).isZero();
-        assertThat(service.events).isEmpty();
-        assertThat(service.failures).isEmpty();
+        assertThat(service.startCount()).isEqualTo(0);
+        assertThat(service.stopCount()).isZero();
+        assertThat(service.events()).isEmpty();
+        assertThat(service.failures()).isEmpty();
 
         service.start(() -> context);
-        assertThat(service.startCount.get()).isEqualTo(1);
+        assertThat(service.startCount()).isEqualTo(1);
 
         service.stop(() -> context);
-        assertThat(service.stopCount.get()).isEqualTo(1);
+        assertThat(service.stopCount()).isEqualTo(1);
 
         service.onFailure(error);
-        assertThat(service.failures).hasSize(1).contains(error);
+        assertThat(service.failures()).hasSize(1).contains(error);
 
+        final Event event = new Event(EVENT_APP_UNHANDLED.id(), context, error, null);
         service.onEvent(event);
-        assertThat(service.events).hasSize(1).contains(event);
+        assertThat(service.getEvent(EVENT_APP_UNHANDLED.id())).isNotNull().has(new Condition<>(e -> e.payload(Unhandled.class) == error, "Should contain payload with error"));
 
         assertThat(nano.services()).isEmpty();
         service.tryExecuteService(context);
         service.handleServiceException(context, new RuntimeException("Nothing to see here, just a test exception"));
-        service.wait(EVENT_APP_UNHANDLED.id());
         tryExecute(() -> Thread.sleep(64)); //Safety cause of async
-        assertThat(service.startCount.get()).isEqualTo(2);
-        assertThat(service.failures).hasSize(2);
+        assertThat(service.startCount()).isEqualTo(2);
+        assertThat(service.failures()).hasSize(2);
         assertThat(nano.services()).hasSize(1);
 
         nano.stop(context);

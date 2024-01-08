@@ -188,16 +188,20 @@ public class Nano extends NanoServices<Nano> {
      * @param toFirst Whether to send the event only to the first matching listener.
      */
     public void sendEventSameThread(final Event event, final boolean toFirst) {
-        final boolean match = listeners.getOrDefault(event.id(), Collections.emptySet()).stream().anyMatch(listener -> {
-            tryExecute(() -> listener.accept(event), throwable -> event.context().logger().error(throwable, () -> "Error processing {} [{}] payload [{}]", Event.class.getSimpleName(), event.name(), event.payload()));
-            return toFirst && event.response() != null;
-        });
-        if (!match) {
-            services.stream().filter(Service::isReady).anyMatch(service -> {
-                tryExecute(() -> service.onEvent(event), throwable -> handleEventServiceException(event, service, throwable));
-                return toFirst && event.response() != null;
+        eventCount.incrementAndGet();
+        tryExecute(() -> {
+            final boolean match = listeners.getOrDefault(event.id(), Collections.emptySet()).stream().anyMatch(listener -> {
+                tryExecute(() -> listener.accept(event), throwable -> event.context().logger().error(throwable, () -> "Error processing {} [{}] payload [{}]", Event.class.getSimpleName(), event.name(), event.payload()));
+                return toFirst && event.isAcknowledged();
             });
-        }
+            if (!match) {
+                services.stream().filter(Service::isReady).anyMatch(service -> {
+                    tryExecute(() -> service.onEvent(event), throwable -> handleEventServiceException(event, service, throwable));
+                    return toFirst && event.isAcknowledged();
+                });
+            }
+        });
+        eventCount.decrementAndGet();
     }
 
     protected void handleEventServiceException(final Event event, final Service service, final Throwable throwable) {

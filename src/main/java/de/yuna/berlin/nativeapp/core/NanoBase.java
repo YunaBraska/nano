@@ -24,9 +24,7 @@ import java.util.stream.Collectors;
 
 import static berlin.yuna.typemap.config.TypeConversionRegister.registerTypeConvert;
 import static berlin.yuna.typemap.logic.TypeConverter.convertObj;
-import static de.yuna.berlin.nativeapp.core.model.Config.APP_HELP;
-import static de.yuna.berlin.nativeapp.core.model.Config.CONFIG_LOG_FORMATTER;
-import static de.yuna.berlin.nativeapp.core.model.Config.CONFIG_LOG_LEVEL;
+import static de.yuna.berlin.nativeapp.core.model.Config.*;
 import static de.yuna.berlin.nativeapp.core.model.Context.createRootContext;
 import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_LOG_LEVEL;
 import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_LOG_QUEUE;
@@ -48,6 +46,7 @@ public abstract class NanoBase<T extends NanoBase<T>> {
     protected final NanoLogger logger;
     protected final Map<Integer, Set<Consumer<Event>>> listeners = new ConcurrentHashMap<>();
     protected final AtomicBoolean isReady = new AtomicBoolean(true);
+    protected final AtomicInteger eventCount = new AtomicInteger(0);
     @SuppressWarnings("java:S2386")
     public static final Map<Integer, String> EVENT_TYPES = new ConcurrentHashMap<>();
     public static final AtomicInteger EVENT_ID_COUNTER = new AtomicInteger(0);
@@ -70,8 +69,8 @@ public abstract class NanoBase<T extends NanoBase<T>> {
         if (configs != null)
             configs.forEach((key, value) -> rootContext.computeIfAbsent(convertObj(key, String.class), add -> ofNullable(convertObj(value, String.class)).orElse("")));
         this.logger = new NanoLogger(this)
-                .level(rootContext.gett(CONFIG_LOG_LEVEL.id(), String.class).map(LogLevel::nanoLogLevelOf).orElse(LogLevel.DEBUG))
-                .formatter(rootContext.gett(CONFIG_LOG_FORMATTER.id(), String.class).map(LogFormatRegister::getLogFormatter).orElseGet(() -> getLogFormatter("console")));
+            .level(rootContext.gett(CONFIG_LOG_LEVEL.id(), String.class).map(LogLevel::nanoLogLevelOf).orElse(LogLevel.DEBUG))
+            .formatter(rootContext.gett(CONFIG_LOG_FORMATTER.id(), String.class).map(LogFormatRegister::getLogFormatter).orElseGet(() -> getLogFormatter("console")));
         displayHelpMenu();
         addEventListener(EVENT_APP_LOG_LEVEL.id(), event -> event.payloadOpt(LogLevel.class).or(() -> event.payloadOpt(Level.class).map(LogLevel::nanoLogLevelOf)).map(this::setLogLevel).ifPresent(nano -> event.acknowledge()));
         addEventListener(EVENT_APP_LOG_QUEUE.id(), event -> event.payloadOpt(LogQueue.class).map(logger::logQueue).ifPresent(nano -> event.acknowledge()));
@@ -195,6 +194,10 @@ public abstract class NanoBase<T extends NanoBase<T>> {
      */
     public boolean isReady() {
         return isReady.get();
+    }
+
+    public int eventCount() {
+        return eventCount.get();
     }
 
     /**

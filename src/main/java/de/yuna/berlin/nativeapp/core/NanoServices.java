@@ -103,7 +103,6 @@ public abstract class NanoServices<T extends NanoServices<T>> extends NanoThread
     @SuppressWarnings("unchecked")
     protected T registerService(final Service service) {
         if (service != null) {
-            logger.trace(() -> "Start [{}]", service.name());
             services.add(service);
         }
         return (T) this;
@@ -119,11 +118,9 @@ public abstract class NanoServices<T extends NanoServices<T>> extends NanoThread
     @SuppressWarnings("unchecked")
     protected T unregisterService(final Context context, final Service service) {
         if (service != null) {
-            logger.trace(() -> "Stop [{}]", service.name());
             services.remove(service);
             try {
                 service.stop(() -> context);
-                logger.trace(() -> "Stopped [{}]", service.name());
             } catch (final Exception e) {
                 logger.warn(e, () -> "Stop [{}] error", service.name());
             }

@@ -103,10 +103,10 @@ public abstract class Service {
         try {
             final Unhandled unhandled = new Unhandled(context, this, exception);
             if (this.onFailure(unhandled) == null) {
-                handleExecutionExceptions(context, exception, () -> "Execution error [" + this.name() + "]", this);
+                handleExecutionExceptions(context, unhandled, () -> "Execution error [" + this.name() + "]");
             }
         } catch (final Exception e) {
-            handleExecutionExceptions(context, e, () -> "Execution error [" + this.name() + "]", this);
+            handleExecutionExceptions(context, new Unhandled(context, this, e), () -> "Execution error [" + this.name() + "]");
         }
     }
 
