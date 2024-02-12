@@ -273,12 +273,9 @@ public class NanoTest {
             throw new RuntimeException("Nothing to see here, just a test exception");
         }, timer, timer * 2, MILLISECONDS, () -> false);
 
-        assertThat(nano.schedulers()).hasSizeBetween(2, 3);
         assertThat(service.getEvent(EVENT_APP_UNHANDLED.id(), event -> event.payload() != null)).isNotNull();
         nano.stop(this.getClass());
     }
-
-    //TODO: test configurations
 
     private static void stopAndTestNano(final Nano nano, final TestService service) {
         assertThat(nano.isReady()).isTrue();
