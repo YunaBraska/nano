@@ -39,6 +39,5 @@ public enum LogLevel {
             }
         }
         return ALL;
-
     }
 }

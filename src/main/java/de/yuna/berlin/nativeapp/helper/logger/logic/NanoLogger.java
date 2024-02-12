@@ -5,19 +5,11 @@ import de.yuna.berlin.nativeapp.helper.logger.model.LogInfoHandler;
 import de.yuna.berlin.nativeapp.helper.logger.model.LogLevel;
 
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
-import java.util.logging.Formatter;
-import java.util.logging.Handler;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
+import java.util.logging.*;
 
-import static de.yuna.berlin.nativeapp.helper.logger.model.LogLevel.DEBUG;
-import static de.yuna.berlin.nativeapp.helper.logger.model.LogLevel.ERROR;
-import static de.yuna.berlin.nativeapp.helper.logger.model.LogLevel.FATAL;
-import static de.yuna.berlin.nativeapp.helper.logger.model.LogLevel.INFO;
-import static de.yuna.berlin.nativeapp.helper.logger.model.LogLevel.TRACE;
-import static de.yuna.berlin.nativeapp.helper.logger.model.LogLevel.WARN;
-import static de.yuna.berlin.nativeapp.helper.logger.model.LogLevel.nanoLogLevelOf;
+import static de.yuna.berlin.nativeapp.helper.logger.model.LogLevel.*;
 
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class NanoLogger {
@@ -25,6 +17,9 @@ public class NanoLogger {
     public static final LogInfoHandler DEFAULT_LOG_INFO_HANDLER = new LogInfoHandler(DEFAULT_LOG_FORMATTER);
     public static final LogErrorHandler DEFAULT_LOG_ERROR_HANDLER = new LogErrorHandler(DEFAULT_LOG_FORMATTER);
     protected final Logger logger;
+    // cause the log level of java is not thread safe
+    // FIXME: create very own logger as every config of the java logger is not thread safe
+    protected final AtomicReference<LogLevel> level = new AtomicReference<>(DEBUG);
     protected LogQueue logQueue;
     public static AtomicInteger MAX_LOG_NAME_LENGTH = new AtomicInteger(10);
 
@@ -35,6 +30,7 @@ public class NanoLogger {
     public NanoLogger(final Class<?> clazz) {
         logger = Logger.getLogger(clazz.getName());
         logger.setUseParentHandlers(false);
+        logger.setLevel(Level.ALL);
         addHandlerIfAbsent(DEFAULT_LOG_INFO_HANDLER);
         addHandlerIfAbsent(DEFAULT_LOG_ERROR_HANDLER);
         MAX_LOG_NAME_LENGTH.updateAndGet(length -> Math.max(length, clazz.getSimpleName().length()));
@@ -48,7 +44,7 @@ public class NanoLogger {
         return logQueue;
     }
 
-    public synchronized NanoLogger logQueue(final LogQueue logQueue) {
+    public NanoLogger logQueue(final LogQueue logQueue) {
         this.logQueue = logQueue;
         return this;
     }
@@ -65,12 +61,14 @@ public class NanoLogger {
     }
 
     public NanoLogger level(final LogLevel level) {
-        logger.setLevel(level.toJavaLogLevel());
+        this.level.set(level);
+//        logger.setLevel(level.toJavaLogLevel());
         return this;
     }
 
     public LogLevel level() {
-        return nanoLogLevelOf(logger.getLevel());
+        return level.get();
+//        return nanoLogLevelOf(logger.getLevel());
     }
 
     public NanoLogger fatal(final Supplier<String> message, final Object... params) {
@@ -126,7 +124,7 @@ public class NanoLogger {
     }
 
     public NanoLogger log(final LogLevel level, final Throwable thrown, final Supplier<String> message, final Object... params) {
-        if (level != null && message != null && logger.isLoggable(level.toJavaLogLevel())) {
+        if (level != null && message != null && isLoggable(level)) {
             final LogRecord logRecord = new LogRecord(level.toJavaLogLevel(), message.get());
             logRecord.setParameters(params);
             logRecord.setThrown(thrown);
@@ -141,6 +139,10 @@ public class NanoLogger {
         return this;
     }
 
+    protected boolean isLoggable(final LogLevel level) {
+        final int levelValue = this.level.get().ordinal();
+        return level.ordinal() <= levelValue;
+    }
 
     protected void addHandlerIfAbsent(final Handler newHandler) {
         for (final Handler existingHandler : logger.getHandlers()) {

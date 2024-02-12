@@ -6,16 +6,11 @@ import de.yuna.berlin.nativeapp.helper.event.model.Event;
 import de.yuna.berlin.nativeapp.helper.logger.logic.NanoLogger;
 import de.yuna.berlin.nativeapp.helper.logger.model.LogLevel;
 import de.yuna.berlin.nativeapp.helper.threads.Executor;
-import de.yuna.berlin.nativeapp.services.ShortTask;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
+import java.util.*;
 import java.util.function.Consumer;
 
+import static de.yuna.berlin.nativeapp.core.model.NanoThread.waitFor;
 import static java.util.Arrays.stream;
 
 @SuppressWarnings({"unused", "UnusedReturnValue", "java:S2160"})
@@ -62,7 +57,7 @@ public class Context extends ConcurrentTypeMap {
 
     public NanoLogger logger() {
         return gett(CONTEXT_LOGGER_KEY, NanoLogger.class)
-                .orElseGet(() -> setLogger(Context.class).get(CONTEXT_LOGGER_KEY, NanoLogger.class).warn(() -> "Fallback to generic logger used. It is recommended to provide a context-specific logger for improved traceability and context-aware logging. A context-specific logger allows for more granular control over logging behaviors, including level filtering, log format customization, and targeted log output, which enhances the debugging and monitoring capabilities. Using a generic logger might result in less optimal logging granularity and difficulty in tracing issues related to specific contexts.", new IllegalStateException("Context-specific logger not provided. Falling back to a generic logger.")));
+            .orElseGet(() -> setLogger(Context.class).get(CONTEXT_LOGGER_KEY, NanoLogger.class).warn(() -> "Fallback to generic logger used. It is recommended to provide a context-specific logger for improved traceability and context-aware logging. A context-specific logger allows for more granular control over logging behaviors, including level filtering, log format customization, and targeted log output, which enhances the debugging and monitoring capabilities. Using a generic logger might result in less optimal logging granularity and difficulty in tracing issues related to specific contexts.", new IllegalStateException("Context-specific logger not provided. Falling back to a generic logger.")));
     }
 
     public Context copy(final Class<?> clazz, final Nano nano) {
@@ -125,29 +120,27 @@ public class Context extends ConcurrentTypeMap {
     //########## ASYNC HELPERS ##########
 
     /**
-     * Executes one or multiple {@link ShortTask} asynchronously.
+     * Executes one or multiple runnable asynchronously.
      *
-     * @param timeoutMs optional timeout for the current function. '-1' means use default
-     * @param runnable  function to execute.
+     * @param runnable function to execute.
      * @return The {@link Context} object for chaining further operations.
      */
     @SafeVarargs
-    public final Context async(final long timeoutMs, final Consumer<Context>... runnable) {
-        Executor.execAsync(this, stream(runnable).map(task -> new ShortTask(task, timeoutMs, null)).toArray(Service[]::new));
+    public final Context async(final Consumer<Context>... runnable) {
+        asyncReturn(runnable);
         return this;
     }
 
     /**
-     * Executes one or multiple {@link ShortTask} asynchronously.
+     * Executes one or multiple runnable asynchronously.
      *
      * @param onFailure function to execute on failure
-     * @param timeoutMs optional timeout for the current function. '-1' means use default
      * @param runnable  function to execute.
      * @return The {@link Context} object for chaining further operations.
      */
     @SafeVarargs
-    public final Context async(final Consumer<Unhandled> onFailure, final long timeoutMs, final Consumer<Context>... runnable) {
-        Executor.execAsync(this, stream(runnable).map(task -> new ShortTask(task, timeoutMs, onFailure)).toArray(Service[]::new));
+    public final Context asyncHandled(final Consumer<Unhandled> onFailure, final Consumer<Context>... runnable) {
+        asyncReturnHandled(onFailure, runnable);
         return this;
     }
 
@@ -169,7 +162,7 @@ public class Context extends ConcurrentTypeMap {
      * @param services  the collection of services to be executed.
      * @return The Executor object for chaining further operations.
      */
-    public Context async(final Consumer<Context> whenReady, final Service... services) {
+    public Context asyncHandled(final Consumer<Context> whenReady, final Service... services) {
         Executor.execAsync(this, whenReady, services);
         return this;
     }
@@ -177,66 +170,68 @@ public class Context extends ConcurrentTypeMap {
     //########## ASYNC RETURN HELPER ##########
 
     /**
-     * Executes one or multiple {@link ShortTask} asynchronously.
+     * Executes one or multiple runnable asynchronously.
      *
-     * @param timeoutMs optional timeout for the current function. '-1' means use default
-     * @param runnable  function to execute.
-     * @return {@link CompletableFuture}
+     * @param runnable function to execute.
+     * @return {@link NanoThread}s
      */
     @SafeVarargs
-    public final CompletableFuture<Void> asyncReturn(final long timeoutMs, final Consumer<Context>... runnable) {
-        return Executor.execAsync(this, stream(runnable).map(task -> new ShortTask(task, timeoutMs, null)).toArray(Service[]::new));
+    public final NanoThread[] asyncReturn(final Consumer<Context>... runnable) {
+        return stream(runnable).map(task -> new NanoThread(this).execute(() -> task.accept(this))).toArray(NanoThread[]::new);
     }
 
     /**
-     * Executes one or multiple {@link ShortTask} asynchronously.
+     * Executes one or multiple runnable asynchronously.
      *
      * @param onFailure function to execute on failure
-     * @param timeoutMs optional timeout for the current function. '-1' means use default
      * @param runnable  function to execute.
-     * @return {@link CompletableFuture}
+     * @return {@link NanoThread}s
      */
     @SafeVarargs
-    public final CompletableFuture<Void> asyncReturn(final Consumer<Unhandled> onFailure, final long timeoutMs, final Consumer<Context>... runnable) {
-        return Executor.execAsync(this, stream(runnable).map(task -> new ShortTask(task, timeoutMs, onFailure)).toArray(Service[]::new));
+    public final NanoThread[] asyncReturnHandled(final Consumer<Unhandled> onFailure, final Consumer<Context>... runnable) {
+        return stream(runnable).map(task -> new NanoThread(this)
+            .onComplete((thread, error) -> {
+                if (error != null)
+                    onFailure.accept(new Unhandled(this, thread, error));
+            })
+            .execute(() -> task.accept(this))
+        ).toArray(NanoThread[]::new);
     }
 
     /**
      * Executes one or multiple {@link Service} asynchronously.
      *
      * @param services The {@link Service} to be appended.
-     * @return {@link CompletableFuture}
+     * @return {@link NanoThread}s
      */
-    public CompletableFuture<Void> asyncReturn(final Service... services) {
+    public NanoThread[] asyncReturn(final Service... services) {
         return Executor.execAsync(this, services);
     }
 
     //########## ASYNC AWAIT HELPER ##########
 
     /**
-     * Executes and waits for all {@link Service} to be ready
+     * Executes and waits for all runnable to be ready
      *
-     * @param timeoutMs optional timeout for the current function. '-1' means use default
-     * @param runnable  function to execute.
+     * @param runnable function to execute.
      * @return The {@link Context} object for chaining further operations.
      */
     @SafeVarargs
-    public final Context asyncAwait(final long timeoutMs, final Consumer<Context>... runnable) {
-        Executor.execAwait(this, stream(runnable).map(task -> new ShortTask(task, timeoutMs, null)).toArray(Service[]::new));
+    public final Context asyncAwait(final Consumer<Context>... runnable) {
+        waitFor(asyncReturn(runnable));
         return this;
     }
 
     /**
-     * Executes and waits for all {@link Service} to be ready
+     * Executes and waits for all runnable to be ready
      *
      * @param onFailure function to execute on failure
-     * @param timeoutMs optional timeout for the current function. '-1' means use default
      * @param runnable  function to execute.
      * @return The {@link Context} object for chaining further operations.
      */
     @SafeVarargs
-    public final Context asyncAwait(final Consumer<Unhandled> onFailure, final long timeoutMs, final Consumer<Context>... runnable) {
-        Executor.execAwait(this, stream(runnable).map(task -> new ShortTask(task, timeoutMs, onFailure)).toArray(Service[]::new));
+    public final Context asyncAwaitHandled(final Consumer<Unhandled> onFailure, final Consumer<Context>... runnable) {
+        waitFor(asyncReturnHandled(onFailure, runnable));
         return this;
     }
 
@@ -257,11 +252,11 @@ public class Context extends ConcurrentTypeMap {
      *
      * @param timeoutMs optional timeout for the current function. '-1' means use default
      * @param runnable  function to execute.
-     * @return {@link CompletableFuture}
+     * @return {@link NanoThread}s
      */
     @SafeVarargs
-    public final CompletableFuture<Void> asyncAwaitReturn(final long timeoutMs, final Consumer<Context>... runnable) {
-        return Executor.execAwait(this, stream(runnable).map(task -> new ShortTask(task, timeoutMs, null)).toArray(Service[]::new));
+    public final NanoThread[] asyncAwaitReturn(final long timeoutMs, final Consumer<Context>... runnable) {
+        return waitFor(asyncReturn(runnable));
     }
 
     /**
@@ -270,19 +265,19 @@ public class Context extends ConcurrentTypeMap {
      * @param onFailure function to execute on failure
      * @param timeoutMs optional timeout for the current function. '-1' means use default
      * @param runnable  function to execute.
-     * @return {@link CompletableFuture}
+     * @return {@link NanoThread}s
      */
     @SafeVarargs
-    public final CompletableFuture<Void> asyncAwaitReturn(final Consumer<Unhandled> onFailure, final long timeoutMs, final Consumer<Context>... runnable) {
-        return Executor.execAwait(this, stream(runnable).map(task -> new ShortTask(task, timeoutMs, onFailure)).toArray(Service[]::new));
+    public final NanoThread[] asyncAwaitReturnHandled(final Consumer<Unhandled> onFailure, final long timeoutMs, final Consumer<Context>... runnable) {
+        return waitFor(asyncReturnHandled(onFailure, runnable));
     }
 
     /**
      * Executes and waits for all {@link Service} to be ready
      *
-     * @return {@link CompletableFuture}
+     * @return {@link NanoThread}s
      */
-    public CompletableFuture<Void> asyncAwaitReturn(final Service... services) {
+    public NanoThread[] asyncAwaitReturn(final Service... services) {
         return Executor.execAwait(this, services);
     }
 
@@ -474,9 +469,9 @@ public class Context extends ConcurrentTypeMap {
     @Override
     public String toString() {
         return "Context{" +
-                "size=" + size() +
-                ", loglevel=" + gett(CONTEXT_LOGGER_KEY, NanoLogger.class).map(NanoLogger::level).orElse(null) +
-                ", logQueue=" + gett(CONTEXT_LOGGER_KEY, NanoLogger.class).map(NanoLogger::logQueue).isPresent() +
-                '}';
+            "size=" + size() +
+            ", loglevel=" + gett(CONTEXT_LOGGER_KEY, NanoLogger.class).map(NanoLogger::level).orElse(null) +
+            ", logQueue=" + gett(CONTEXT_LOGGER_KEY, NanoLogger.class).map(NanoLogger::logQueue).isPresent() +
+            '}';
     }
 }

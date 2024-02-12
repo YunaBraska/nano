@@ -1,7 +1,9 @@
 package de.yuna.berlin.nativeapp.core.model;
 
 import de.yuna.berlin.nativeapp.core.Nano;
+import de.yuna.berlin.nativeapp.helper.PrintTestNamesExtension;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Map;
 
@@ -9,6 +11,7 @@ import static de.yuna.berlin.nativeapp.core.NanoTest.TEST_LOG_LEVEL;
 import static de.yuna.berlin.nativeapp.core.model.Config.CONFIG_LOG_LEVEL;
 import static org.assertj.core.api.Assertions.assertThat;
 
+@ExtendWith(PrintTestNamesExtension.class)
 class UnhandledTest {
 
     @Test

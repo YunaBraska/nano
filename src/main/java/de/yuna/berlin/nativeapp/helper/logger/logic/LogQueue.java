@@ -1,10 +1,6 @@
 package de.yuna.berlin.nativeapp.helper.logger.logic;
 
-import de.yuna.berlin.nativeapp.core.model.Config;
-import de.yuna.berlin.nativeapp.core.model.Context;
-import de.yuna.berlin.nativeapp.core.model.Pair;
-import de.yuna.berlin.nativeapp.core.model.Service;
-import de.yuna.berlin.nativeapp.core.model.Unhandled;
+import de.yuna.berlin.nativeapp.core.model.*;
 import de.yuna.berlin.nativeapp.helper.event.model.Event;
 import de.yuna.berlin.nativeapp.helper.logger.model.LogLevel;
 
@@ -27,11 +23,11 @@ public class LogQueue extends Service {
     protected int queueCapacity;
 
     public LogQueue() {
-        super(null, -1, true, false, false);
+        super(null, false);
     }
 
     public boolean log(final Logger logger, final LogRecord logRecord) {
-        if (isReady()) {
+        if (isReady() && queue != null) {
             try {
                 queue.put(new Pair<>(logger, logRecord));
                 return true;
@@ -43,16 +39,15 @@ public class LogQueue extends Service {
     }
 
     @Override
-    public synchronized void start(final Supplier<Context> contextSub) {
-        if (isReady())
-            return;
-        final Context context = contextSub.get();
-        queueCapacity = context.gett(Config.CONFIG_LOG_QUEUE_SIZE.id(), Integer.class).orElse(1000);
-        queue = new LinkedBlockingQueue<>(queueCapacity);
-        this.isReady(true);
-        future = context.nano().execute(this::process);
-        context.nano().schedule(this::checkQueueSizeAndWarn, 5, 5, TimeUnit.MINUTES, () -> !isReady());
-        context.sendEvent(EVENT_APP_LOG_QUEUE.id(), this, false, false);
+    public void start(final Supplier<Context> contextSub) {
+        if (isReady.compareAndSet(false, true)) {
+            final Context context = contextSub.get();
+            queueCapacity = context.gett(Config.CONFIG_LOG_QUEUE_SIZE.id(), Integer.class).orElse(1000);
+            queue = new LinkedBlockingQueue<>(queueCapacity);
+            future = context.nano().execute(this::process);
+            context.nano().schedule(this::checkQueueSizeAndWarn, 5, 5, TimeUnit.MINUTES, () -> !isReady());
+            context.sendEvent(EVENT_APP_LOG_QUEUE.id(), this, false, false);
+        }
     }
 
     @Override
@@ -60,14 +55,14 @@ public class LogQueue extends Service {
         if (isReady.compareAndSet(true, false)) {
             try {
                 contextSub.get().sendEvent(EVENT_APP_LOG_QUEUE.id(), null, false, true, true);
-                isReady(false);
-                logger.debug(() -> "Shutdown initiated - process last messages messages [{}]", queue.size());
+                logger.debug(() -> "Shutdown initiated - process last messages [{}]", queue.size());
                 queue.put(new Pair<>(logger.logger(), new LogRecord(Level.INFO, "Shutdown Hook")));
                 queue = null;
-                future.cancel(true);
-                future = null;
             } catch (final InterruptedException e) {
                 Thread.currentThread().interrupt();
+            } finally {
+                future.cancel(true);
+                future = null;
             }
         }
     }
@@ -99,10 +94,12 @@ public class LogQueue extends Service {
     }
 
     protected void checkQueueSizeAndWarn() {
-        final int size = queue.size();
-        final int percentage = size > 0 ? ((int) ((double) size / queueCapacity) * 100) : 0;
-        if (percentage > 80) {
-            logger.warn(() -> "Warning: Log queue is " + percentage + "% full.");
+        if (queue != null && isReady.get()) {
+            final int size = queue.size();
+            final int percentage = size > 0 ? ((int) ((double) size / queueCapacity) * 100) : 0;
+            if (percentage > 80) {
+                logger.warn(() -> "Warning: Log queue is " + percentage + "% full.");
+            }
         }
     }
 }

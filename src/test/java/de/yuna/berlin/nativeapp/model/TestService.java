@@ -30,8 +30,8 @@ public class TestService extends Service {
     private long startTime = System.currentTimeMillis();
     public static int TEST_EVENT = EventTypeRegister.registerEventType("TEST_EVENT");
 
-    public TestService(final boolean isLongRunning) {
-        super(null, -1, isLongRunning, false, false);
+    public TestService() {
+        super(null, false);
     }
 
     public TestService resetEvents() {

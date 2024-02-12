@@ -34,7 +34,7 @@ public class HttpService extends Service {
     private final AtomicReference<HttpRequestListener> errorHandler = new AtomicReference<>(null);
 
     public HttpService(final int port) {
-        super(null, 10000, true, false, false);
+        super(null, false);
         this.port = port > 0 ? port : 8058;
     }
 

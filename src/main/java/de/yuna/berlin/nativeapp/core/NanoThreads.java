@@ -9,25 +9,15 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 
-import static de.yuna.berlin.nativeapp.core.model.Config.CONFIG_THREAD_POOL_ALIVE_MS;
-import static de.yuna.berlin.nativeapp.core.model.Config.CONFIG_THREAD_POOL_MAX;
-import static de.yuna.berlin.nativeapp.core.model.Config.CONFIG_THREAD_POOL_MIN;
 import static de.yuna.berlin.nativeapp.core.model.Config.CONFIG_THREAD_POOL_TIMEOUT_MS;
+import static de.yuna.berlin.nativeapp.core.model.NanoThread.activeNanoThreads;
 import static de.yuna.berlin.nativeapp.helper.StringUtils.callerInfoStr;
 import static de.yuna.berlin.nativeapp.helper.StringUtils.getThreadName;
-import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_SCHEDULER_REGISTER;
-import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_SCHEDULER_UNREGISTER;
-import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_UNHANDLED;
+import static de.yuna.berlin.nativeapp.helper.event.model.EventType.*;
 import static java.util.Collections.unmodifiableSet;
 
 /**
@@ -38,8 +28,8 @@ import static java.util.Collections.unmodifiableSet;
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public abstract class NanoThreads<T extends NanoThreads<T>> extends NanoBase<T> {
 
-    protected final ThreadPoolExecutor threadPool;
     protected final Set<ScheduledExecutorService> schedulers;
+    protected final ExecutorService threadPool = Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("nano-thread-", 0).factory());
 
     /**
      * Initializes {@link NanoThreads} with configurations and command-line arguments.
@@ -49,16 +39,7 @@ public abstract class NanoThreads<T extends NanoThreads<T>> extends NanoBase<T> 
      */
     protected NanoThreads(final Map<Object, Object> config, final String... args) {
         super(config, args);
-        final int corePoolSize = rootContext.gett(CONFIG_THREAD_POOL_MIN.id(), Integer.class).filter(value -> value > 0).orElse(Math.max(4, Runtime.getRuntime().availableProcessors() - 1));
         this.schedulers = ConcurrentHashMap.newKeySet();
-        this.threadPool = new ThreadPoolExecutor(
-                corePoolSize,
-                rootContext.gett(CONFIG_THREAD_POOL_MAX.id(), Integer.class).filter(value -> value > 0).orElse(Math.max(corePoolSize, Math.min(256, Runtime.getRuntime().availableProcessors() * 4))),
-                rootContext.gett(CONFIG_THREAD_POOL_ALIVE_MS.id(), Long.class).filter(value -> value > 0).orElse(60000L),
-                TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<>(corePoolSize),
-                new ThreadPoolExecutor.CallerRunsPolicy()
-        );
         addEventListener(EVENT_APP_SCHEDULER_REGISTER.id(), event -> event.payloadOpt(ScheduledExecutorService.class).map(schedulers::add).ifPresent(nano -> event.acknowledge()));
         addEventListener(EVENT_APP_SCHEDULER_UNREGISTER.id(), event -> event.payloadOpt(ScheduledExecutorService.class).map(scheduler -> {
             scheduler.shutdown();
@@ -72,8 +53,8 @@ public abstract class NanoThreads<T extends NanoThreads<T>> extends NanoBase<T> 
      *
      * @return The ThreadPoolExecutor instance.
      */
-    public ThreadPoolExecutor threadPool() {
-        return threadPool;
+    public ExecutorService threadPool() {
+        return !threadPool.isTerminated() && !threadPool.isShutdown() ? threadPool : null;
     }
 
     /**
@@ -158,8 +139,13 @@ public abstract class NanoThreads<T extends NanoThreads<T>> extends NanoBase<T> 
         final Scheduler scheduler = new Scheduler(schedulerId) {
             @Override
             protected void beforeExecute(final Thread t, final Runnable r) {
-                threadPool.submit(r);
                 t.setName("Scheduler_" + schedulerId);
+                try {
+                    if (!threadPool.isTerminated() && !threadPool.isShutdown())
+                        threadPool.submit(r);
+                } catch (final Exception ignored) {
+                    // only happens while shutdown
+                }
             }
         };
         sendEvent(EVENT_APP_SCHEDULER_REGISTER.id(), context(Scheduler.class), scheduler, null, false, false, false);
@@ -173,7 +159,7 @@ public abstract class NanoThreads<T extends NanoThreads<T>> extends NanoBase<T> 
         final long timeoutMs = rootContext.gett(CONFIG_THREAD_POOL_TIMEOUT_MS.id(), Long.class).filter(l -> l > 0).orElse(500L);
         logger.debug(() -> "Shutdown schedulers [{}]", schedulers.size());
         shutdownExecutors(timeoutMs, schedulers.toArray(ScheduledExecutorService[]::new));
-        logger.debug(() -> "Shutdown {} [{}]", threadPool.getClass().getSimpleName(), threadPool.getActiveCount());
+        logger.debug(() -> "Shutdown {} [{}]", threadPool.getClass().getSimpleName(), activeNanoThreads());
         shutdownExecutors(timeoutMs, threadPool);
     }
 
@@ -184,6 +170,8 @@ public abstract class NanoThreads<T extends NanoThreads<T>> extends NanoBase<T> 
      * @param executorServices An array of ExecutorService instances to shut down.
      */
     protected void shutdownExecutors(final long timeoutMs, final ExecutorService... executorServices) {
+        Arrays.stream(executorServices).forEach(ExecutorService::shutdown);
+
         Arrays.stream(executorServices).parallel().forEach(executorService -> {
             executorService.shutdown();
             try {

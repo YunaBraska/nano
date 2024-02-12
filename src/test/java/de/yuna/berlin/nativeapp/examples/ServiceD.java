@@ -9,7 +9,7 @@ import java.util.function.Supplier;
 public class ServiceD extends Service {
 
     public ServiceD() {
-        super(null, 10000, false, false,true);
+        super(null,  true);
     }
 
     @Override

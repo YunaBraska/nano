@@ -9,21 +9,17 @@ import de.yuna.berlin.nativeapp.helper.logger.logic.LogQueue;
 import de.yuna.berlin.nativeapp.helper.logger.logic.NanoLogger;
 
 import java.lang.management.ManagementFactory;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static de.yuna.berlin.nativeapp.core.model.Config.APP_PARAMS;
+import static de.yuna.berlin.nativeapp.core.model.NanoThread.activeCarrierThreads;
+import static de.yuna.berlin.nativeapp.core.model.NanoThread.activeNanoThreads;
 import static de.yuna.berlin.nativeapp.helper.StringUtils.formatDuration;
-import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_SHUTDOWN;
-import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_START;
-import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_UNHANDLED;
+import static de.yuna.berlin.nativeapp.helper.event.model.EventType.*;
 import static de.yuna.berlin.nativeapp.helper.threads.Executor.tryExecute;
 import static java.lang.System.lineSeparator;
 import static java.util.stream.Collectors.joining;
@@ -173,9 +169,9 @@ public class Nano extends NanoServices<Nano> {
         if (await && sameThread) {
             sendEventSameThread(event, toFirst);
         } else if (await) {
-            event.context().asyncAwait(-1, ctx -> sendEventSameThread(event, toFirst));
+            event.context().asyncAwait(ctx -> sendEventSameThread(event, toFirst));
         } else {
-            event.context().async(-1, ctx -> sendEventSameThread(event, toFirst));
+            event.context().async(ctx -> sendEventSameThread(event, toFirst));
         }
         return event;
     }
@@ -231,18 +227,29 @@ public class Nano extends NanoServices<Nano> {
      * @return Self for chaining
      */
     protected Nano shutdown(final Context context) {
-        if (isReady.compareAndSet(true, false)) {
-            final long startTimeMs = System.currentTimeMillis();
-            logger.logQueue(null).info(() -> "Stop {} ...", this.getClass().getSimpleName());
-            printSystemInfo();
-            logger.debug(() -> "Shutdown Services count [{}] services [{}]", services.size(), services.stream().map(Service::getClass).map(Class::getSimpleName).distinct().collect(joining(", ")));
-            shutdownServices(context);
-            this.shutdownThreads();
-            listeners.clear();
-            printSystemInfo();
-            logger.info(() -> "Stopped {} in [{}] with uptime [{}]", this.getClass().getSimpleName(), formatDuration(System.currentTimeMillis() - startTimeMs), formatDuration(System.currentTimeMillis() - createdAtMs));
-            threadPool.purge();
-            schedulers.clear();
+        final Thread thread = new Thread(() -> {
+            if (isReady.compareAndSet(true, false)) {
+                final long startTimeMs = System.currentTimeMillis();
+                logger.logQueue(null).info(() -> "Stop {} ...", this.getClass().getSimpleName());
+                printSystemInfo();
+                logger.debug(() -> "Shutdown Services count [{}] services [{}]", services.size(), services.stream().map(Service::getClass).map(Class::getSimpleName).distinct().collect(joining(", ")));
+                shutdownServices(context);
+                this.shutdownThreads();
+                listeners.clear();
+                printSystemInfo();
+                logger.info(() -> "Stopped {} in [{}] with uptime [{}]", this.getClass().getSimpleName(), formatDuration(System.currentTimeMillis() - startTimeMs), formatDuration(System.currentTimeMillis() - createdAtMs));
+                threadPool.shutdown();
+                schedulers.clear();
+            }
+        }, Nano.class.getSimpleName() + " Shutdown-Thread");
+        thread.setDaemon(false); // JVM should wait until the thread is done
+        thread.start();
+
+        try {
+            thread.join();
+        } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.error(e, () -> "Shutdown was interrupted");
         }
         return this;
     }
@@ -253,40 +260,40 @@ public class Nano extends NanoServices<Nano> {
      * @return Self for chaining
      */
     public Nano printSystemInfo() {
-        logger.debug(() -> "pid [{}] schedulers [{}] services [{}] listeners [{}] cores [{}] usedMemory [{}mb] threadsMin [{}] threadsMax [{}] threadsActive [{}] threadsOther [{}] java [{}] arch [{}] os [{}]",
-                pid(),
-                schedulers.size(),
-                services.size(),
-                listeners.values().stream().mapToLong(Collection::size).sum(),
-                Runtime.getRuntime().availableProcessors(),
-                usedMemoryMB(),
-                threadPool.getCorePoolSize(),
-                threadPool.getMaximumPoolSize(),
-                threadPool.getActiveCount(),
-                ManagementFactory.getThreadMXBean().getThreadCount() - threadPool.getActiveCount(),
-                System.getProperty("java.version"),
-                System.getProperty("os.arch"),
-                System.getProperty("os.name") + " - " + System.getProperty("os.version")
+        final long activeThreads = activeCarrierThreads();
+        logger.debug(() -> "pid [{}] schedulers [{}] services [{}] listeners [{}] cores [{}] usedMemory [{}mb] threadsNano [{}], threadsActive [{}] threadsOther [{}] java [{}] arch [{}] os [{}]",
+            pid(),
+            schedulers.size(),
+            services.size(),
+            listeners.values().stream().mapToLong(Collection::size).sum(),
+            Runtime.getRuntime().availableProcessors(),
+            usedMemoryMB(),
+            activeNanoThreads(),
+            activeThreads,
+            ManagementFactory.getThreadMXBean().getThreadCount() - activeThreads,
+            System.getProperty("java.version"),
+            System.getProperty("os.arch"),
+            System.getProperty("os.name") + " - " + System.getProperty("os.version")
         );
         return this;
     }
 
     @Override
     public String toString() {
+        final long activeThreads = activeCarrierThreads();
         return "Nano{" +
-                "pid=" + pid() +
-                ", schedulers=" + schedulers.size() +
-                ", services=" + services.size() +
-                ", listeners=" + listeners.values().stream().mapToLong(Collection::size).sum() +
-                ", cores=" + Runtime.getRuntime().availableProcessors() +
-                ", usedMemory=" + usedMemoryMB() + "mb" +
-                ", threadsMin=" + threadPool.getCorePoolSize() +
-                ", threadsMax=" + threadPool.getMaximumPoolSize() +
-                ", threadsActive=" + threadPool.getActiveCount() +
-                ", threadsOther=" + (ManagementFactory.getThreadMXBean().getThreadCount() - threadPool.getActiveCount()) +
-                ", java=" + System.getProperty("java.version") +
-                ", arch=" + System.getProperty("os.arch") +
-                ", os=" + System.getProperty("os.name") + " - " + System.getProperty("os.version") +
-                '}';
+            "pid=" + pid() +
+            ", schedulers=" + schedulers.size() +
+            ", services=" + services.size() +
+            ", listeners=" + listeners.values().stream().mapToLong(Collection::size).sum() +
+            ", cores=" + Runtime.getRuntime().availableProcessors() +
+            ", usedMemory=" + usedMemoryMB() + "mb" +
+            ", threadsActive=" + activeNanoThreads() +
+            ", threadsNano=" + activeThreads +
+            ", threadsOther=" + (ManagementFactory.getThreadMXBean().getThreadCount() - activeThreads) +
+            ", java=" + System.getProperty("java.version") +
+            ", arch=" + System.getProperty("os.arch") +
+            ", os=" + System.getProperty("os.name") + " - " + System.getProperty("os.version") +
+            '}';
     }
 }

@@ -1,10 +1,12 @@
 package de.yuna.berlin.nativeapp.core.model;
 
 import de.yuna.berlin.nativeapp.core.Nano;
+import de.yuna.berlin.nativeapp.helper.PrintTestNamesExtension;
 import de.yuna.berlin.nativeapp.helper.event.model.Event;
 import de.yuna.berlin.nativeapp.model.TestService;
 import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Map;
 
@@ -14,6 +16,7 @@ import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_UN
 import static de.yuna.berlin.nativeapp.helper.threads.Executor.tryExecute;
 import static org.assertj.core.api.Assertions.assertThat;
 
+@ExtendWith(PrintTestNamesExtension.class)
 class ServiceTest {
 
     @Test
@@ -21,7 +24,7 @@ class ServiceTest {
         final long startTime = System.currentTimeMillis() - 10;
         final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL));
         final Context context = nano.context(this.getClass());
-        final TestService service = new TestService(true);
+        final TestService service = new TestService();
         final Unhandled error = new Unhandled(null, null, null);
 
         assertThat(service).isNotNull();
@@ -45,7 +48,7 @@ class ServiceTest {
         assertThat(service.getEvent(EVENT_APP_UNHANDLED.id())).isNotNull().has(new Condition<>(e -> e.payload(Unhandled.class) == error, "Should contain payload with error"));
 
         assertThat(nano.services()).isEmpty();
-        service.tryExecuteService(context);
+        service.nanoThread(context).execute(() -> {});
         service.handleServiceException(context, new RuntimeException("Nothing to see here, just a test exception"));
         tryExecute(() -> Thread.sleep(64)); //Safety cause of async
         assertThat(service.startCount()).isEqualTo(2);

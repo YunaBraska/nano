@@ -1,17 +1,20 @@
 package de.yuna.berlin.nativeapp.helper.threads;
 
 import de.yuna.berlin.nativeapp.core.model.Context;
+import de.yuna.berlin.nativeapp.core.model.NanoThread;
 import de.yuna.berlin.nativeapp.core.model.Service;
 import de.yuna.berlin.nativeapp.core.model.Unhandled;
 import de.yuna.berlin.nativeapp.helper.ExRunnable;
-import de.yuna.berlin.nativeapp.services.ShortTask;
 
-import java.util.concurrent.*;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadMXBean;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import static de.yuna.berlin.nativeapp.core.model.NanoThread.waitFor;
 import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_UNHANDLED;
 import static java.util.Arrays.stream;
 
@@ -42,16 +45,15 @@ public class Executor {
      *
      * @param context  The execution {@link Context} shared by all {@link Service}.
      * @param services Varargs parameter of {@link Service} to be executed.
-     * @return {@link CompletableFuture}
+     * @return {@link NanoThread}s
      */
-    public static CompletableFuture<Void> execAwait(final Context context, final Service... services) {
+    public static NanoThread[] execAwait(final Context context, final Service... services) {
         try {
-            final CompletableFuture<Void> future = execAsync(context, services);
-            future.join();
-            return future;
+            return waitFor(execAsync(context, services));
         } catch (final Exception exception) {
             handleExecutionExceptions(context, new Unhandled(context, services.length == 1 ? services[0] : services, exception), () -> "Error while executing [" + stream(services).map(Service::name).distinct().collect(Collectors.joining()) + "]");
-            return CompletableFuture.failedFuture(exception);
+            Thread.currentThread().interrupt();
+            return new NanoThread[0];
         }
     }
 
@@ -61,10 +63,10 @@ public class Executor {
      *
      * @param context  The execution {@link Context} shared by all {@link Service}.
      * @param services Varargs parameter of {@link Service} to be executed.
-     * @return {@link CompletableFuture}
+     * @return array of {@link NanoThread}
      */
-    public static CompletableFuture<Void> execAsync(final Context context, final Service... services) {
-        return CompletableFuture.allOf(stream(services).map(service -> service.feature(context)).toArray(CompletableFuture[]::new));
+    public static NanoThread[] execAsync(final Context context, final Service... services) {
+        return stream(services).map(service -> service.nanoThread(context)).toArray(NanoThread[]::new);
     }
 
     /**
@@ -74,13 +76,12 @@ public class Executor {
      * @param context   The execution {@link Context} shared by all {@link Service}.
      * @param whenReady The consumer to be called with the context upon completion of all services.
      * @param services  Varargs parameter of {@link Service} to be executed.
-     * @return {@link CompletableFuture}
+     * @return {@link NanoThread}s
      */
-    public static CompletableFuture<Void> execAsync(final Context context, final Consumer<Context> whenReady, final Service... services) {
-        return execAsync(context, whenReady == null ? services : new Service[]{new ShortTask(task -> {
-            execAwait(context, services);
-            whenReady.accept(context);
-        })});
+    public static NanoThread[] execAsync(final Context context, final Consumer<Context> whenReady, final Service... services) {
+        final NanoThread[] threads = execAsync(context, services);
+        waitFor(() -> whenReady.accept(context), threads);
+        return threads;
     }
 
     public static void handleExecutionExceptions(final Context context, final Unhandled payload, final Supplier<String> errorMsg) {
@@ -103,15 +104,6 @@ public class Executor {
                 consumer.accept(exception);
             }
         }
-    }
-
-    protected static boolean isConcurrentException(final Throwable ex) {
-        return ex instanceof TimeoutException
-            || ex instanceof ExecutionException
-            || ex instanceof CancellationException
-            || ex instanceof BrokenBarrierException
-            || ex instanceof CompletionException
-            || ex instanceof RejectedExecutionException;
     }
 
     private Executor() {

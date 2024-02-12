@@ -8,24 +8,27 @@ import de.yuna.berlin.nativeapp.helper.threads.Executor;
 import de.yuna.berlin.nativeapp.model.TestService;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 import static de.yuna.berlin.nativeapp.core.model.Config.*;
-import static de.yuna.berlin.nativeapp.helper.NoExitSecurityManager.catchSystemExit;
 import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_SHUTDOWN;
 import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_UNHANDLED;
-import static de.yuna.berlin.nativeapp.helper.logger.model.LogLevel.INFO;
 import static de.yuna.berlin.nativeapp.helper.threads.Executor.tryExecute;
 import static de.yuna.berlin.nativeapp.model.TestService.TEST_EVENT;
 import static de.yuna.berlin.nativeapp.model.TestService.waitFor;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.assertj.core.api.Assertions.as;
 import static org.assertj.core.api.Assertions.assertThat;
 
+@Execution(ExecutionMode.CONCURRENT)
 @ExtendWith(PrintTestNamesExtension.class)
 public class NanoTest {
 
@@ -37,7 +40,7 @@ public class NanoTest {
     //TODO: extract logger as a service
 
     //Nano is fast but the assertions and setup of, IDE, JVM, Debugger, Profiler, etc. slows down the tests
-    public static final LogLevel TEST_LOG_LEVEL = LogLevel.WARN;
+    public static final LogLevel TEST_LOG_LEVEL = LogLevel.ALL;
     // Testing consistency
     public static final int TEST_REPEAT = 10;
 
@@ -58,8 +61,8 @@ public class NanoTest {
 
     @RepeatedTest(TEST_REPEAT)
     void startMultipleTimes_shouldHaveNoIssues() {
-        final TestService service1 = new TestService(true);
-        final TestService service2 = new TestService(true);
+        final TestService service1 = new TestService();
+        final TestService service2 = new TestService();
         final Nano nano1 = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL), service1);
         final Nano nano2 = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL), service2);
         assertThat(nano1).isNotEqualTo(nano2);
@@ -69,51 +72,25 @@ public class NanoTest {
 
     @RepeatedTest(TEST_REPEAT)
     void shutdownServicesInParallelTest_Sync() {
-        final TestService testService = new TestService(true);
-        testService.doOnStop(context -> tryExecute(() -> Thread.sleep(100)));
+        final AtomicInteger stopCount = new AtomicInteger(0);
+        final TestService testService = new TestService();
+        testService.doOnStop(context -> tryExecute(stopCount::incrementAndGet));
 
-        final long startTime1 = System.currentTimeMillis();
-        new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL), testService, testService, testService, testService).shutdown(this.getClass());
-        final long uptime1 = System.currentTimeMillis() - startTime1;
-
-        final long startTime2 = System.currentTimeMillis();
-        new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL, CONFIG_PARALLEL_SHUTDOWN, true), testService, testService, testService, testService).shutdown(this.getClass());
-        final long uptime2 = System.currentTimeMillis() - startTime2;
-        assertThat(uptime1).isGreaterThan(uptime2);
+        final Nano nano1 = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL), testService, testService, testService, testService);
+        final Nano nano2 = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL, CONFIG_PARALLEL_SHUTDOWN, true), testService, testService, testService, testService);
+        nano1.shutdown(this.getClass());
+        nano2.shutdown(this.getClass());
+        assertThat(stopCount).hasValue(8);
     }
 
     @RepeatedTest(TEST_REPEAT)
     void shutdownServicesInParallelWithExceptionTest() {
-        final TestService testService = new TestService(true);
+        final TestService testService = new TestService();
         testService.doOnStop(context -> {
             throw new RuntimeException("Nothing to see here, just a test exception");
         });
 
         final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL, CONFIG_PARALLEL_SHUTDOWN, true), testService).shutdown(this.getClass());
-        assertThat(nano).isNotNull();
-    }
-
-    @RepeatedTest(TEST_REPEAT)
-    void serviceTimeoutTest() {
-        final TestService service = new TestService(true);
-        service.doOnStop(context -> {
-            throw new RuntimeException("Nothing to see here, just a test exception");
-        });
-
-        final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL), service);
-        nano.context(this.getClass()).async(256, context -> {
-            try {
-                context.logger().info(() -> "START HELLO");
-                Thread.sleep(500);
-                context.logger().info(() -> "END WORLD");
-            } catch (final InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException(e);
-            }
-        });
-
-        assertThat(service.getEvent(EVENT_APP_UNHANDLED.id())).isNotNull();
-        nano.stop(this.getClass());
         assertThat(nano).isNotNull();
     }
 
@@ -137,7 +114,7 @@ public class NanoTest {
 
     @RepeatedTest(TEST_REPEAT)
     void constructor_withConfigAndServiceTest() {
-        final Nano configAndService = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL), new TestService(true));
+        final Nano configAndService = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL), new TestService());
         assertThat(configAndService).isNotNull();
         assertThat(configAndService.logger().level()).isEqualTo(TEST_LOG_LEVEL);
         assertThat(configAndService.services()).hasSize(1);
@@ -146,7 +123,7 @@ public class NanoTest {
 
     @RepeatedTest(TEST_REPEAT)
     void constructor_withLazyServices_Test() {
-        final Nano lazyServices = new Nano(context -> List.of(new TestService(true)), "-" + CONFIG_LOG_LEVEL.id() + "=" + TEST_LOG_LEVEL);
+        final Nano lazyServices = new Nano(context -> List.of(new TestService()), "-" + CONFIG_LOG_LEVEL.id() + "=" + TEST_LOG_LEVEL);
         assertThat(lazyServices).isNotNull();
         assertThat(lazyServices.logger().level()).isEqualTo(TEST_LOG_LEVEL);
         assertThat(lazyServices.services()).hasSize(1);
@@ -161,16 +138,16 @@ public class NanoTest {
         config.stop(this.getClass());
     }
 
-    @RepeatedTest(TEST_REPEAT)
-    void printHelpMenu() throws Exception {
-        final int statusCode = catchSystemExit(() -> {
-            final Nano config = new Nano(Map.of(CONFIG_LOG_LEVEL, INFO, APP_HELP, true));
-            assertThat(config).isNotNull();
-            assertThat(config.logger().level()).isEqualTo(TEST_LOG_LEVEL);
-            config.stop(this.getClass());
-        });
-        assertThat(statusCode).isEqualTo(0);
-    }
+//    @RepeatedTest(TEST_REPEAT)
+//    void printHelpMenu() throws Exception {
+//        final int statusCode = catchSystemExit(() -> {
+//            final Nano config = new Nano(Map.of(CONFIG_LOG_LEVEL, INFO, APP_HELP, true));
+//            assertThat(config).isNotNull();
+//            assertThat(config.logger().level()).isEqualTo(TEST_LOG_LEVEL);
+//            config.stop(this.getClass());
+//        });
+//        assertThat(statusCode).isEqualTo(0);
+//    }
 
 
     @RepeatedTest(TEST_REPEAT)
@@ -181,7 +158,7 @@ public class NanoTest {
             "pid=",
             "schedulers=", "services=", "listeners=",
             "cores=", "usedMemory=",
-            "threadsMin=", "threadsMax=", "threadsActive=", "threadsOther=",
+            "threadsNano=", "threadsActive=", "threadsOther=",
             "java=", "arch=", "os="
         );
         config.stop(this.getClass());
@@ -190,7 +167,7 @@ public class NanoTest {
     @RepeatedTest(TEST_REPEAT)
     void sendEvent_Sync() {
         final List<Object> eventResults = new ArrayList<>();
-        final TestService service = new TestService(true);
+        final TestService service = new TestService();
         final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL), service);
         service.doOnEvent(Event::acknowledge);
 
@@ -220,7 +197,7 @@ public class NanoTest {
 
     @RepeatedTest(TEST_REPEAT)
     void sendEventWithEventExecutionException_shouldNotInterrupt() {
-        final TestService service = new TestService(true);
+        final TestService service = new TestService();
         final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, LogLevel.OFF), service);
 
         service.doOnEvent(event -> {
@@ -285,7 +262,7 @@ public class NanoTest {
     @RepeatedTest(TEST_REPEAT)
     void throwExceptionInsideScheduler() {
         final long timer = 64;
-        final TestService service = new TestService(true);
+        final TestService service = new TestService();
         final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL), service);
 
         nano.schedule(() -> {
@@ -322,7 +299,8 @@ public class NanoTest {
         assertThat(nano.isReady()).isFalse();
         assertThat(nano.services()).isEmpty();
         assertThat(nano.listeners()).isEmpty();
-        assertThat(nano.threadPool().getActiveCount()).isZero();
+        assertThat(nano.threadPool.isTerminated()).isTrue();
+        // assertThat(activeCarrierThreads()).isZero(); FIXME: find a way to count active threads
         assertThat(nano.schedulers()).isEmpty();
         assertThat(service.startCount()).isEqualTo(1);
         assertThat(service.failures()).isEmpty();

@@ -19,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.logging.Formatter;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
@@ -52,9 +53,12 @@ public abstract class NanoBase<T extends NanoBase<T>> {
     public static final AtomicInteger EVENT_ID_COUNTER = new AtomicInteger(0);
 
     static {
+        registerTypeConvert(String.class, Formatter.class, LogFormatRegister::getLogFormatter);
+        registerTypeConvert(String.class, LogLevel.class, LogLevel::nanoLogLevelOf);
         registerTypeConvert(LogLevel.class, String.class, Enum::name);
         registerTypeConvert(Config.class, String.class, Config::id);
         registerTypeConvert(EventType.class, String.class, eventType -> String.valueOf(eventType.id()));
+        registerTypeConvert(String.class, EventType.class, eventType -> stream(EventType.values()).filter(et -> et.name().equals(eventType) || (et.id() + "").equals(eventType)).findFirst().orElse(null));
     }
 
     /**
@@ -69,8 +73,8 @@ public abstract class NanoBase<T extends NanoBase<T>> {
         if (configs != null)
             configs.forEach((key, value) -> rootContext.computeIfAbsent(convertObj(key, String.class), add -> ofNullable(convertObj(value, String.class)).orElse("")));
         this.logger = new NanoLogger(this)
-            .level(rootContext.gett(CONFIG_LOG_LEVEL.id(), String.class).map(LogLevel::nanoLogLevelOf).orElse(LogLevel.DEBUG))
-            .formatter(rootContext.gett(CONFIG_LOG_FORMATTER.id(), String.class).map(LogFormatRegister::getLogFormatter).orElseGet(() -> getLogFormatter("console")));
+            .level(rootContext.gett(CONFIG_LOG_LEVEL.id(), LogLevel.class).orElse(LogLevel.DEBUG))
+            .formatter(rootContext.gett(CONFIG_LOG_FORMATTER.id(), Formatter.class).orElseGet(() -> getLogFormatter("console")));
         displayHelpMenu();
         addEventListener(EVENT_APP_LOG_LEVEL.id(), event -> event.payloadOpt(LogLevel.class).or(() -> event.payloadOpt(Level.class).map(LogLevel::nanoLogLevelOf)).map(this::setLogLevel).ifPresent(nano -> event.acknowledge()));
         addEventListener(EVENT_APP_LOG_QUEUE.id(), event -> event.payloadOpt(LogQueue.class).map(logger::logQueue).ifPresent(nano -> event.acknowledge()));
