@@ -10,7 +10,6 @@ import de.yuna.berlin.nativeapp.core.NanoServices;
 import de.yuna.berlin.nativeapp.core.NanoThreads;
 import de.yuna.berlin.nativeapp.core.model.Scheduler;
 import de.yuna.berlin.nativeapp.core.model.Service;
-import de.yuna.berlin.nativeapp.helper.threads.Executor;
 
 import java.util.List;
 import java.util.Map;
@@ -19,7 +18,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings({"UnusedReturnValue", "java:S6548"})
-public class StringUtils {
+public class NanoUtils {
 
     public static final String LINE_SEPARATOR = System.lineSeparator();
 
@@ -94,8 +93,7 @@ public class StringUtils {
                 source.getName(),
                 Service.class.getName(),
                 NanoBase.class.getName(),
-                Executor.class.getName(),
-                StringUtils.class.getName(),
+                NanoUtils.class.getName(),
                 NanoThreads.class.getName(),
                 NanoServices.class.getName()
         );
@@ -118,7 +116,7 @@ public class StringUtils {
         return executorService.getClass().getSimpleName();
     }
 
-    private StringUtils() {
+    private NanoUtils() {
         // static util class
     }
 }

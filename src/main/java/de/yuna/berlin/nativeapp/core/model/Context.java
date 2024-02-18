@@ -2,15 +2,20 @@ package de.yuna.berlin.nativeapp.core.model;
 
 import berlin.yuna.typemap.model.ConcurrentTypeMap;
 import de.yuna.berlin.nativeapp.core.Nano;
+import de.yuna.berlin.nativeapp.helper.ExRunnable;
 import de.yuna.berlin.nativeapp.helper.event.model.Event;
 import de.yuna.berlin.nativeapp.helper.logger.logic.NanoLogger;
 import de.yuna.berlin.nativeapp.helper.logger.model.LogLevel;
-import de.yuna.berlin.nativeapp.helper.threads.Executor;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static de.yuna.berlin.nativeapp.core.model.NanoThread.waitFor;
+import static de.yuna.berlin.nativeapp.core.model.Service.threadsOf;
+import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_UNHANDLED;
 import static java.util.Arrays.stream;
 
 @SuppressWarnings({"unused", "UnusedReturnValue", "java:S2160"})
@@ -151,19 +156,7 @@ public class Context extends ConcurrentTypeMap {
      * @return The {@link Context} object for chaining further operations.
      */
     public Context async(final Service... services) {
-        Executor.execAsync(this, services);
-        return this;
-    }
-
-    /**
-     * Executes a collection of services to the executor and performs parallel execution.
-     *
-     * @param whenReady the consumer to be executed when all services are ready.
-     * @param services  the collection of services to be executed.
-     * @return The Executor object for chaining further operations.
-     */
-    public Context asyncHandled(final Consumer<Context> whenReady, final Service... services) {
-        Executor.execAsync(this, whenReady, services);
+        asyncReturn(services);
         return this;
     }
 
@@ -205,7 +198,13 @@ public class Context extends ConcurrentTypeMap {
      * @return {@link NanoThread}s
      */
     public NanoThread[] asyncReturn(final Service... services) {
-        return Executor.execAsync(this, services);
+        try {
+            return threadsOf(this, services);
+        } catch (final Exception exception) {
+            handleExecutionExceptions(this, new Unhandled(this, services.length == 1 ? services[0] : services, exception), () -> "Error while executing [" + stream(services).map(Service::name).distinct().collect(Collectors.joining()) + "]");
+            Thread.currentThread().interrupt();
+            return new NanoThread[0];
+        }
     }
 
     //########## ASYNC AWAIT HELPER ##########
@@ -241,7 +240,7 @@ public class Context extends ConcurrentTypeMap {
      * @return The {@link Context} object for chaining further operations.
      */
     public Context asyncAwait(final Service... services) {
-        Executor.execAwait(this, services);
+        asyncAwaitReturn(services);
         return this;
     }
 
@@ -278,7 +277,7 @@ public class Context extends ConcurrentTypeMap {
      * @return {@link NanoThread}s
      */
     public NanoThread[] asyncAwaitReturn(final Service... services) {
-        return Executor.execAwait(this, services);
+        return waitFor(asyncReturn(services));
     }
 
     //########## EVENT HELPER ##########
@@ -464,6 +463,28 @@ public class Context extends ConcurrentTypeMap {
 
     protected Nano getNano(final Nano nano) {
         return nano != null ? nano : this.nano();
+    }
+
+    public static void handleExecutionExceptions(final Context context, final Unhandled payload, final Supplier<String> errorMsg) {
+        final AtomicBoolean wasHandled = new AtomicBoolean(false);
+        context.nano().sendEvent(EVENT_APP_UNHANDLED.id(), context, payload, result -> wasHandled.set(true), true, true, true);
+        if (!wasHandled.get()) {
+            context.logger().error(payload.exception(), errorMsg);
+        }
+    }
+
+    public static void tryExecute(final ExRunnable operation) {
+        tryExecute(operation, null);
+    }
+
+    public static void tryExecute(final ExRunnable operation, final Consumer<Throwable> consumer) {
+        try {
+            operation.run();
+        } catch (final Exception exception) {
+            if (consumer != null) {
+                consumer.accept(exception);
+            }
+        }
     }
 
     @Override

@@ -1,19 +1,19 @@
 package de.yuna.berlin.nativeapp.helper.event;
 
-import de.yuna.berlin.nativeapp.helper.StringUtils;
+import de.yuna.berlin.nativeapp.helper.NanoUtils;
 
 import java.util.Map;
 import java.util.Optional;
 
 import static de.yuna.berlin.nativeapp.core.NanoBase.EVENT_ID_COUNTER;
 import static de.yuna.berlin.nativeapp.core.NanoBase.EVENT_TYPES;
-import static de.yuna.berlin.nativeapp.helper.StringUtils.hasText;
+import static de.yuna.berlin.nativeapp.helper.NanoUtils.hasText;
 import static java.util.Optional.ofNullable;
 
 public class EventTypeRegister {
 
     public static int registerEventType(final String typeName) {
-        return ofNullable(typeName).filter(StringUtils::hasText).map(name -> evenIdOf(typeName).orElseGet(() -> {
+        return ofNullable(typeName).filter(NanoUtils::hasText).map(name -> evenIdOf(typeName).orElseGet(() -> {
             final int typeId = EVENT_ID_COUNTER.incrementAndGet();
             EVENT_TYPES.put(typeId, typeName);
             return typeId;

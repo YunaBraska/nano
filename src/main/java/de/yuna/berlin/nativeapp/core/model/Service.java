@@ -5,22 +5,22 @@ import de.yuna.berlin.nativeapp.helper.logger.logic.LogQueue;
 import de.yuna.berlin.nativeapp.helper.logger.logic.NanoLogger;
 import de.yuna.berlin.nativeapp.helper.logger.model.LogLevel;
 
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
+import static de.yuna.berlin.nativeapp.core.model.Context.handleExecutionExceptions;
 import static de.yuna.berlin.nativeapp.helper.event.model.EventType.*;
-import static de.yuna.berlin.nativeapp.helper.threads.Executor.handleExecutionExceptions;
+import static java.util.Arrays.stream;
 
 public abstract class Service {
 
     protected final String name;
     protected final long createdAtMs;
-    protected final AtomicBoolean isReady;
+    protected final LockedBoolean isReady;
     protected final NanoLogger logger = new NanoLogger(this);
 
     protected Service(final String name, final boolean isReady) {
         this.createdAtMs = System.currentTimeMillis();
-        this.isReady = new AtomicBoolean(isReady);
+        this.isReady = new LockedBoolean(isReady);
         this.name = name != null ? name : this.getClass().getSimpleName();
     }
 
@@ -51,11 +51,6 @@ public abstract class Service {
         return createdAtMs;
     }
 
-    public Service isReady(final boolean isReady) {
-        this.isReady.compareAndSet(!isReady, isReady);
-        return this;
-    }
-
     //########## GLOBAL SERVICE METHODS ##########
     public NanoThread nanoThread(final Context context) {
         return new NanoThread().execute(context.nano() != null ? context.nano().threadPool() : null, () -> {
@@ -79,5 +74,9 @@ public abstract class Service {
         } catch (final Exception e) {
             handleExecutionExceptions(context, new Unhandled(context, this, e), () -> "Execution error [" + this.name() + "]");
         }
+    }
+
+    public static NanoThread[] threadsOf(final Context context, final Service... services) {
+        return stream(services).map(service -> service.nanoThread(context)).toArray(NanoThread[]::new);
     }
 }

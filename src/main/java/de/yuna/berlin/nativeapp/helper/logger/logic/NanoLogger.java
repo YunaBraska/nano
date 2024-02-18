@@ -129,9 +129,6 @@ public class NanoLogger {
             logRecord.setParameters(params);
             logRecord.setThrown(thrown);
             logRecord.setLoggerName(logger.getName());
-            // For internationalization
-            // logRecord.setResourceBundle(javaLogger.getResourceBundle());
-            // logRecord.setResourceBundleName(javaLogger.getResourceBundleName());
             if (logQueue == null || !logQueue.log(logger, logRecord)) {
                 logger.log(logRecord);
             }

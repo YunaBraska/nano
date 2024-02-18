@@ -15,8 +15,8 @@ import java.util.function.BooleanSupplier;
 
 import static de.yuna.berlin.nativeapp.core.model.Config.CONFIG_THREAD_POOL_TIMEOUT_MS;
 import static de.yuna.berlin.nativeapp.core.model.NanoThread.activeNanoThreads;
-import static de.yuna.berlin.nativeapp.helper.StringUtils.callerInfoStr;
-import static de.yuna.berlin.nativeapp.helper.StringUtils.getThreadName;
+import static de.yuna.berlin.nativeapp.helper.NanoUtils.callerInfoStr;
+import static de.yuna.berlin.nativeapp.helper.NanoUtils.getThreadName;
 import static de.yuna.berlin.nativeapp.helper.event.model.EventType.*;
 import static java.util.Collections.unmodifiableSet;
 

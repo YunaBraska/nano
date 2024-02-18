@@ -1,6 +1,7 @@
 package de.yuna.berlin.nativeapp.services.http.model;
 
 // TODO: autogenerate from org.apache.http.entity.ContentType
+@SuppressWarnings("unused")
 public enum ContentType {
 
     APPLICATION_ATOM_XML("application/atom+xml"),

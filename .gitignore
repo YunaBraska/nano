@@ -9,6 +9,7 @@
 /bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
+hs_err_pid*.log
 
 ### NetBeans ###
 /nbproject/private/

@@ -21,11 +21,6 @@ public class Scheduler extends ScheduledThreadPoolExecutor {
     }
 
     @Override
-    public void shutdown() {
-        super.shutdown();
-    }
-
-    @Override
     public String toString() {
         return "Scheduler{" +
             "id='" + id + '\'' +

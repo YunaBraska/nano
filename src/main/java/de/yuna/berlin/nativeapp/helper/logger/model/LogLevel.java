@@ -3,7 +3,7 @@ package de.yuna.berlin.nativeapp.helper.logger.model;
 import java.util.Arrays;
 import java.util.logging.Level;
 
-import static de.yuna.berlin.nativeapp.helper.StringUtils.hasText;
+import static de.yuna.berlin.nativeapp.helper.NanoUtils.hasText;
 
 public enum LogLevel {
     OFF(Level.OFF),

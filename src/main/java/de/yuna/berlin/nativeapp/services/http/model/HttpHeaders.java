@@ -1,6 +1,7 @@
 package de.yuna.berlin.nativeapp.services.http.model;
 
 // TODO: autogenerate from org.apache.http.HttpHeaders
+@SuppressWarnings("unused")
 public final class HttpHeaders {
 
     private HttpHeaders() {

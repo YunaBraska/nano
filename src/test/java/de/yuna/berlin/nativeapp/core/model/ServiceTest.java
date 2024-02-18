@@ -5,21 +5,25 @@ import de.yuna.berlin.nativeapp.helper.PrintTestNamesExtension;
 import de.yuna.berlin.nativeapp.helper.event.model.Event;
 import de.yuna.berlin.nativeapp.model.TestService;
 import org.assertj.core.api.Condition;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.util.Map;
 
-import static de.yuna.berlin.nativeapp.core.NanoTest.TEST_LOG_LEVEL;
+import static de.yuna.berlin.nativeapp.core.config.TestConfig.TEST_LOG_LEVEL;
+import static de.yuna.berlin.nativeapp.core.config.TestConfig.TEST_REPEAT;
 import static de.yuna.berlin.nativeapp.core.model.Config.CONFIG_LOG_LEVEL;
+import static de.yuna.berlin.nativeapp.core.model.Context.tryExecute;
 import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_UNHANDLED;
-import static de.yuna.berlin.nativeapp.helper.threads.Executor.tryExecute;
 import static org.assertj.core.api.Assertions.assertThat;
 
-@ExtendWith(PrintTestNamesExtension.class)
+@Execution(ExecutionMode.CONCURRENT)
 class ServiceTest {
 
-    @Test
+    @RepeatedTest(TEST_REPEAT)
     void testService() {
         final long startTime = System.currentTimeMillis() - 10;
         final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL));

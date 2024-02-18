@@ -5,7 +5,6 @@ import de.yuna.berlin.nativeapp.core.model.Service;
 import de.yuna.berlin.nativeapp.core.model.Unhandled;
 import de.yuna.berlin.nativeapp.helper.event.EventTypeRegister;
 import de.yuna.berlin.nativeapp.helper.event.model.Event;
-import de.yuna.berlin.nativeapp.helper.threads.Executor;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -15,6 +14,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static de.yuna.berlin.nativeapp.core.config.TestConfig.*;
+import static de.yuna.berlin.nativeapp.core.model.Context.tryExecute;
 import static java.util.Optional.ofNullable;
 
 public class TestService extends Service {
@@ -49,7 +50,7 @@ public class TestService extends Service {
     }
 
     public Event getEvent(final int eventId, final Function<Event, Boolean> condition) {
-        return getEvent(eventId, condition, 2000);
+        return getEvent(eventId, condition, TEST_TIMEOUT);
     }
 
     public Event getEvent(final int eventId, final long timeoutMs) {
@@ -57,7 +58,21 @@ public class TestService extends Service {
     }
 
     public Event getEvent(final int eventId, final Function<Event, Boolean> condition, final long timeoutMs) {
-        return waitFor(() -> events.stream().filter(event -> event.id() == eventId).filter(event -> condition != null ? condition.apply(event) : true).findFirst().orElse(null), timeoutMs);
+        final AtomicReference<Event> result = new AtomicReference<>();
+        waitForCondition(
+            () -> {
+                final Event event1 = events.stream()
+                    .filter(event -> event.id() == eventId)
+                    .filter(event -> condition != null ? condition.apply(event) : true)
+                    .findFirst()
+                    .orElse(null);
+                if (event1 != null)
+                    result.set(event1);
+                return event1 != null;
+            }
+            , timeoutMs
+        );
+        return result.get();
     }
 
     public int startCount() {
@@ -119,9 +134,7 @@ public class TestService extends Service {
     // ########## DEFAULT METHODS ##########
     @Override
     public void start(final Supplier<Context> contextSub) {
-        if (isReady.compareAndSet(false, true)) {
-            startTime = System.currentTimeMillis();
-        }
+        isReady.set(false, true, state -> startTime = System.currentTimeMillis());
         startCount.incrementAndGet();
         if (startConsumer.get() != null)
             startConsumer.get().accept(contextSub.get());
@@ -155,7 +168,7 @@ public class TestService extends Service {
         final long startTime = System.currentTimeMillis();
         final AtomicReference<T> result = new AtomicReference<>(null);
         while (result.get() == null && (System.currentTimeMillis() - startTime) < timeoutMs) {
-            ofNullable(waitFor.get()).ifPresentOrElse(result::set, () -> Executor.tryExecute(() -> Thread.sleep(100)));
+            ofNullable(waitFor.get()).ifPresentOrElse(result::set, () -> tryExecute(() -> Thread.sleep(100)));
         }
         return result.get();
     }

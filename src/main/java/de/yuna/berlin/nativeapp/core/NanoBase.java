@@ -245,10 +245,11 @@ public abstract class NanoBase<T extends NanoBase<T>> {
      * @param level The logging level to be set.
      * @return True if the level was successfully set.
      */
-    protected boolean setLogLevel(final LogLevel level) {
+    @SuppressWarnings("unchecked")
+    protected T setLogLevel(final LogLevel level) {
         logger.level(level);
         rootContext.put(CONFIG_LOG_LEVEL.id(), level);
         logger.trace(() -> "New {} [{}]", LogLevel.class.getSimpleName(), level);
-        return true;
+        return (T) this;
     }
 }

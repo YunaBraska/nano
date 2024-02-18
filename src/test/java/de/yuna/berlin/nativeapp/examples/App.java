@@ -22,6 +22,7 @@ public class App {
         //TODO: Dynamic Queues to Services
         //TODO: Dynamic Messages to Services
         //TODO: Chain & Async & Functional programming like streams/optionals - allow users to spawn and chain functions everywhere & send events from everywhere
+        // TODO: support internationalization (logRecord.setResourceBundle(javaLogger.getResourceBundle());, logRecord.setResourceBundleName(javaLogger.getResourceBundleName()))
         final Nano application = new Nano(Map.of(
             CONFIG_LOG_LEVEL, LogLevel.INFO,
             CONFIG_LOG_FORMATTER, "console"

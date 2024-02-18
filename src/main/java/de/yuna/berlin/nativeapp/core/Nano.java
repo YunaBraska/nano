@@ -16,11 +16,10 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static de.yuna.berlin.nativeapp.core.model.Config.APP_PARAMS;
-import static de.yuna.berlin.nativeapp.core.model.NanoThread.activeCarrierThreads;
-import static de.yuna.berlin.nativeapp.core.model.NanoThread.activeNanoThreads;
-import static de.yuna.berlin.nativeapp.helper.StringUtils.formatDuration;
+import static de.yuna.berlin.nativeapp.core.model.Context.tryExecute;
+import static de.yuna.berlin.nativeapp.core.model.NanoThread.*;
+import static de.yuna.berlin.nativeapp.helper.NanoUtils.formatDuration;
 import static de.yuna.berlin.nativeapp.helper.event.model.EventType.*;
-import static de.yuna.berlin.nativeapp.helper.threads.Executor.tryExecute;
 import static java.lang.System.lineSeparator;
 import static java.util.stream.Collectors.joining;
 
@@ -183,6 +182,7 @@ public class Nano extends NanoServices<Nano> {
      * @param event   The event to be processed.
      * @param toFirst Whether to send the event only to the first matching listener.
      */
+    @SuppressWarnings("ResultOfMethodCallIgnored")
     public void sendEventSameThread(final Event event, final boolean toFirst) {
         eventCount.incrementAndGet();
         tryExecute(() -> {

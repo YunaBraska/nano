@@ -5,7 +5,7 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.StreamHandler;
 
-@SuppressWarnings("java:S106")
+@SuppressWarnings({"java:S106", "unused"})
 public class LogErrorHandler extends StreamHandler {
 
     public LogErrorHandler(final Formatter formatter) {

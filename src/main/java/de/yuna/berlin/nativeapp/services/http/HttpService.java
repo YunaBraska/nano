@@ -40,25 +40,23 @@ public class HttpService extends Service {
 
     @Override
     public void stop(final Supplier<Context> contextSub) {
-        if (isReady.compareAndSet(true, false) && (server != null)) {
+        isReady.set(true, false, state -> {
             server.stop(0);
             logger.info(() -> "[{}] port [{}] stopped", name(), port);
             server = null;
-        }
+        });
     }
 
     @Override
     public synchronized void start(final Supplier<Context> contextSub) {
-        if (isReady()) {
-            return;
-        }
+        isReady.set(false, true, state -> {
 
-        //TODO: Path to string, File to String <>
-        //TODO: handle certificates
-        final Context context = contextSub.get();
-        final Optional<String> crt = context.gett("app.https.crt.path", String.class);
-        final Optional<String> key = context.gett("app.https.key.path", String.class);
-        if (crt.isPresent() && key.isPresent()) {
+            //TODO: Path to string, File to String <>
+            //TODO: handle certificates
+            final Context context = contextSub.get();
+            final Optional<String> crt = context.gett("app.https.crt.path", String.class);
+            final Optional<String> key = context.gett("app.https.key.path", String.class);
+            if (crt.isPresent() && key.isPresent()) {
 //            // Load the certificate
 //            CertificateFactory cf = CertificateFactory.getInstance("X.509");
 //            X509Certificate cert = (X509Certificate) cf.generateCertificate(new FileInputStream(crtFilePath));
@@ -85,36 +83,36 @@ public class HttpService extends Service {
 //            HttpsServer httpsServer = HttpsServer.create(new InetSocketAddress(port), 0);
 //            httpsServer.setHttpsConfigurator(new HttpsConfigurator(sslContext));
 //            this.server = httpsServer;
-        }
+            }
 
 
-        try {
-            server = HttpServer.create(new InetSocketAddress(port), 0);
-            server.createContext("/", exchange -> {
-                try {
-                    for (final HttpRequestListener handler : registeredHandlers) {
-                        if (handler.accept(exchange, context)) {
+            try {
+                server = HttpServer.create(new InetSocketAddress(port), 0);
+                server.createContext("/", exchange -> {
+                    try {
+                        for (final HttpRequestListener handler : registeredHandlers) {
+                            if (handler.accept(exchange, context)) {
+                                sendResponse(exchange, handler.handle(exchange, context));
+                                return;
+                            }
+                        }
+                    } catch (final Exception e) {
+                        final HttpRequestListener handler = this.errorHandler.get();
+                        if (handler != null && handler.accept(exchange, context)) {
                             sendResponse(exchange, handler.handle(exchange, context));
                             return;
                         }
+                        sendResponse(exchange, new HttpResponse(500, ("Internal Server Error " + e.getMessage()).getBytes(), new HashMap<>()));
                     }
-                } catch (final Exception e) {
-                    final HttpRequestListener handler = this.errorHandler.get();
-                    if (handler != null && handler.accept(exchange, context)) {
-                        sendResponse(exchange, handler.handle(exchange, context));
-                        return;
-                    }
-                    sendResponse(exchange, new HttpResponse(500, ("Internal Server Error " + e.getMessage()).getBytes(), new HashMap<>()));
-                }
-                sendResponse(exchange, new HttpResponse(404, "Page not found".getBytes(), new HashMap<>()));
-            });
-            server.setExecutor(context.nano().threadPool());
-            server.start();
-            logger.info(() -> "[{}] starting on port [{}]", name(), port);
-        } catch (final IOException e) {
-            logger.error(e, () -> "[{}] failed to start with port [{}]", name(), port);
-        }
-        this.isReady(true);
+                    sendResponse(exchange, new HttpResponse(404, "Page not found".getBytes(), new HashMap<>()));
+                });
+                server.setExecutor(context.nano().threadPool());
+                server.start();
+                logger.info(() -> "[{}] starting on port [{}]", name(), port);
+            } catch (final IOException e) {
+                logger.error(e, () -> "[{}] failed to start with port [{}]", name(), port);
+            }
+        });
     }
 
     @Override
@@ -176,10 +174,10 @@ public class HttpService extends Service {
         @Override
         public String toString() {
             return new StringJoiner(", ", HttpResponse.class.getSimpleName() + "[", "]")
-                    .add("statusCode=" + statusCode)
-                    .add("body=" + Arrays.toString(body))
-                    .add("headers=" + headers)
-                    .toString();
+                .add("statusCode=" + statusCode)
+                .add("body=" + Arrays.toString(body))
+                .add("headers=" + headers)
+                .toString();
         }
     }
 }

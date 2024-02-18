@@ -40,19 +40,19 @@ public class LogQueue extends Service {
 
     @Override
     public void start(final Supplier<Context> contextSub) {
-        if (isReady.compareAndSet(false, true)) {
+        isReady.set(false, true, state -> {
             final Context context = contextSub.get();
             queueCapacity = context.gett(Config.CONFIG_LOG_QUEUE_SIZE.id(), Integer.class).orElse(1000);
             queue = new LinkedBlockingQueue<>(queueCapacity);
             future = context.nano().execute(this::process);
             context.nano().schedule(this::checkQueueSizeAndWarn, 5, 5, TimeUnit.MINUTES, () -> !isReady());
             context.sendEvent(EVENT_APP_LOG_QUEUE.id(), this, false, false);
-        }
+        });
     }
 
     @Override
     public void stop(final Supplier<Context> contextSub) {
-        if (isReady.compareAndSet(true, false)) {
+        isReady.set(true, false, state -> {
             try {
                 contextSub.get().sendEvent(EVENT_APP_LOG_QUEUE.id(), null, false, true, true);
                 logger.debug(() -> "Shutdown initiated - process last messages [{}]", queue.size());
@@ -64,7 +64,7 @@ public class LogQueue extends Service {
                 future.cancel(true);
                 future = null;
             }
-        }
+        });
     }
 
     @Override
@@ -94,13 +94,16 @@ public class LogQueue extends Service {
     }
 
     protected void checkQueueSizeAndWarn() {
-        if (queue != null && isReady.get()) {
-            final int size = queue.size();
-            final int percentage = size > 0 ? ((int) ((double) size / queueCapacity) * 100) : 0;
-            if (percentage > 80) {
-                logger.warn(() -> "Warning: Log queue is " + percentage + "% full.");
+        isReady.run(true, state -> {
+            if (queue != null) {
+                final int size = queue.size();
+                final int percentage = size > 0 ? ((int) ((double) size / queueCapacity) * 100) : 0;
+                if (percentage > 80) {
+                    logger.warn(() -> "Warning: Log queue is " + percentage + "% full.");
+                }
             }
-        }
+        });
+
     }
 }
 

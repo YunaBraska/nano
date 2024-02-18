@@ -9,7 +9,7 @@ import java.util.logging.Formatter;
 import java.util.logging.LogRecord;
 
 import static berlin.yuna.typemap.logic.TypeConverter.convertObj;
-import static de.yuna.berlin.nativeapp.helper.StringUtils.LINE_SEPARATOR;
+import static de.yuna.berlin.nativeapp.helper.NanoUtils.LINE_SEPARATOR;
 import static de.yuna.berlin.nativeapp.helper.logger.logic.NanoLogger.MAX_LOG_NAME_LENGTH;
 import static de.yuna.berlin.nativeapp.helper.logger.model.LogLevel.nanoLogLevelOf;
 
