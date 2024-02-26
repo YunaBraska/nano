@@ -93,12 +93,12 @@ public abstract class NanoThreads<T extends NanoThreads<T>> extends NanoBase<T> 
             } catch (final Exception e) {
                 final Context context = context(this.getClass());
                 final AtomicBoolean handled = new AtomicBoolean(false);
-                sendEvent(EVENT_APP_UNHANDLED.id(), context, new Unhandled(context, scheduler, e), response -> handled.set(true), false, true, true);
+                sendEvent(EVENT_APP_UNHANDLED.id(), context, new Unhandled(context, scheduler, e), response -> handled.set(true), true);
                 if (!handled.get()) {
                     logger().error(e, () -> "Execution error scheduler [{}]", scheduler.id());
                 }
             } finally {
-                sendEvent(EVENT_APP_SCHEDULER_UNREGISTER.id(), context(this.getClass()), scheduler, null, false, true, true);
+                sendEvent(EVENT_APP_SCHEDULER_UNREGISTER.id(), context(this.getClass()), scheduler, result -> {}, true);
             }
         }, delay, timeUnit);
         return (T) this;
@@ -148,7 +148,7 @@ public abstract class NanoThreads<T extends NanoThreads<T>> extends NanoBase<T> 
                 }
             }
         };
-        sendEvent(EVENT_APP_SCHEDULER_REGISTER.id(), context(Scheduler.class), scheduler, null, false, false, false);
+        sendEvent(EVENT_APP_SCHEDULER_REGISTER.id(), context(Scheduler.class), scheduler, result -> {}, true);
         return scheduler;
     }
 

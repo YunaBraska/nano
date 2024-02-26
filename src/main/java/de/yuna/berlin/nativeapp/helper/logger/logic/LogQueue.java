@@ -1,6 +1,7 @@
 package de.yuna.berlin.nativeapp.helper.logger.logic;
 
 import de.yuna.berlin.nativeapp.core.model.*;
+import de.yuna.berlin.nativeapp.helper.Pair;
 import de.yuna.berlin.nativeapp.helper.event.model.Event;
 import de.yuna.berlin.nativeapp.helper.logger.model.LogLevel;
 
@@ -46,7 +47,7 @@ public class LogQueue extends Service {
             queue = new LinkedBlockingQueue<>(queueCapacity);
             future = context.nano().execute(this::process);
             context.nano().schedule(this::checkQueueSizeAndWarn, 5, 5, TimeUnit.MINUTES, () -> !isReady());
-            context.sendEvent(EVENT_APP_LOG_QUEUE.id(), this, false, false);
+            context.broadcastEvent(EVENT_APP_LOG_QUEUE.id(), this);
         });
     }
 
@@ -54,7 +55,7 @@ public class LogQueue extends Service {
     public void stop(final Supplier<Context> contextSub) {
         isReady.set(true, false, state -> {
             try {
-                contextSub.get().sendEvent(EVENT_APP_LOG_QUEUE.id(), null, false, true, true);
+                contextSub.get().broadcastEvent(EVENT_APP_LOG_QUEUE.id(), this);
                 logger.debug(() -> "Shutdown initiated - process last messages [{}]", queue.size());
                 queue.put(new Pair<>(logger.logger(), new LogRecord(Level.INFO, "Shutdown Hook")));
                 queue = null;
@@ -103,7 +104,14 @@ public class LogQueue extends Service {
                 }
             }
         });
+    }
 
+    @Override
+    public String toString() {
+        return this.getClass().getSimpleName() + "{" +
+            "size=" + queue.size() +
+            ", max=" + queueCapacity +
+            '}';
     }
 }
 

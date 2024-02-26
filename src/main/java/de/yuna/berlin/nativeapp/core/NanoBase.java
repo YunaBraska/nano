@@ -96,12 +96,23 @@ public abstract class NanoBase<T extends NanoBase<T>> {
      * @param context          The {@link Context} in which the event is created and processed. It provides environmental data and configurations.
      * @param payload          The data or object that is associated with this event. This can be any relevant information that needs to be passed along with the event.
      * @param responseListener A consumer that handles the response of the event processing. It can be used to execute actions based on the event's outcome or data.
-     * @param toFirst          Whether to send the event only to the first listener or service that response.
-     * @param await            Whether to wait for the event processing to complete.
-     * @param sameThread       Whether to process the event on the same thread.
+     * @param broadcast          Whether to send the event only to the first listener or service that response.
      * @return Self for chaining
      */
-    abstract T sendEvent(final int type, final Context context, final Object payload, final Consumer<Object> responseListener, final boolean toFirst, final boolean await, final boolean sameThread);
+    abstract T sendEvent(final int type, final Context context, final Object payload, final Consumer<Object> responseListener, final boolean broadcast);
+
+    /**
+     * Processes an event with the given parameters and decides on the execution path based on the presence of a response listener and the broadcast flag.
+     * If a response listener is provided, the event is processed asynchronously; otherwise, it is processed in the current thread. This method creates an {@link Event} instance and triggers the appropriate event handling logic.
+     *
+     * @param type The integer representing the type of the event, identifying the nature or action of the event.
+     * @param context The {@link Context} associated with the event, encapsulating environment and configuration details.
+     * @param payload The payload of the event, containing data relevant to the event's context and purpose.
+     * @param responseListener A consumer for handling the event's response. If provided, the event is handled asynchronously; if null, the handling is synchronous.
+     * @param broadCast Determines the event's distribution: if true, the event is made available to all listeners; if false, it targets specific listeners based on the implementation logic.
+     * @return An instance of {@link Event} that represents the event being processed. This object can be used for further operations or tracking.
+     */
+    abstract Event sendEventReturn(final int type, final Context context, final Object payload, final Consumer<Object> responseListener, final boolean broadCast);
 
     /**
      * Initiates the shutdown process for the {@link Nano} instance.

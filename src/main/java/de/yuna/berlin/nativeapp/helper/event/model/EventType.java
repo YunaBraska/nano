@@ -1,5 +1,8 @@
 package de.yuna.berlin.nativeapp.helper.event.model;
 
+import de.yuna.berlin.nativeapp.services.metric.logic.MetricService;
+import de.yuna.berlin.nativeapp.services.metric.model.MetricUpdate;
+
 import static de.yuna.berlin.nativeapp.helper.event.EventTypeRegister.registerEventType;
 
 /**
@@ -18,6 +21,8 @@ public enum EventType {
     EVENT_APP_SCHEDULER_REGISTER(registerEventType("APP_SCHEDULER_REGISTER"), "Triggered when a new scheduler is registered"),
     EVENT_APP_SCHEDULER_UNREGISTER(registerEventType("APP_SCHEDULER_UNREGISTER"), "Triggered when a scheduler is unregistered"),
     EVENT_APP_UNHANDLED(registerEventType("EVENT_APP_UNHANDLED"), "Triggered when there is an unhandled event"),
+    EVENT_APP_HEARTBEAT(registerEventType("EVENT_HEARTBEAT"), "Triggered periodically"),
+    EVENT_METRIC_UPDATE(registerEventType("EVENT_METRIC_UPDATE"), MetricService.class.getSimpleName() + " updates metrics, use " + MetricUpdate.class.getSimpleName()),
     ;
 
     private final int id;

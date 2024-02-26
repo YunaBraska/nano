@@ -1,5 +1,6 @@
 package de.yuna.berlin.nativeapp.core.model;
 
+import de.yuna.berlin.nativeapp.helper.LockedBoolean;
 import de.yuna.berlin.nativeapp.helper.event.model.Event;
 import de.yuna.berlin.nativeapp.helper.logger.logic.LogQueue;
 import de.yuna.berlin.nativeapp.helper.logger.logic.NanoLogger;
@@ -57,9 +58,8 @@ public abstract class Service {
             this.logger().level(context.logLevel());
             this.logger().logQueue(context.nano().logger().logQueue());
             this.start(() -> context);
-            context.nano().sendEvent(EVENT_APP_SERVICE_REGISTER.id(), context, this, null, false, false, true);
+            context.nano().sendEvent(EVENT_APP_SERVICE_REGISTER.id(), context, this, result -> {}, true);
         }).onComplete((nanoThread, error) -> {
-            // context.nano().sendEvent(EVENT_APP_SERVICE_UNREGISTER.id(), context, this, null, false, false, true);
             if (error != null)
                 handleServiceException(context, error);
         });

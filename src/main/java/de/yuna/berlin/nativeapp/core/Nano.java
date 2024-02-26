@@ -7,6 +7,8 @@ import de.yuna.berlin.nativeapp.helper.event.EventTypeRegister;
 import de.yuna.berlin.nativeapp.helper.event.model.Event;
 import de.yuna.berlin.nativeapp.helper.logger.logic.LogQueue;
 import de.yuna.berlin.nativeapp.helper.logger.logic.NanoLogger;
+import de.yuna.berlin.nativeapp.services.metric.model.MetricType;
+import de.yuna.berlin.nativeapp.services.metric.model.MetricUpdate;
 
 import java.lang.management.ManagementFactory;
 import java.util.*;
@@ -20,6 +22,8 @@ import static de.yuna.berlin.nativeapp.core.model.Context.tryExecute;
 import static de.yuna.berlin.nativeapp.core.model.NanoThread.*;
 import static de.yuna.berlin.nativeapp.helper.NanoUtils.formatDuration;
 import static de.yuna.berlin.nativeapp.helper.event.model.EventType.*;
+import static de.yuna.berlin.nativeapp.services.metric.model.MetricType.COUNTER;
+import static de.yuna.berlin.nativeapp.services.metric.model.MetricType.GAUGE;
 import static java.lang.System.lineSeparator;
 import static java.util.stream.Collectors.joining;
 
@@ -64,7 +68,8 @@ public class Nano extends NanoServices<Nano> {
      */
     public Nano(final FunctionOrNull<Context, List<Service>> startupServices, final Map<Object, Object> config, final String... args) {
         super(config, args);
-        logger.debug(() -> "Init {} in [{}]", this.getClass().getSimpleName(), formatDuration(System.currentTimeMillis() - createdAtMs));
+        final long initTime = System.currentTimeMillis() - createdAtMs;
+        logger.debug(() -> "Init {} in [{}]", this.getClass().getSimpleName(), formatDuration(initTime));
         printParameters();
         final Context context = this.context(this.getClass());
         final long service_startUpTime = System.currentTimeMillis();
@@ -82,13 +87,17 @@ public class Nano extends NanoServices<Nano> {
                 context.asyncAwait(partitionedServices.getOrDefault(false, Collections.emptyList()).toArray(Service[]::new));
             }
         }
-        // INIT CLEANUP TASK - just for safety
-        schedule(() -> new HashSet<>(schedulers).stream().filter(scheduler -> scheduler.isShutdown() || scheduler.isTerminated()).forEach(schedulers::remove), 256, 256, TimeUnit.MILLISECONDS, () -> true);
+        schedule(() -> sendEvent(EVENT_APP_HEARTBEAT.id(), context, this, result -> {}, true), 256, 256, TimeUnit.MILLISECONDS, () -> false);
         logger.info(() -> "Running Services [{}]", services().stream().collect(Collectors.groupingBy(Service::name, Collectors.counting())).entrySet().stream().map(entry -> entry.getValue() > 1 ? "(" + entry.getValue() + ") " + entry.getKey() : entry.getKey()).collect(joining(", ")));
-        logger.info(() -> "Started [{}] in [{}]", this.getClass().getSimpleName(), formatDuration(System.currentTimeMillis() - service_startUpTime));
+        final long readyTime = System.currentTimeMillis() - service_startUpTime;
+        logger.info(() -> "Started [{}] in [{}]", this.getClass().getSimpleName(), formatDuration(readyTime));
         printSystemInfo();
-        sendEvent(EVENT_APP_START.id(), context, null, null, false, false, false);
+        sendEvent(EVENT_METRIC_UPDATE.id(), context, null, result -> {}, true);
+        sendEvent(EVENT_METRIC_UPDATE.id(), context, new MetricUpdate(GAUGE, "application.started.time", initTime, null), result -> {}, false);
+        sendEvent(EVENT_METRIC_UPDATE.id(), context, new MetricUpdate(GAUGE, "application.ready.time", readyTime, null), result -> {}, false);
         addEventListener(EVENT_APP_SHUTDOWN.id(), event -> event.acknowledge(() -> CompletableFuture.runAsync(() -> shutdown(context(this.getClass())))));
+        // INIT CLEANUP TASK - just for safety
+        addEventListener(EVENT_APP_HEARTBEAT.id(), event -> new HashSet<>(schedulers).stream().filter(scheduler -> scheduler.isShutdown() || scheduler.isTerminated()).forEach(schedulers::remove));
     }
 
     /**
@@ -120,7 +129,8 @@ public class Nano extends NanoServices<Nano> {
      */
     @Override
     public Nano stop(final Context context) {
-        sendEvent(EVENT_APP_SHUTDOWN.id(), context != null ? context : context(this.getClass()), null, null, false, false, false);
+        sendEvent(EVENT_APP_SHUTDOWN.id(), context != null ? context : context(this.getClass()), null, result -> {
+        }, true);
         return this;
     }
 
@@ -136,41 +146,38 @@ public class Nano extends NanoServices<Nano> {
     }
 
     /**
-     * Sends an event to {@link Nano#listeners} and {@link Service}.
-     * Used {@link Context#sendEvent(int, Object)} from {@link Nano#context(Class)} instead of the core method.
+     * Sends an event with the specified parameters, either broadcasting it to all listeners or sending it to a targeted listener asynchronously if a response listener is provided.
      *
-     * @param type             The integer representing the type of the event. This typically corresponds to a specific kind of event.
-     * @param context          The {@link Context} in which the event is created and processed. It provides environmental data and configurations.
-     * @param payload          The data or object that is associated with this event. This can be any relevant information that needs to be passed along with the event.
-     * @param responseListener A consumer that handles the response of the event processing. It can be used to execute actions based on the event's outcome or data.
-     * @param toFirst          Whether to send the event only to the first listener or service that response.
-     * @param await            Whether to wait for the event processing to complete.
-     * @param sameThread       Whether to process the event on the same thread.
-     * @return Self for chaining
+     * @param type             The integer representing the type of the event. This typically corresponds to a specific action or state change.
+     * @param context          The {@link Context} in which the event is being sent, providing environmental data and configurations.
+     * @param payload          The data or object associated with this event. This could be any relevant information that needs to be communicated through the event.
+     * @param responseListener A consumer that handles the response of the event processing. If null, the event is processed in the same thread; otherwise, it's processed asynchronously.
+     * @param broadcast        A boolean flag indicating whether the event should be broadcast to all listeners. If true, the event is broadcast; if false, it is sent to a targeted listener.
+     * @return The {@link Nano} instance, allowing for method chaining.
      */
-    @Override
-    public Nano sendEvent(final int type, final Context context, final Object payload, final Consumer<Object> responseListener, final boolean toFirst, final boolean await, final boolean sameThread) {
-        sendEventReturn(type, context, payload, responseListener, toFirst, await, sameThread);
+    public Nano sendEvent(final int type, final Context context, final Object payload, final Consumer<Object> responseListener, final boolean broadcast) {
+        sendEventReturn(type, context, payload, responseListener, broadcast);
         return this;
     }
 
     /**
-     * Sends an event based on the provided Event object and processing flags.
-     * Used {@link Context#sendEventReturn(int, Object)} from {@link Nano#context(Class)} instead of the core method.
+     * Processes an event with the given parameters and decides on the execution path based on the presence of a response listener and the broadcast flag.
+     * If a response listener is provided, the event is processed asynchronously; otherwise, it is processed in the current thread. This method creates an {@link Event} instance and triggers the appropriate event handling logic.
      *
-     * @param toFirst    Whether to send the event only to the first matching listener.
-     * @param await      Whether to wait for the event processing to complete.
-     * @param sameThread Whether to process the event on the same thread.
-     * @return The event that was sent.
+     * @param type             The integer representing the type of the event, identifying the nature or action of the event.
+     * @param context          The {@link Context} associated with the event, encapsulating environment and configuration details.
+     * @param payload          The payload of the event, containing data relevant to the event's context and purpose.
+     * @param responseListener A consumer for handling the event's response. If provided, the event is handled asynchronously; if null, the handling is synchronous.
+     * @param broadCast        Determines the event's distribution: if true, the event is made available to all listeners; if false, it targets specific listeners based on the implementation logic.
+     * @return An instance of {@link Event} that represents the event being processed. This object can be used for further operations or tracking.
      */
-    public Event sendEventReturn(final int type, final Context context, final Object payload, final Consumer<Object> responseListener, final boolean toFirst, final boolean await, final boolean sameThread) {
+    public Event sendEventReturn(final int type, final Context context, final Object payload, final Consumer<Object> responseListener, final boolean broadCast) {
         final Event event = new Event(type, context, payload, responseListener);
-        if (await && sameThread) {
-            sendEventSameThread(event, toFirst);
-        } else if (await) {
-            event.context().asyncAwait(ctx -> sendEventSameThread(event, toFirst));
+        if (responseListener == null) {
+            sendEventSameThread(event, broadCast);
         } else {
-            event.context().async(ctx -> sendEventSameThread(event, toFirst));
+            //FIXME: batch processing to avoid too many threads?
+            event.context().async(ctx -> sendEventSameThread(event, broadCast));
         }
         return event;
     }
@@ -179,21 +186,21 @@ public class Nano extends NanoServices<Nano> {
      * Sends an event on the same thread and determines whether to process it to the first listener.
      * Used {@link Context#sendEvent(int, Object)} from {@link Nano#context(Class)} instead of the core method.
      *
-     * @param event   The event to be processed.
-     * @param toFirst Whether to send the event only to the first matching listener.
+     * @param event     The event to be processed.
+     * @param broadcast Whether to send the event only to the first matching listener or to all.
      */
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    public void sendEventSameThread(final Event event, final boolean toFirst) {
+    public void sendEventSameThread(final Event event, final boolean broadcast) {
         eventCount.incrementAndGet();
         tryExecute(() -> {
             final boolean match = listeners.getOrDefault(event.id(), Collections.emptySet()).stream().anyMatch(listener -> {
                 tryExecute(() -> listener.accept(event), throwable -> event.context().logger().error(throwable, () -> "Error processing {} [{}] payload [{}]", Event.class.getSimpleName(), event.name(), event.payload()));
-                return toFirst && event.isAcknowledged();
+                return !broadcast && event.isAcknowledged();
             });
             if (!match) {
                 services.stream().filter(Service::isReady).anyMatch(service -> {
                     tryExecute(() -> service.onEvent(event), throwable -> handleEventServiceException(event, service, throwable));
-                    return toFirst && event.isAcknowledged();
+                    return !broadcast && event.isAcknowledged();
                 });
             }
         });

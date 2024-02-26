@@ -1,5 +1,6 @@
 package de.yuna.berlin.nativeapp.core.model;
 
+import de.yuna.berlin.nativeapp.helper.Pair;
 import de.yuna.berlin.nativeapp.helper.PrintTestNamesExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

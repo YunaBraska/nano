@@ -1,4 +1,4 @@
-package de.yuna.berlin.nativeapp.core.model;
+package de.yuna.berlin.nativeapp.helper;
 
 import java.util.concurrent.Semaphore;
 import java.util.function.Consumer;

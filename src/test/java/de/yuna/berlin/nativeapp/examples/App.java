@@ -6,6 +6,7 @@ import de.yuna.berlin.nativeapp.core.model.Service;
 import de.yuna.berlin.nativeapp.helper.logger.logic.LogQueue;
 import de.yuna.berlin.nativeapp.helper.logger.model.LogLevel;
 import de.yuna.berlin.nativeapp.services.http.HttpService;
+import de.yuna.berlin.nativeapp.services.metric.logic.MetricService;
 
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -17,16 +18,15 @@ import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_SH
 
 public class App {
 
-    public static void main(final String[] args) throws InterruptedException {
-        //TODO: Metrics
+    public static void main(final String[] args) {
         //TODO: Dynamic Queues to Services
         //TODO: Dynamic Messages to Services
         //TODO: Chain & Async & Functional programming like streams/optionals - allow users to spawn and chain functions everywhere & send events from everywhere
-        // TODO: support internationalization (logRecord.setResourceBundle(javaLogger.getResourceBundle());, logRecord.setResourceBundleName(javaLogger.getResourceBundleName()))
+        //TODO: support internationalization (logRecord.setResourceBundle(javaLogger.getResourceBundle());, logRecord.setResourceBundleName(javaLogger.getResourceBundleName()))
         final Nano application = new Nano(Map.of(
             CONFIG_LOG_LEVEL, LogLevel.INFO,
             CONFIG_LOG_FORMATTER, "console"
-        ), new LogQueue(), new HttpService(8080));
+        ), new LogQueue(), new MetricService(), new HttpService(8080));
 
         final Service serviceA = new ServiceA();
         final Service serviceB = new ServiceB();

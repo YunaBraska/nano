@@ -61,11 +61,30 @@ public class Event {
         return this;
     }
 
+    public Event ifPresentAck(final int eventType, final Consumer<Event> consumer) {
+        if (this.id == eventType) {
+            consumer.accept(this);
+            acknowledge();
+        }
+        return this;
+    }
+
     public <T> Event ifPresent(final int eventType, final Class<T> clazz, final Consumer<T> consumer) {
         if (this.id == eventType) {
             final T payloadObj = payload(clazz);
             if (payloadObj != null)
                 consumer.accept(payloadObj);
+        }
+        return this;
+    }
+
+    public <T> Event ifPresentAck(final int eventType, final Class<T> clazz, final Consumer<T> consumer) {
+        if (this.id == eventType) {
+            final T payloadObj = payload(clazz);
+            if (payloadObj != null) {
+                consumer.accept(payloadObj);
+                acknowledge();
+            }
         }
         return this;
     }

@@ -283,171 +283,109 @@ public class Context extends ConcurrentTypeMap {
     //########## EVENT HELPER ##########
 
     /**
-     * Sends an event with the specified type and payload.
+     * Sends an event of the specified type with the provided payload within this context without expecting a response.
+     * This method is used for sending targeted events that do not require asynchronous processing or response handling.
      *
-     * @param eventType The type of the event.
-     * @param payload   The payload of the event.
-     * @return Self for chaining
+     * @param eventType The integer representing the type of the event, identifying the nature or action of the event.
+     * @param payload   The payload of the event, containing data relevant to the event's context and purpose.
+     * @return The current {@link Context} instance, allowing for method chaining and further configuration.
      */
     public Context sendEvent(final int eventType, final Object payload) {
-        nano.sendEvent(eventType, this, payload, null, true, false, false);
+        nano.sendEvent(eventType, this, payload, null, false);
         return this;
     }
 
     /**
-     * Sends an event with the specified type and payload and allows for a response listener.
+     * Sends an event of the specified type with the provided payload within this context, expecting a response that is handled by the provided responseListener.
+     * This method allows for asynchronous event processing and response handling through the specified consumer.
      *
-     * @param eventType        The type of the event.
-     * @param payload          The payload of the event.
-     * @param responseListener A consumer to handle responses from the event processing.
-     * @return Self for chaining
+     * @param eventType        The integer representing the type of the event.
+     * @param payload          The payload of the event, containing the data to be communicated.
+     * @param responseListener A consumer that processes the response of the event. This allows for asynchronous event handling and response processing.
+     * @return The current {@link Context} instance, facilitating method chaining and further actions.
      */
     public Context sendEvent(final int eventType, final Object payload, final Consumer<Object> responseListener) {
-        nano.sendEvent(eventType, this, payload, responseListener, true, false, false);
+        nano.sendEvent(eventType, this, payload, responseListener, false);
         return this;
     }
 
     /**
-     * Sends an event and specifies whether to wait for the event processing to complete.
+     * Broadcasts an event of the specified type with the provided payload to all listeners within this context without expecting a response.
+     * This method is ideal for notifying all interested parties of a particular event where no direct response is required.
      *
-     * @param eventType The type of the event.
-     * @param payload   The payload of the event.
-     * @param await     Whether to wait for the event processing to complete.
-     * @return Self for chaining
+     * @param eventType The integer representing the type of the event, used to notify all listeners interested in this type of event.
+     * @param payload   The payload of the event, containing information relevant to the broadcast.
+     * @return The current {@link Context} instance, enabling method chaining and additional configurations.
      */
-    public Context sendEvent(final int eventType, final Object payload, final boolean await) {
-        nano.sendEvent(eventType, this, payload, null, true, await, false);
+    public Context broadcastEvent(final int eventType, final Object payload) {
+        nano.sendEvent(eventType, this, payload, null, true);
         return this;
     }
 
     /**
-     * Sends an event with the specified type and payload, and allows specifying
-     * whether to send to the first listener and whether to await completion.
+     * Broadcasts an event of the specified type with the provided payload to all listeners within this context, expecting a response that is handled by the provided responseListener.
+     * This method allows for the broad dissemination of an event while also facilitating asynchronous response processing.
      *
-     * @param eventType The type of the event.
-     * @param payload   The payload of the event.
-     * @param toFirst   If true, sends the event only to the first matching listener.
-     * @param await     If true, waits for the event processing to complete.
-     * @return Self for chaining
+     * @param eventType        The integer representing the type of the event.
+     * @param payload          The payload associated with the event, intended for widespread distribution.
+     * @param responseListener A consumer that handles the response of the event, enabling asynchronous processing and response handling across multiple listeners.
+     * @return The current {@link Context} instance, allowing for method chaining and further actions.
      */
-    public Context sendEvent(final int eventType, final Object payload, final boolean toFirst, final boolean await) {
-        nano.sendEvent(eventType, this, payload, null, toFirst, await, false);
-        return this;
-    }
-
-    /**
-     * Sends an event with the specified type and payload, allowing control over
-     * targeting the first listener, waiting for completion, and executing on the same thread.
-     *
-     * @param eventType  The type of the event.
-     * @param payload    The payload of the event.
-     * @param toFirst    If true, sends the event only to the first matching listener.
-     * @param await      If true, waits for the event processing to complete.
-     * @param sameThread If true, processes the event on the same thread.
-     * @return Self for chaining
-     */
-    public Context sendEvent(final int eventType, final Object payload, final boolean toFirst, final boolean await, final boolean sameThread) {
-        nano.sendEvent(eventType, this, payload, null, toFirst, await, sameThread);
-        return this;
-    }
-
-    /**
-     * Sends an event with the specified type and payload, with options for first listener targeting,
-     * awaiting completion, same thread execution, and handling responses.
-     *
-     * @param eventType        The type of the event.
-     * @param payload          The payload of the event.
-     * @param toFirst          If true, sends the event only to the first matching listener.
-     * @param await            If true, waits for the event processing to complete.
-     * @param sameThread       If true, processes the event on the same thread.
-     * @param responseListener A consumer to handle responses from the event processing.
-     * @return Self for chaining
-     */
-    public Context sendEvent(final int eventType, final Object payload, final boolean toFirst, final boolean await, final boolean sameThread, final Consumer<Object> responseListener) {
-        nano.sendEvent(eventType, this, payload, responseListener, toFirst, await, sameThread);
+    public Context broadcastEvent(final int eventType, final Object payload, final Consumer<Object> responseListener) {
+        nano.sendEvent(eventType, this, payload, responseListener, true);
         return this;
     }
 
     //########## EVENT RETURN HELPER ##########
 
     /**
-     * Sends an event with the specified type and payload.
+     * Sends an event of the specified type with the provided payload within this context without expecting a response.
+     * This method is used for sending targeted events that do not require asynchronous processing or response handling.
      *
-     * @param eventType The type of the event.
-     * @param payload   The payload of the event.
-     * @return The event that was sent.
+     * @param eventType The integer representing the type of the event, identifying the nature or action of the event.
+     * @param payload   The payload of the event, containing data relevant to the event's context and purpose.
+     * @return An instance of {@link Event} that represents the event being processed. This object can be used for further operations or tracking.
      */
     public Event sendEventReturn(final int eventType, final Object payload) {
-        return nano.sendEventReturn(eventType, this, payload, null, true, false, false);
+        return nano.sendEventReturn(eventType, this, payload, null, false);
     }
 
     /**
-     * Sends an event with the specified type and payload and allows for a response listener.
+     * Sends an event of the specified type with the provided payload within this context, expecting a response that is handled by the provided responseListener.
+     * This method allows for asynchronous event processing and response handling through the specified consumer.
      *
-     * @param eventType        The type of the event.
-     * @param payload          The payload of the event.
-     * @param responseListener A consumer to handle responses from the event processing.
-     * @return The event that was sent.
+     * @param eventType        The integer representing the type of the event.
+     * @param payload          The payload of the event, containing the data to be communicated.
+     * @param responseListener A consumer that processes the response of the event. This allows for asynchronous event handling and response processing.
+     * @return An instance of {@link Event} that represents the event being processed. This object can be used for further operations or tracking.
      */
     public Event sendEventReturn(final int eventType, final Object payload, final Consumer<Object> responseListener) {
-        return nano.sendEventReturn(eventType, this, payload, responseListener, true, false, false);
+        return nano.sendEventReturn(eventType, this, payload, responseListener, false);
     }
 
     /**
-     * Sends an event and specifies whether to wait for the event processing to complete.
+     * Broadcasts an event of the specified type with the provided payload to all listeners within this context without expecting a response.
+     * This method is ideal for notifying all interested parties of a particular event where no direct response is required.
      *
-     * @param eventType The type of the event.
-     * @param payload   The payload of the event.
-     * @param await     Whether to wait for the event processing to complete.
-     * @return The event that was sent.
+     * @param eventType The integer representing the type of the event, used to notify all listeners interested in this type of event.
+     * @param payload   The payload of the event, containing information relevant to the broadcast.
+     * @return An instance of {@link Event} that represents the event being processed. This object can be used for further operations or tracking.
      */
-    public Event sendEventReturn(final int eventType, final Object payload, final boolean await) {
-        return nano().sendEventReturn(eventType, this, payload, null, true, await, await);
+    public Event broadcastEventReturn(final int eventType, final Object payload) {
+        return nano.sendEventReturn(eventType, this, payload, null, true);
     }
 
     /**
-     * Sends an event with the specified type and payload, and allows specifying
-     * whether to send to the first listener and whether to await completion.
+     * Broadcasts an event of the specified type with the provided payload to all listeners within this context, expecting a response that is handled by the provided responseListener.
+     * This method allows for the broad dissemination of an event while also facilitating asynchronous response processing.
      *
-     * @param eventType The type of the event.
-     * @param payload   The payload of the event.
-     * @param toFirst   If true, sends the event only to the first matching listener.
-     * @param await     If true, waits for the event processing to complete.
-     * @return The event that was sent.
+     * @param eventType        The integer representing the type of the event.
+     * @param payload          The payload associated with the event, intended for widespread distribution.
+     * @param responseListener A consumer that handles the response of the event, enabling asynchronous processing and response handling across multiple listeners.
+     * @return An instance of {@link Event} that represents the event being processed. This object can be used for further operations or tracking.
      */
-    public Event sendEventReturn(final int eventType, final Object payload, final boolean toFirst, final boolean await) {
-        return nano().sendEventReturn(eventType, this, payload, null, toFirst, await, await);
-    }
-
-    /**
-     * Sends an event with the specified type and payload, allowing control over
-     * targeting the first listener, waiting for completion, and executing on the same thread.
-     *
-     * @param eventType  The type of the event.
-     * @param payload    The payload of the event.
-     * @param toFirst    If true, sends the event only to the first matching listener.
-     * @param await      If true, waits for the event processing to complete.
-     * @param sameThread If true, processes the event on the same thread.
-     * @return The event that was sent.
-     */
-    public Event sendEventReturn(final int eventType, final Object payload, final boolean toFirst, final boolean await, final boolean sameThread) {
-        return nano().sendEventReturn(eventType, this, payload, null, toFirst, await, sameThread);
-    }
-
-    /**
-     * Sends an event with the specified type and payload, with options for first listener targeting,
-     * awaiting completion, same thread execution, and handling responses.
-     *
-     * @param eventType        The type of the event.
-     * @param payload          The payload of the event.
-     * @param toFirst          If true, sends the event only to the first matching listener.
-     * @param await            If true, waits for the event processing to complete.
-     * @param sameThread       If true, processes the event on the same thread.
-     * @param responseListener A consumer to handle responses from the event processing.
-     * @return The event that was sent.
-     */
-    public Event sendEventReturn(final int eventType, final Object payload, final boolean toFirst, final boolean await, final boolean sameThread, final Consumer<Object> responseListener) {
-        return nano().sendEventReturn(eventType, this, payload, responseListener, toFirst, await, sameThread);
+    public Event broadcastEventReturn(final int eventType, final Object payload, final Consumer<Object> responseListener) {
+        return nano.sendEventReturn(eventType, this, payload, responseListener, true);
     }
 
     protected Context() {
@@ -467,7 +405,7 @@ public class Context extends ConcurrentTypeMap {
 
     public static void handleExecutionExceptions(final Context context, final Unhandled payload, final Supplier<String> errorMsg) {
         final AtomicBoolean wasHandled = new AtomicBoolean(false);
-        context.nano().sendEvent(EVENT_APP_UNHANDLED.id(), context, payload, result -> wasHandled.set(true), true, true, true);
+        context.nano().sendEvent(EVENT_APP_UNHANDLED.id(), context, payload, result -> wasHandled.set(true), false);
         if (!wasHandled.get()) {
             context.logger().error(payload.exception(), errorMsg);
         }

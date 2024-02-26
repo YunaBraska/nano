@@ -1,4 +1,4 @@
-package de.yuna.berlin.nativeapp.core.model;
+package de.yuna.berlin.nativeapp.helper;
 
 import static berlin.yuna.typemap.logic.TypeConverter.convertObj;
 

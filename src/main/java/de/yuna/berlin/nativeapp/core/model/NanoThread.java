@@ -1,6 +1,7 @@
 package de.yuna.berlin.nativeapp.core.model;
 
 import de.yuna.berlin.nativeapp.helper.ExRunnable;
+import de.yuna.berlin.nativeapp.helper.LockedBoolean;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
