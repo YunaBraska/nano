@@ -5,11 +5,15 @@ import de.yuna.berlin.nativeapp.helper.event.model.Event;
 import de.yuna.berlin.nativeapp.helper.logger.logic.LogQueue;
 import de.yuna.berlin.nativeapp.helper.logger.logic.NanoLogger;
 import de.yuna.berlin.nativeapp.helper.logger.model.LogLevel;
+import de.yuna.berlin.nativeapp.services.metric.model.MetricUpdate;
 
+import java.util.Map;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static de.yuna.berlin.nativeapp.core.model.Context.handleExecutionExceptions;
 import static de.yuna.berlin.nativeapp.helper.event.model.EventType.*;
+import static de.yuna.berlin.nativeapp.services.metric.model.MetricType.GAUGE;
 import static java.util.Arrays.stream;
 
 public abstract class Service {
@@ -55,9 +59,11 @@ public abstract class Service {
     //########## GLOBAL SERVICE METHODS ##########
     public NanoThread nanoThread(final Context context) {
         return new NanoThread().execute(context.nano() != null ? context.nano().threadPool() : null, () -> {
+            final long startTime = System.currentTimeMillis();
             this.logger().level(context.logLevel());
             this.logger().logQueue(context.nano().logger().logQueue());
             this.start(() -> context);
+            context.sendEvent(EVENT_METRIC_UPDATE.id(), new MetricUpdate(GAUGE, "application.services.ready.time", System.currentTimeMillis() - startTime, Map.of("class", this.getClass().getSimpleName())), result -> {});
             context.nano().sendEvent(EVENT_APP_SERVICE_REGISTER.id(), context, this, result -> {}, true);
         }).onComplete((nanoThread, error) -> {
             if (error != null)

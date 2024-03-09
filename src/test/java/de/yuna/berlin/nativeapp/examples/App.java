@@ -26,7 +26,7 @@ public class App {
         final Nano application = new Nano(Map.of(
             CONFIG_LOG_LEVEL, LogLevel.INFO,
             CONFIG_LOG_FORMATTER, "console"
-        ), new LogQueue(), new MetricService(), new HttpService(8080));
+        ), new LogQueue(), new MetricService(), new HttpService());
 
         final Service serviceA = new ServiceA();
         final Service serviceB = new ServiceB();

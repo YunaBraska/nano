@@ -101,7 +101,7 @@ public class Event {
         return response != null;
     }
 
-    public Object payloadOpt() {
+    public Optional<Object> payloadOpt() {
         return ofNullable(response);
     }
 

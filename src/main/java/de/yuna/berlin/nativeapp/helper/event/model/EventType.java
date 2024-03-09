@@ -1,5 +1,6 @@
 package de.yuna.berlin.nativeapp.helper.event.model;
 
+import de.yuna.berlin.nativeapp.services.http.HttpService;
 import de.yuna.berlin.nativeapp.services.metric.logic.MetricService;
 import de.yuna.berlin.nativeapp.services.metric.model.MetricUpdate;
 
@@ -23,6 +24,8 @@ public enum EventType {
     EVENT_APP_UNHANDLED(registerEventType("EVENT_APP_UNHANDLED"), "Triggered when there is an unhandled event"),
     EVENT_APP_HEARTBEAT(registerEventType("EVENT_HEARTBEAT"), "Triggered periodically"),
     EVENT_METRIC_UPDATE(registerEventType("EVENT_METRIC_UPDATE"), MetricService.class.getSimpleName() + " updates metrics, use " + MetricUpdate.class.getSimpleName()),
+    EVENT_HTTP_REQUEST(registerEventType("HTTP_REQUEST"), "Http request usually comes from " + HttpService.class.getSimpleName()),
+    EVENT_HTTP_REQUEST_UNHANDLED(registerEventType("HTTP_REQUEST_UNHANDLED"), "Http request which was not handled by any listener or service. Usually comes from " + HttpService.class.getSimpleName()),
     ;
 
     private final int id;
