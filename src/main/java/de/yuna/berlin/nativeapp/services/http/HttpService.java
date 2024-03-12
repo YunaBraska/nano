@@ -7,8 +7,12 @@ import de.yuna.berlin.nativeapp.core.model.Service;
 import de.yuna.berlin.nativeapp.core.model.Unhandled;
 import de.yuna.berlin.nativeapp.services.http.model.ContentType;
 import de.yuna.berlin.nativeapp.services.http.model.HttpHeaders;
+import de.yuna.berlin.nativeapp.services.http.model.HttpMethod;
+import de.yuna.berlin.nativeapp.services.http.model.HttpRequest;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
@@ -46,6 +50,16 @@ public class HttpService extends Service {
                 server.createContext("/", exchange -> {
                     try {
                         //TODO: #1 Create own request object instead of the exchange as there is no control tp prevent the user to use `exchange.sendResponseHeaders` which breaks the following logic
+                        if ("POST".equals(exchange.getRequestMethod())) {
+                            HttpRequest request = new HttpRequest.Builder()
+                                .method(HttpMethod.POST)
+                                .path(exchange.getRequestURI().getPath())
+                                .headers(exchange.getRequestHeaders())
+                                .body(getRequestData(exchange))
+                                .build();
+                            //TODO : handle and send response
+                        }
+
                         context.sendEventReturn(EVENT_HTTP_REQUEST.id(), exchange).payloadOpt(HttpResponse.class).ifPresentOrElse(
                             response -> sendResponse(exchange, response),
                             () -> context.sendEventReturn(EVENT_HTTP_REQUEST_UNHANDLED.id(), exchange).payloadOpt(HttpResponse.class).ifPresentOrElse(
@@ -157,6 +171,17 @@ public class HttpService extends Service {
                 .add("headers=" + headers)
                 .toString();
         }
+    }
+
+    private static String getRequestData(HttpExchange exchange) throws IOException {
+        StringBuilder requestBody = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(exchange.getRequestBody()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                requestBody.append(line);
+            }
+        }
+        return requestBody.toString();
     }
 }
 
