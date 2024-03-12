@@ -143,6 +143,10 @@ public class Event {
         return convertObj(response, type);
     }
 
+    public <T> Optional<T> responseOpt(final Class<T> type) {
+        return ofNullable(response(type));
+    }
+
     public Object response() {
         return response;
     }
