@@ -80,7 +80,7 @@ public abstract class NanoServices<T extends NanoServices<T>> extends NanoThread
      * @param context The {@link Context} in which the services are shut down.
      */
     protected void shutdownServices(final Context context) {
-        if (rootContext.gett(CONFIG_PARALLEL_SHUTDOWN.id(), Boolean.class).orElse(false)) {
+        if (rootContext.getOpt(Boolean.class, CONFIG_PARALLEL_SHUTDOWN.id()).orElse(false)) {
             try {
                 CompletableFuture.allOf(services.stream().map(service -> execute(() -> unregisterService(context, service))).toArray(CompletableFuture[]::new)).join();
             } catch (final Exception err) {

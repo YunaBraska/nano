@@ -24,12 +24,12 @@ class RestCallTest {
         final TypeMap user = new TypeMap(HttpClient.newHttpClient().send(request, ofString()).body());
 
         // Results:
-        final int age = user.get("age", Integer.class);
-        final float weight = user.get("weight", Float.class);
-        final InetAddress ip = user.get("ip", InetAddress.class);
+        final int age = user.get(Integer.class, "age");
+        final float weight = user.get(Float.class, "weight");
+        final InetAddress ip = user.get(InetAddress.class, "ip");
 
         // Date handling:
         user.put("bornAt", new Date().toString());
-        final Instant date = user.get("bornAt", Instant.class);
+        final Instant date = user.get(Instant.class, "bornAt");
     }
 }

@@ -43,7 +43,7 @@ public class LogQueue extends Service {
     public void start(final Supplier<Context> contextSub) {
         isReady.set(false, true, state -> {
             final Context context = contextSub.get();
-            queueCapacity = context.gett(Config.CONFIG_LOG_QUEUE_SIZE.id(), Integer.class).orElse(1000);
+            queueCapacity = context.getOpt(Integer.class, Config.CONFIG_LOG_QUEUE_SIZE.id()).orElse(1000);
             queue = new LinkedBlockingQueue<>(queueCapacity);
             future = context.nano().execute(this::process);
             context.nano().schedule(this::checkQueueSizeAndWarn, 5, 5, TimeUnit.MINUTES, () -> !isReady());

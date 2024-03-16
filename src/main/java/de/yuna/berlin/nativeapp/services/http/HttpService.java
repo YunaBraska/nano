@@ -38,7 +38,7 @@ public class HttpService extends Service {
         isReady.set(false, true, state -> {
             final Context context = contextSub.get().copy(HttpService.class, null);
             //TODO: use next free port instead of hardcoded 8080
-            final int port = context.gett("app_service_http_port", Integer.class).filter(p -> p > 0).orElse(8080);
+            final int port = context.getOpt(Integer.class, "app_service_http_port").filter(p -> p > 0).orElse(8080);
             handleHttps(context);
             try {
                 server = HttpServer.create(new InetSocketAddress(port), 0);
@@ -71,8 +71,8 @@ public class HttpService extends Service {
     private static void handleHttps(final Context context) {
         //TODO: add option for HTTPS
         //TODO: handle certificates
-        final Optional<String> crt = context.gett("app.https.crt.path", String.class);
-        final Optional<String> key = context.gett("app.https.key.path", String.class);
+        final Optional<String> crt = context.getOpt(String.class, "app.https.crt.path");
+        final Optional<String> key = context.getOpt(String.class, "app.https.key.path");
         if (crt.isPresent() && key.isPresent()) {
 //            // Load the certificate
 //            CertificateFactory cf = CertificateFactory.getInstance("X.509");
