@@ -61,8 +61,8 @@ public class Context extends ConcurrentTypeMap {
     }
 
     public NanoLogger logger() {
-        return gett(CONTEXT_LOGGER_KEY, NanoLogger.class)
-            .orElseGet(() -> setLogger(Context.class).get(CONTEXT_LOGGER_KEY, NanoLogger.class).warn(() -> "Fallback to generic logger used. It is recommended to provide a context-specific logger for improved traceability and context-aware logging. A context-specific logger allows for more granular control over logging behaviors, including level filtering, log format customization, and targeted log output, which enhances the debugging and monitoring capabilities. Using a generic logger might result in less optimal logging granularity and difficulty in tracing issues related to specific contexts.", new IllegalStateException("Context-specific logger not provided. Falling back to a generic logger.")));
+        return getOpt(NanoLogger.class, CONTEXT_LOGGER_KEY)
+            .orElseGet(() -> setLogger(Context.class).get(NanoLogger.class, CONTEXT_LOGGER_KEY).warn(() -> "Fallback to generic logger used. It is recommended to provide a context-specific logger for improved traceability and context-aware logging. A context-specific logger allows for more granular control over logging behaviors, including level filtering, log format customization, and targeted log output, which enhances the debugging and monitoring capabilities. Using a generic logger might result in less optimal logging granularity and difficulty in tracing issues related to specific contexts.", new IllegalStateException("Context-specific logger not provided. Falling back to a generic logger.")));
     }
 
     public Context copy(final Class<?> clazz, final Nano nano) {
@@ -89,18 +89,6 @@ public class Context extends ConcurrentTypeMap {
     public Context put(final Object key, final Object value) {
         // ConcurrentHashMap does not allow null keys or values.
         super.put(key, value != null ? value : "");
-        return this;
-    }
-
-    @Override
-    public Context putt(final Object key, final Object value) {
-        this.put(key, value);
-        return this;
-    }
-
-    @Override
-    public Context addd(final Object key, final Object value) {
-        this.put(key, value);
         return this;
     }
 
@@ -429,8 +417,8 @@ public class Context extends ConcurrentTypeMap {
     public String toString() {
         return "Context{" +
             "size=" + size() +
-            ", loglevel=" + gett(CONTEXT_LOGGER_KEY, NanoLogger.class).map(NanoLogger::level).orElse(null) +
-            ", logQueue=" + gett(CONTEXT_LOGGER_KEY, NanoLogger.class).map(NanoLogger::logQueue).isPresent() +
+            ", loglevel=" + getOpt(NanoLogger.class, CONTEXT_LOGGER_KEY).map(NanoLogger::level).orElse(null) +
+            ", logQueue=" + getOpt(NanoLogger.class, CONTEXT_LOGGER_KEY).map(NanoLogger::logQueue).isPresent() +
             '}';
     }
 }

@@ -138,7 +138,7 @@ public class Nano extends NanoServices<Nano> {
      * Prints the configurations that have been loaded into the {@link Nano} instance.
      */
     public void printParameters() {
-        if (rootContext.gett(APP_PARAMS.id(), Boolean.class).filter(helpCalled -> helpCalled).isPresent()) {
+        if (rootContext.getOpt(Boolean.class, APP_PARAMS.id()).filter(helpCalled -> helpCalled).isPresent()) {
             final List<String> secrets = List.of("secret", "token", "pass", "pwd", "bearer", "auth", "private", "ssn");
             final int keyLength = rootContext.keySet().stream().map(String::valueOf).mapToInt(String::length).max().orElse(0);
             logger.info(() -> "Configs: " + lineSeparator() + rootContext.entrySet().stream().map(config -> String.format("%-" + keyLength + "s  %s", config.getKey(), secrets.stream().anyMatch(s -> String.valueOf(config.getKey()).toLowerCase().contains(s)) ? "****" : config.getValue())).collect(joining(lineSeparator())));

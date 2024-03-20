@@ -73,8 +73,8 @@ public abstract class NanoBase<T extends NanoBase<T>> {
         if (configs != null)
             configs.forEach((key, value) -> rootContext.computeIfAbsent(convertObj(key, String.class), add -> ofNullable(convertObj(value, String.class)).orElse("")));
         this.logger = new NanoLogger(this)
-            .level(rootContext.gett(CONFIG_LOG_LEVEL.id(), LogLevel.class).orElse(LogLevel.DEBUG))
-            .formatter(rootContext.gett(CONFIG_LOG_FORMATTER.id(), Formatter.class).orElseGet(() -> getLogFormatter("console")));
+            .level(rootContext.getOpt(LogLevel.class, CONFIG_LOG_LEVEL.id()).orElse(LogLevel.DEBUG))
+            .formatter(rootContext.getOpt(Formatter.class, CONFIG_LOG_FORMATTER.id()).orElseGet(() -> getLogFormatter("console")));
         displayHelpMenu();
         addEventListener(EVENT_APP_LOG_LEVEL.id(), event -> event.payloadOpt(LogLevel.class).or(() -> event.payloadOpt(Level.class).map(LogLevel::nanoLogLevelOf)).map(this::setLogLevel).ifPresent(nano -> event.acknowledge()));
         addEventListener(EVENT_APP_LOG_QUEUE.id(), event -> event.payloadOpt(LogQueue.class).map(logger::logQueue).ifPresent(nano -> event.acknowledge()));
@@ -219,7 +219,7 @@ public abstract class NanoBase<T extends NanoBase<T>> {
      * Displays a help menu with available configuration keys and their descriptions and exits.
      */
     protected void displayHelpMenu() {
-        if (rootContext.gett(APP_HELP.id(), Boolean.class).filter(helpCalled -> helpCalled).isPresent()) {
+        if (rootContext.getOpt(Boolean.class, APP_HELP.id()).filter(helpCalled -> helpCalled).isPresent()) {
             logger.info(() -> "Available configs keys: " + lineSeparator() + stream(Config.values()).map(config -> String.format("%-" + stream(Config.values()).map(Config::id).mapToInt(String::length).max().orElse(0) + "s  %s", config.id(), config.description())).collect(Collectors.joining(lineSeparator())));
             System.exit(0);
         }
