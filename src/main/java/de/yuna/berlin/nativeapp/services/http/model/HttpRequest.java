@@ -1,125 +1,250 @@
 package de.yuna.berlin.nativeapp.services.http.model;
 
+import berlin.yuna.typemap.logic.JsonDecoder;
+import berlin.yuna.typemap.model.TypeContainer;
+import berlin.yuna.typemap.model.TypeMap;
 import com.sun.net.httpserver.Headers;
+import com.sun.net.httpserver.HttpExchange;
 
-import java.util.HashMap;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class HttpRequest {
-    private final HttpMethod method;
-    private final String path;
-    private final Map<String, String> headers;
-    private final String body;
 
-    private HttpRequest(Builder builder) {
-        this.method = builder.method;
-        this.path = builder.path;
-        this.headers = builder.headers;
-        this.body = builder.body;
+    protected final HttpMethod method;
+    protected final String path;
+    protected final TypeMap headers;
+    protected final HttpExchange exchange;
+    protected String body;
+    protected TypeMap queryParams;
+    protected TypeMap pathParams;
+
+    public HttpRequest(HttpExchange exchange) {
+        this.method = HttpMethod.httpMethodOf(exchange.getRequestMethod());
+        this.path = exchange.getRequestURI().getPath();
+        this.headers = convertHeaders(exchange.getRequestHeaders());
+        this.exchange = exchange;
     }
 
-    public HttpMethod getMethod() {return method;}
+    public HttpMethod getMethod() {
+        return method;
+    }
 
     public String getPath() {
         return path;
     }
 
-    public Map<String, String> getHeaders() {
+    public static TypeMap convertHeaders(Headers headers) {
+        return headers.entrySet().stream()
+            .collect(Collectors.toMap(
+                entry-> entry.getKey().toLowerCase(),
+                Map.Entry::getValue,
+                (v1, v2) -> v1,
+                TypeMap::new
+            ));
+    }
+
+    public static boolean isMethod(HttpRequest request, HttpMethod method) {
+        return request.getMethod().name().equals(method.name());
+    }
+
+    public boolean isMethodGet() {
+        return HttpMethod.GET.equals(method);
+    }
+
+    public boolean isMethodPost() {
+        return HttpMethod.POST.equals(method);
+    }
+
+    public boolean isMethodPut() {
+        return HttpMethod.PUT.equals(method);
+    }
+
+    public boolean isMethodHead() {
+        return HttpMethod.HEAD.equals(method);
+    }
+
+    public boolean isMethodPatch() {
+        return HttpMethod.PATCH.equals(method);
+    }
+
+    public boolean isMethodDelete() {
+        return HttpMethod.DELETE.equals(method);
+    }
+
+    public boolean isMethodOptions() {
+        return HttpMethod.OPTIONS.equals(method);
+    }
+
+    public boolean isMethodTrace() {
+        return HttpMethod.TRACE.equals(method);
+    }
+
+    public boolean isContentType(String contentType) {
+        return headers.getList(HttpHeaders.CONTENT_TYPE).contains(contentType);
+    }
+
+    public boolean isContentTypeJson() {
+        return isContentType(ContentType.APPLICATION_JSON.value());
+    }
+
+    public boolean isContentTypeXml() {
+        return isContentType(ContentType.APPLICATION_XML.value());
+    }
+
+    public boolean isContentTypeXmlSoap() {
+        return isContentType(ContentType.APPLICATION_SOAP_XML.value());
+    }
+
+    public boolean isContentTypeOctetStream() {
+        return isContentType(ContentType.APPLICATION_OCTET_STREAM.value());
+    }
+
+    public boolean isContentTypePdf() {
+        return isContentType(ContentType.APPLICATION_PDF.value());
+    }
+
+    public boolean isContentTypeFormUrlEncoded() {
+        return isContentType(ContentType.APPLICATION_FORM_URLENCODED.value());
+    }
+
+    public boolean isContentTypeMultiPartFormData() {
+        return isContentType(ContentType.MULTIPART_FORM_DATA.value());
+    }
+
+    public boolean isContentTypePlainText() {
+        return isContentType(ContentType.TEXT_PLAIN.value());
+    }
+
+    public boolean isContentTypeHtml() {
+        return isContentType(ContentType.TEXT_HTML.value());
+    }
+
+    public boolean isContentTypeJpeg() {
+        return isContentType(ContentType.IMAGE_JPEG.value());
+    }
+
+    public boolean isContentTypePng() {
+        return isContentType(ContentType.IMAGE_PNG.value());
+    }
+
+    public boolean isContentTypeGif() {
+        return isContentType(ContentType.IMAGE_GIF.value());
+    }
+
+    public boolean isContentTypeMpeg() {
+        return isContentType(ContentType.AUDIO_MPEG.value());
+    }
+
+    public boolean isContentTypeMp4() {
+        return isContentType(ContentType.VIDEO_MP4.value());
+    }
+
+
+    public String bodyAsString() {
+        try {
+            if (body == null)
+                body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            return body;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    public TypeContainer bodyAsJson() {
+        return JsonDecoder.jsonTypeOf(bodyAsString());
+    }
+
+    public TypeMap queryParameters() {
+        if (queryParams == null) {
+            try {
+                String query = exchange.getRequestURI().getQuery();
+                queryParams = new TypeMap();
+                if (query != null) {
+                    String[] queryParamsArray = query.split("&");
+                    for (String param : queryParamsArray) {
+                        String[] keyValue = param.split("=");
+
+                        if (keyValue.length == 2) {
+                            String key = java.net.URLDecoder.decode(keyValue[0], StandardCharsets.UTF_8);
+                            String value = java.net.URLDecoder.decode(keyValue[1], StandardCharsets.UTF_8);
+                            queryParams.put(key, value);
+                        } else if (keyValue.length == 1) {
+                            String key = java.net.URLDecoder.decode(keyValue[0], StandardCharsets.UTF_8);
+                            queryParams.put(key, "");
+                        }
+                    }
+                }
+            }catch (Exception ignored) {
+            }
+        }
+        return queryParams;
+    }
+
+    public boolean containsQueryParam(String key) {
+        return queryParams.containsKey(key);
+    }
+
+    public String getQueryParam(String key) {
+        return queryParams.get(key).toString();
+    }
+
+
+    public boolean exactMatch(String path) {
+        return this.path.startsWith(path);
+    }
+
+    public boolean match(String pathToMatch) {
+
+        String[] partsToMatch = pathToMatch.split("/");
+        String[] parts = path.split("/");
+
+        if (exactMatch(pathToMatch) && pathToMatch.contains("{"))
+            return true;
+
+        if (partsToMatch.length != parts.length)
+            return false;
+
+        if (pathParams == null) {
+            pathParams = new TypeMap();
+            for (int i = 0; i < partsToMatch.length; i++) {
+                if (!partsToMatch[i].equals(parts[i])) {
+                    if (partsToMatch[i].startsWith("{")) {
+                        pathParams.put(partsToMatch[i], parts[i]);
+                    }else {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+
+    public TypeMap getPathParams() {
+        return pathParams;
+    }
+
+    public String getHeader(String name) {
+        return headers.get(name).toString();
+    }
+
+    public TypeMap getHeaders() {
         return headers;
     }
 
-    public String getBody() {
-        return body;
+    public void addHeader(String name, String value) {
+        headers.put(name, value);
     }
 
-    public static class Builder {
-        private HttpMethod method;
-        private String path;
-        private Map<String, String> headers = new HashMap<>();
-        private String body;
-
-        public Builder method(HttpMethod method) {
-            this.method = method;
-            return this;
-        }
-
-        public Builder path(String path) {
-            this.path = path;
-            return this;
-        }
-
-        public Builder header(String name, String value) {
-            this.headers.put(name, value);
-            return this;
-        }
-
-        public Builder headers(Headers headers) {
-            this.headers = convertHeadersToMap(headers);
-            return this;
-        }
-
-        /**
-         * convert HttpExchange headers into map
-         *
-         * @param headers Headers from HttpExchange
-         * @return map of headers
-         */
-        public static Map<String, String> convertHeadersToMap(Headers headers) {
-
-            return headers.entrySet().stream()
-                .collect(Collectors.toMap(
-                    Map.Entry::getKey,
-                    entry -> entry.getValue().get(0)
-                ));
-        }
-
-        public Builder body(String body) {
-            this.body = body;
-            return this;
-        }
-
-        // Method to apply additional configurations using a lambda expression
-        public Builder configure(Consumer<Builder> config) {
-            config.accept(this);
-            return this;
-        }
-
-        public HttpRequest build() {
-            return new HttpRequest(this);
-        }
+    public void removeHeader(String name) {
+        headers.remove(name);
     }
 
-    // Remove
-    public static void main(String[] args) {
-        HttpRequest request = new HttpRequest.Builder().method(HttpMethod.POST)
-            .path("/api/users")
-            .header(HttpHeaders.CONTENT_TYPE, "application/json")
-            .header(HttpHeaders.ACCEPT, "application/json")
-            .body("{\"username\": \"john\"}").build();
-
-        System.out.println("Method: " + request.getMethod());
-        System.out.println("Path: " + request.getPath());
-        System.out.println("Headers: " + request.getHeaders());
-        System.out.println("Body: " + request.getBody());
-
-        HttpRequest request2 = new HttpRequest.Builder()
-            .method(HttpMethod.POST)
-            .path("/api/users")
-            .configure(builder -> {
-                builder.header(HttpHeaders.CONTENT_TYPE, "application/json");
-                builder.header(HttpHeaders.ACCEPT, "application/json");
-                builder.body("{\"username\": \"john\"}");
-            })
-            .build();
-
-        System.out.println("Method: " + request2.getMethod());
-        System.out.println("Path: " + request2.getPath());
-        System.out.println("Headers: " + request2.getHeaders());
-        System.out.println("Body: " + request2.getBody());
-
-
-
+    public boolean containsHeader(String name) {
+        return headers.containsKey(name.toLowerCase());
     }
+
 }

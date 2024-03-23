@@ -7,6 +7,8 @@ import de.yuna.berlin.nativeapp.core.model.Service;
 import de.yuna.berlin.nativeapp.core.model.Unhandled;
 import de.yuna.berlin.nativeapp.services.http.model.ContentType;
 import de.yuna.berlin.nativeapp.services.http.model.HttpHeaders;
+import de.yuna.berlin.nativeapp.services.http.model.HttpMethod;
+import de.yuna.berlin.nativeapp.services.http.model.HttpRequest;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -44,17 +46,17 @@ public class HttpService extends Service {
                 server = HttpServer.create(new InetSocketAddress(port), 0);
                 server.setExecutor(context.nano().threadPool());
                 server.createContext("/", exchange -> {
+                    final HttpRequest httpRequest = new HttpRequest(exchange);
                     try {
-                        //TODO: #1 Create own request object instead of the exchange as there is no control tp prevent the user to use `exchange.sendResponseHeaders` which breaks the following logic
-                        context.sendEventReturn(EVENT_HTTP_REQUEST.id(), exchange).responseOpt(HttpResponse.class).ifPresentOrElse(
+                        context.sendEventReturn(EVENT_HTTP_REQUEST.id(), httpRequest).responseOpt(HttpResponse.class).ifPresentOrElse(
                             response -> sendResponse(exchange, response),
-                            () -> context.sendEventReturn(EVENT_HTTP_REQUEST_UNHANDLED.id(), exchange).responseOpt(HttpResponse.class).ifPresentOrElse(
+                            () -> context.sendEventReturn(EVENT_HTTP_REQUEST_UNHANDLED.id(), httpRequest).responseOpt(HttpResponse.class).ifPresentOrElse(
                                 response -> sendResponse(exchange, response),
                                 () -> sendResponse(exchange, new HttpResponse(404, "Page not found".getBytes(), new HashMap<>()))
                             )
                         );
                     } catch (final Exception e) {
-                        context.sendEventReturn(EVENT_APP_UNHANDLED.id(), new Unhandled(context, exchange, e)).responseOpt(HttpResponse.class).ifPresentOrElse(
+                        context.sendEventReturn(EVENT_APP_UNHANDLED.id(), new Unhandled(context, httpRequest, e)).responseOpt(HttpResponse.class).ifPresentOrElse(
                             response -> sendResponse(exchange, response),
                             () -> new HttpResponse(500, ("Internal Server Error " + e.getMessage()).getBytes(), new HashMap<>())
                         );
