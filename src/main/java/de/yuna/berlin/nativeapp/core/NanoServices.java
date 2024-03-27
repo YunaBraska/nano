@@ -13,6 +13,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import static de.yuna.berlin.nativeapp.core.model.Config.CONFIG_PARALLEL_SHUTDOWN;
 import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_SERVICE_REGISTER;
 import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_SERVICE_UNREGISTER;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.unmodifiableList;
 
 /**
@@ -34,18 +35,19 @@ public abstract class NanoServices<T extends NanoServices<T>> extends NanoThread
     protected NanoServices(final Map<Object, Object> config, final String... args) {
         super(config, args);
         this.services = new CopyOnWriteArrayList<>();
-        addEventListener(EVENT_APP_SERVICE_REGISTER.id(), event -> event.payloadOpt(Service.class).map(this::registerService).ifPresent(nano -> event.acknowledge()));
-        addEventListener(EVENT_APP_SERVICE_UNREGISTER.id(), event -> event.payloadOpt(Service.class).map(service -> unregisterService(event.context(), service)).ifPresent(nano -> event.acknowledge()));
+        addEventListener(EVENT_APP_SERVICE_REGISTER, event -> event.payloadOpt(Service.class).map(this::registerService).ifPresent(nano -> event.acknowledge()));
+        addEventListener(EVENT_APP_SERVICE_UNREGISTER, event -> event.payloadOpt(Service.class).map(service -> unregisterService(event.context(), service)).ifPresent(nano -> event.acknowledge()));
     }
 
     /**
      * Retrieves a {@link Service} of a specified type.
      *
+     * @param <S>          The type of the service to retrieve, which extends {@link Service}.
      * @param serviceClass The class of the {@link Service} to retrieve.
      * @return The first instance of the specified {@link Service}, or null if not found.
      */
-    public Service service(final Class<? extends Service> serviceClass) {
-        final List<Service> results = services(serviceClass);
+    public <S extends Service> S service(final Class<S> serviceClass) {
+        final List<S> results = services(serviceClass);
         if (results != null && !results.isEmpty()) {
             return results.getFirst();
         }
@@ -53,16 +55,21 @@ public abstract class NanoServices<T extends NanoServices<T>> extends NanoThread
     }
 
     /**
-     * Retrieves a list of {@link Service} of a specified type.
+     * Retrieves a list of services of a specified type.
      *
-     * @param serviceClass The class of the {@link Service} to retrieve.
-     * @return A list of {@link Service} of the specified type.
+     * @param <S>          The type of the service to retrieve, which extends {@link Service}.
+     * @param serviceClass The class of the service to retrieve.
+     * @return A list of services of the specified type. If no services of this type are found,
+     * an empty list is returned.
      */
-    public List<Service> services(final Class<? extends Service> serviceClass) {
+    public <S extends Service> List<S> services(final Class<S> serviceClass) {
         if (serviceClass != null) {
-            return services.stream().filter(rc -> serviceClass.isAssignableFrom(rc.getClass())).toList();
+            return services.stream()
+                .filter(serviceClass::isInstance)
+                .map(serviceClass::cast)
+                .toList();
         }
-        return Collections.emptyList();
+        return emptyList();
     }
 
     /**
@@ -80,7 +87,7 @@ public abstract class NanoServices<T extends NanoServices<T>> extends NanoThread
      * @param context The {@link Context} in which the services are shut down.
      */
     protected void shutdownServices(final Context context) {
-        if (rootContext.getOpt(Boolean.class, CONFIG_PARALLEL_SHUTDOWN.id()).orElse(false)) {
+        if (context.getOpt(Boolean.class, CONFIG_PARALLEL_SHUTDOWN.id()).orElse(false)) {
             try {
                 CompletableFuture.allOf(services.stream().map(service -> execute(() -> unregisterService(context, service))).toArray(CompletableFuture[]::new)).join();
             } catch (final Exception err) {

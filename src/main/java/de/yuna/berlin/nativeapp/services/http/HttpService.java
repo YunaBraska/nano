@@ -36,7 +36,7 @@ public class HttpService extends Service {
     @Override
     public synchronized void start(final Supplier<Context> contextSub) {
         isReady.set(false, true, state -> {
-            final Context context = contextSub.get().copy(HttpService.class, null);
+            final Context context = contextSub.get().newContext(HttpService.class, null);
             //TODO: use next free port instead of hardcoded 8080
             final int port = context.getOpt(Integer.class, "app_service_http_port").filter(p -> p > 0).orElse(8080);
             handleHttps(context);
@@ -46,15 +46,15 @@ public class HttpService extends Service {
                 server.createContext("/", exchange -> {
                     try {
                         //TODO: #1 Create own request object instead of the exchange as there is no control tp prevent the user to use `exchange.sendResponseHeaders` which breaks the following logic
-                        context.sendEventReturn(EVENT_HTTP_REQUEST.id(), exchange).responseOpt(HttpResponse.class).ifPresentOrElse(
+                        context.sendEventReturn(EVENT_HTTP_REQUEST, exchange).responseOpt(HttpResponse.class).ifPresentOrElse(
                             response -> sendResponse(exchange, response),
-                            () -> context.sendEventReturn(EVENT_HTTP_REQUEST_UNHANDLED.id(), exchange).responseOpt(HttpResponse.class).ifPresentOrElse(
+                            () -> context.sendEventReturn(EVENT_HTTP_REQUEST_UNHANDLED, exchange).responseOpt(HttpResponse.class).ifPresentOrElse(
                                 response -> sendResponse(exchange, response),
                                 () -> sendResponse(exchange, new HttpResponse(404, "Page not found".getBytes(), new HashMap<>()))
                             )
                         );
                     } catch (final Exception e) {
-                        context.sendEventReturn(EVENT_APP_UNHANDLED.id(), new Unhandled(context, exchange, e)).responseOpt(HttpResponse.class).ifPresentOrElse(
+                        context.sendEventReturn(EVENT_APP_UNHANDLED, new Unhandled(context, exchange, e)).responseOpt(HttpResponse.class).ifPresentOrElse(
                             response -> sendResponse(exchange, response),
                             () -> new HttpResponse(500, ("Internal Server Error " + e.getMessage()).getBytes(), new HashMap<>())
                         );

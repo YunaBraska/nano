@@ -4,7 +4,6 @@ import berlin.yuna.typemap.logic.ArgsDecoder;
 import de.yuna.berlin.nativeapp.core.model.Config;
 import de.yuna.berlin.nativeapp.core.model.Context;
 import de.yuna.berlin.nativeapp.helper.event.model.Event;
-import de.yuna.berlin.nativeapp.helper.event.model.EventType;
 import de.yuna.berlin.nativeapp.helper.logger.LogFormatRegister;
 import de.yuna.berlin.nativeapp.helper.logger.logic.LogQueue;
 import de.yuna.berlin.nativeapp.helper.logger.logic.NanoLogger;
@@ -57,8 +56,6 @@ public abstract class NanoBase<T extends NanoBase<T>> {
         registerTypeConvert(String.class, LogLevel.class, LogLevel::nanoLogLevelOf);
         registerTypeConvert(LogLevel.class, String.class, Enum::name);
         registerTypeConvert(Config.class, String.class, Config::id);
-        registerTypeConvert(EventType.class, String.class, eventType -> String.valueOf(eventType.id()));
-        registerTypeConvert(String.class, EventType.class, eventType -> stream(EventType.values()).filter(et -> et.name().equals(eventType) || (et.id() + "").equals(eventType)).findFirst().orElse(null));
     }
 
     /**
@@ -76,8 +73,8 @@ public abstract class NanoBase<T extends NanoBase<T>> {
             .level(rootContext.getOpt(LogLevel.class, CONFIG_LOG_LEVEL.id()).orElse(LogLevel.DEBUG))
             .formatter(rootContext.getOpt(Formatter.class, CONFIG_LOG_FORMATTER.id()).orElseGet(() -> getLogFormatter("console")));
         displayHelpMenu();
-        addEventListener(EVENT_APP_LOG_LEVEL.id(), event -> event.payloadOpt(LogLevel.class).or(() -> event.payloadOpt(Level.class).map(LogLevel::nanoLogLevelOf)).map(this::setLogLevel).ifPresent(nano -> event.acknowledge()));
-        addEventListener(EVENT_APP_LOG_QUEUE.id(), event -> event.payloadOpt(LogQueue.class).map(logger::logQueue).ifPresent(nano -> event.acknowledge()));
+        addEventListener(EVENT_APP_LOG_LEVEL, event -> event.payloadOpt(LogLevel.class).or(() -> event.payloadOpt(Level.class).map(LogLevel::nanoLogLevelOf)).map(this::setLogLevel).ifPresent(nano -> event.acknowledge()));
+        addEventListener(EVENT_APP_LOG_QUEUE, event -> event.payloadOpt(LogQueue.class).map(logger::logQueue).ifPresent(nano -> event.acknowledge()));
     }
 
     /**
@@ -86,17 +83,17 @@ public abstract class NanoBase<T extends NanoBase<T>> {
      * @param clazz The class for which the {@link Context} is to be created.
      * @return A new {@link Context} instance associated with the given class.
      */
-    abstract Context context(final Class<?> clazz);
+    abstract Context newContext(final Class<?> clazz);
 
     /**
      * Sends an event to {@link Nano#listeners} and {@link Nano#services}.
-     * Used {@link Context#sendEvent(int, Object)} from {@link Nano#context(Class)} instead of the core method.
+     * Used {@link Context#sendEvent(int, Object)} from {@link Nano#newContext(Class)} instead of the core method.
      *
      * @param type             The integer representing the type of the event. This typically corresponds to a specific kind of event.
      * @param context          The {@link Context} in which the event is created and processed. It provides environmental data and configurations.
      * @param payload          The data or object that is associated with this event. This can be any relevant information that needs to be passed along with the event.
      * @param responseListener A consumer that handles the response of the event processing. It can be used to execute actions based on the event's outcome or data.
-     * @param broadcast          Whether to send the event only to the first listener or service that response.
+     * @param broadcast        Whether to send the event only to the first listener or service that response.
      * @return Self for chaining
      */
     abstract T sendEvent(final int type, final Context context, final Object payload, final Consumer<Object> responseListener, final boolean broadcast);
@@ -105,11 +102,11 @@ public abstract class NanoBase<T extends NanoBase<T>> {
      * Processes an event with the given parameters and decides on the execution path based on the presence of a response listener and the broadcast flag.
      * If a response listener is provided, the event is processed asynchronously; otherwise, it is processed in the current thread. This method creates an {@link Event} instance and triggers the appropriate event handling logic.
      *
-     * @param type The integer representing the type of the event, identifying the nature or action of the event.
-     * @param context The {@link Context} associated with the event, encapsulating environment and configuration details.
-     * @param payload The payload of the event, containing data relevant to the event's context and purpose.
+     * @param type             The integer representing the type of the event, identifying the nature or action of the event.
+     * @param context          The {@link Context} associated with the event, encapsulating environment and configuration details.
+     * @param payload          The payload of the event, containing data relevant to the event's context and purpose.
      * @param responseListener A consumer for handling the event's response. If provided, the event is handled asynchronously; if null, the handling is synchronous.
-     * @param broadCast Determines the event's distribution: if true, the event is made available to all listeners; if false, it targets specific listeners based on the implementation logic.
+     * @param broadCast        Determines the event's distribution: if true, the event is made available to all listeners; if false, it targets specific listeners based on the implementation logic.
      * @return An instance of {@link Event} that represents the event being processed. This object can be used for further operations or tracking.
      */
     abstract Event sendEventReturn(final int type, final Context context, final Object payload, final Consumer<Object> responseListener, final boolean broadCast);
@@ -220,7 +217,7 @@ public abstract class NanoBase<T extends NanoBase<T>> {
      */
     protected void displayHelpMenu() {
         if (rootContext.getOpt(Boolean.class, APP_HELP.id()).filter(helpCalled -> helpCalled).isPresent()) {
-            logger.info(() -> "Available configs keys: " + lineSeparator() + stream(Config.values()).map(config -> String.format("%-" + stream(Config.values()).map(Config::id).mapToInt(String::length).max().orElse(0) + "s  %s", config.id(), config.description())).collect(Collectors.joining(lineSeparator())));
+            logger.info(() -> "Available configs keys: " + lineSeparator() + stream(Config.values()).map(config -> String.format("%-" + stream(Config.values()).map(Config::id).mapToInt(String::length).max().orElse(0) + "s  %s", config, config.description())).collect(Collectors.joining(lineSeparator())));
             System.exit(0);
         }
     }

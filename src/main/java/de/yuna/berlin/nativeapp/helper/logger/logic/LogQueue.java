@@ -47,7 +47,7 @@ public class LogQueue extends Service {
             queue = new LinkedBlockingQueue<>(queueCapacity);
             future = context.nano().execute(this::process);
             context.nano().schedule(this::checkQueueSizeAndWarn, 5, 5, TimeUnit.MINUTES, () -> !isReady());
-            context.broadcastEvent(EVENT_APP_LOG_QUEUE.id(), this);
+            context.broadcastEvent(EVENT_APP_LOG_QUEUE, this);
         });
     }
 
@@ -55,7 +55,7 @@ public class LogQueue extends Service {
     public void stop(final Supplier<Context> contextSub) {
         isReady.set(true, false, state -> {
             try {
-                contextSub.get().broadcastEvent(EVENT_APP_LOG_QUEUE.id(), this);
+                contextSub.get().broadcastEvent(EVENT_APP_LOG_QUEUE, this);
                 logger.debug(() -> "Shutdown initiated - process last messages [{}]", queue.size());
                 queue.put(new Pair<>(logger.logger(), new LogRecord(Level.INFO, "Shutdown Hook")));
                 queue = null;
@@ -70,7 +70,7 @@ public class LogQueue extends Service {
 
     @Override
     public void onEvent(final Event event) {
-        event.ifPresent(EVENT_APP_LOG_LEVEL.id(), LogLevel.class, level -> {
+        event.ifPresent(EVENT_APP_LOG_LEVEL, LogLevel.class, level -> {
             logger.logQueue(null);
             logger.level(level);
         });

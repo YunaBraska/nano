@@ -14,8 +14,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import static de.yuna.berlin.nativeapp.core.config.TestConfig.*;
-import static de.yuna.berlin.nativeapp.core.model.Context.tryExecute;
+import static de.yuna.berlin.nativeapp.core.config.TestConfig.TEST_TIMEOUT;
+import static de.yuna.berlin.nativeapp.core.config.TestConfig.waitForCondition;
 import static java.util.Optional.ofNullable;
 
 public class TestService extends Service {
@@ -159,18 +159,4 @@ public class TestService extends Service {
         events.add(event);
         ofNullable(doOnEvent.get()).ifPresent(consumer -> consumer.accept(event));
     }
-
-    public static <T> T waitFor(final Supplier<T> waitFor) {
-        return waitFor(waitFor, 2000);
-    }
-
-    public static <T> T waitFor(final Supplier<T> waitFor, final long timeoutMs) {
-        final long startTime = System.currentTimeMillis();
-        final AtomicReference<T> result = new AtomicReference<>(null);
-        while (result.get() == null && (System.currentTimeMillis() - startTime) < timeoutMs) {
-            ofNullable(waitFor.get()).ifPresentOrElse(result::set, () -> tryExecute(() -> Thread.sleep(100)));
-        }
-        return result.get();
-    }
-
 }

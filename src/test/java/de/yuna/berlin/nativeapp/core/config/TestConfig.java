@@ -5,8 +5,12 @@ import de.yuna.berlin.nativeapp.helper.logger.model.LogLevel;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 
+import static de.yuna.berlin.nativeapp.core.model.Context.tryExecute;
+import static java.util.Optional.ofNullable;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -77,5 +81,18 @@ public class TestConfig {
 
     public static boolean await(final CountDownLatch latch) throws InterruptedException {
         return latch.await(TEST_TIMEOUT, MILLISECONDS);
+    }
+
+    public static <T> T waitForNonNull(final Supplier<T> waitFor) {
+        return waitForNonNull(waitFor, 2000);
+    }
+
+    public static <T> T waitForNonNull(final Supplier<T> waitFor, final long timeoutMs) {
+        final long startTime = System.currentTimeMillis();
+        final AtomicReference<T> result = new AtomicReference<>(null);
+        while (result.get() == null && (System.currentTimeMillis() - startTime) < timeoutMs) {
+            ofNullable(waitFor.get()).ifPresentOrElse(result::set, () -> tryExecute(() -> Thread.sleep(100)));
+        }
+        return result.get();
     }
 }

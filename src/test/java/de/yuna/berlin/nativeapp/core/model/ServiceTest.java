@@ -1,20 +1,16 @@
 package de.yuna.berlin.nativeapp.core.model;
 
 import de.yuna.berlin.nativeapp.core.Nano;
-import de.yuna.berlin.nativeapp.helper.PrintTestNamesExtension;
 import de.yuna.berlin.nativeapp.helper.event.model.Event;
 import de.yuna.berlin.nativeapp.model.TestService;
 import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.RepeatedTest;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.util.Map;
 
-import static de.yuna.berlin.nativeapp.core.config.TestConfig.TEST_LOG_LEVEL;
-import static de.yuna.berlin.nativeapp.core.config.TestConfig.TEST_REPEAT;
+import static de.yuna.berlin.nativeapp.core.config.TestConfig.*;
 import static de.yuna.berlin.nativeapp.core.model.Config.CONFIG_LOG_LEVEL;
 import static de.yuna.berlin.nativeapp.core.model.Context.tryExecute;
 import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_UNHANDLED;
@@ -27,7 +23,7 @@ class ServiceTest {
     void testService() {
         final long startTime = System.currentTimeMillis() - 10;
         final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL));
-        final Context context = nano.context(this.getClass());
+        final Context context = nano.newContext(this.getClass());
         final TestService service = new TestService();
         final Unhandled error = new Unhandled(null, null, null);
 
@@ -47,17 +43,18 @@ class ServiceTest {
         service.onFailure(error);
         assertThat(service.failures()).hasSize(1).contains(error);
 
-        final Event event = new Event(EVENT_APP_UNHANDLED.id(), context, error, null);
+        final Event event = new Event(EVENT_APP_UNHANDLED, context, error, null);
         service.onEvent(event);
-        assertThat(service.getEvent(EVENT_APP_UNHANDLED.id())).isNotNull().has(new Condition<>(e -> e.payload(Unhandled.class) == error, "Should contain payload with error"));
+        assertThat(service.getEvent(EVENT_APP_UNHANDLED)).isNotNull().has(new Condition<>(e -> e.payload(Unhandled.class) == error, "Should contain payload with error"));
 
         assertThat(nano.services()).isEmpty();
-        service.nanoThread(context).execute(() -> {});
+        service.nanoThread(context).execute(null, () -> {});
         service.handleServiceException(context, new RuntimeException("Nothing to see here, just a test exception"));
-        tryExecute(() -> Thread.sleep(64)); //Safety cause of async
+        assertThat(waitForCondition(() -> service.startCount() == 2)).isTrue();
+        waitForCondition(() -> nano.services().size() == 1);
         assertThat(service.startCount()).isEqualTo(2);
         assertThat(service.failures()).hasSize(2);
-        assertThat(nano.services()).hasSize(1);
+        assertThat(nano.services()).size().isEqualTo(1);
 
         nano.stop(context);
     }

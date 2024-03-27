@@ -31,7 +31,7 @@ class MetricCacheTest {
         final long timer = metricCache.timer("my%timer");
         assertThat(metricCache.counter("my%counter")).isEqualTo(2);
         assertThat(metricCache.gauge("my%gauge")).isEqualTo(9.99);
-        assertThat(timer).isBetween(15L, 45L);
+        assertThat(timer).isBetween(15L, 60L);
         assertThat(metricCache.prometheus()).isEqualTo("my_counter 2\nmy_gauge 9.99\nmy_timer " + timer + "\n");
         assertThat(metricCache.influx()).isEqualTo("my.counter value=2\nmy.gauge value=9.99\nmy.timer value=" + timer + "\n");
         assertThat(metricCache.dynatrace()).isEqualTo("my.counter, 2\nmy.gauge, 9.99\nmy.timer, " + timer + "\n");

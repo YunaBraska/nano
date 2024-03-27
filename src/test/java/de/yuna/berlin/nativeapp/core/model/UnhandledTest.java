@@ -1,10 +1,7 @@
 package de.yuna.berlin.nativeapp.core.model;
 
 import de.yuna.berlin.nativeapp.core.Nano;
-import de.yuna.berlin.nativeapp.helper.PrintTestNamesExtension;
 import org.junit.jupiter.api.RepeatedTest;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
@@ -21,7 +18,7 @@ class UnhandledTest {
     @RepeatedTest(TEST_REPEAT)
     void testConstructor() {
         final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL)).stop(this.getClass());
-        final Context context = nano.context(this.getClass());
+        final Context context = nano.newContext(this.getClass());
         final Unhandled error = new Unhandled(context, 111, null);
         assertThat(error).isNotNull();
         assertThat(error.nano()).isEqualTo(nano);

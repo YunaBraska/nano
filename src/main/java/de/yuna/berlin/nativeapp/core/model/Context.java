@@ -1,8 +1,10 @@
 package de.yuna.berlin.nativeapp.core.model;
 
 import berlin.yuna.typemap.model.ConcurrentTypeMap;
+import berlin.yuna.typemap.model.TypeList;
 import de.yuna.berlin.nativeapp.core.Nano;
 import de.yuna.berlin.nativeapp.helper.ExRunnable;
+import de.yuna.berlin.nativeapp.helper.event.EventTypeRegister;
 import de.yuna.berlin.nativeapp.helper.event.model.Event;
 import de.yuna.berlin.nativeapp.helper.logger.logic.NanoLogger;
 import de.yuna.berlin.nativeapp.helper.logger.model.LogLevel;
@@ -23,8 +25,6 @@ public class Context extends ConcurrentTypeMap {
 
     public static final String CONTEXT_TRACE_ID_KEY = "app_core_context_trace_id";
     public static final String CONTEXT_LOGGER_KEY = "app_core_context_logger";
-    public static final String EVENT_PAYLOAD = "app_event_payload";
-    public static final String EVENT_RESPONSE = "app_event_response";
 
     private final transient Nano nano;
 
@@ -33,7 +33,7 @@ public class Context extends ConcurrentTypeMap {
     }
 
     public static List<Object> newTraceId(final Collection<Object> traceIds, final Class<?> clazz) {
-        final List<Object> result = traceIds != null ? new ArrayList<>(traceIds) : new ArrayList<>();
+        final List<Object> result = traceIds != null ? new TypeList(traceIds) : new TypeList();
         result.add((clazz != null ? clazz.getSimpleName() : "Root" + Context.class.getSimpleName()) + "/" + UUID.randomUUID().toString().replace("-", ""));
         return result;
     }
@@ -56,17 +56,27 @@ public class Context extends ConcurrentTypeMap {
         return getList(CONTEXT_TRACE_ID_KEY, String.class);
     }
 
-    protected IllegalArgumentException noKeyException(final String key, final String typeName) {
-        return new IllegalArgumentException(Context.class.getSimpleName() + " does not contain [" + key + "] of type [" + typeName + "]");
-    }
-
     public NanoLogger logger() {
         return getOpt(NanoLogger.class, CONTEXT_LOGGER_KEY)
             .orElseGet(() -> setLogger(Context.class).get(NanoLogger.class, CONTEXT_LOGGER_KEY).warn(() -> "Fallback to generic logger used. It is recommended to provide a context-specific logger for improved traceability and context-aware logging. A context-specific logger allows for more granular control over logging behaviors, including level filtering, log format customization, and targeted log output, which enhances the debugging and monitoring capabilities. Using a generic logger might result in less optimal logging granularity and difficulty in tracing issues related to specific contexts.", new IllegalStateException("Context-specific logger not provided. Falling back to a generic logger.")));
     }
 
-    public Context copy(final Class<?> clazz, final Nano nano) {
+    public Context newContext(final Class<?> clazz, final Nano nano) {
         return clazz != null ? new Context(this, getNano(nano), clazz).setLogger(clazz) : new Context(this, getNano(nano), null);
+    }
+
+    public Context newContext(final Class<?> clazz) {
+        return newContext(clazz, null);
+    }
+
+    public Context newEmptyContext(final Class<?> clazz) {
+        return newEmptyContext(clazz, null);
+    }
+
+    public Context newEmptyContext(final Class<?> clazz, final Nano nano) {
+        return clazz != null
+            ? new Context(Map.of(CONTEXT_TRACE_ID_KEY, this.get(CONTEXT_TRACE_ID_KEY)), getNano(nano), clazz).setLogger(clazz)
+            : new Context(Map.of(CONTEXT_TRACE_ID_KEY, this.get(CONTEXT_TRACE_ID_KEY)), getNano(nano), null);
     }
 
     public LogLevel logLevel() {
@@ -95,8 +105,8 @@ public class Context extends ConcurrentTypeMap {
     //########## LOGGING HELPERS ##########
 
     public Context setLogger(final Class<?> clazz) {
-        final NanoLogger coreLogger = nano().logger();
         final NanoLogger logger = new NanoLogger(clazz);
+        final NanoLogger coreLogger = nano == null ? logger : nano.logger();
         logger.level(coreLogger.level()).logQueue(coreLogger.logQueue()).formatter(coreLogger.formatter());
         put(CONTEXT_LOGGER_KEY, logger);
         return this;
@@ -158,7 +168,7 @@ public class Context extends ConcurrentTypeMap {
      */
     @SafeVarargs
     public final NanoThread[] asyncReturn(final Consumer<Context>... runnable) {
-        return stream(runnable).map(task -> new NanoThread(this).execute(() -> task.accept(this))).toArray(NanoThread[]::new);
+        return stream(runnable).map(task -> new NanoThread(this).execute(this.nano == null ? null : nano.threadPool(), () -> task.accept(this))).toArray(NanoThread[]::new);
     }
 
     /**
@@ -175,7 +185,7 @@ public class Context extends ConcurrentTypeMap {
                 if (error != null)
                     onFailure.accept(new Unhandled(this, thread, error));
             })
-            .execute(() -> task.accept(this))
+            .execute(this.nano == null ? null : nano.threadPool(), () -> task.accept(this))
         ).toArray(NanoThread[]::new);
     }
 
@@ -237,12 +247,11 @@ public class Context extends ConcurrentTypeMap {
     /**
      * Executes and waits for all {@link Service} to be ready
      *
-     * @param timeoutMs optional timeout for the current function. '-1' means use default
-     * @param runnable  function to execute.
+     * @param runnable function to execute.
      * @return {@link NanoThread}s
      */
     @SafeVarargs
-    public final NanoThread[] asyncAwaitReturn(final long timeoutMs, final Consumer<Context>... runnable) {
+    public final NanoThread[] asyncAwaitReturn(final Consumer<Context>... runnable) {
         return waitFor(asyncReturn(runnable));
     }
 
@@ -250,12 +259,11 @@ public class Context extends ConcurrentTypeMap {
      * Executes and waits for all {@link Service} to be ready
      *
      * @param onFailure function to execute on failure
-     * @param timeoutMs optional timeout for the current function. '-1' means use default
      * @param runnable  function to execute.
      * @return {@link NanoThread}s
      */
     @SafeVarargs
-    public final NanoThread[] asyncAwaitReturnHandled(final Consumer<Unhandled> onFailure, final long timeoutMs, final Consumer<Context>... runnable) {
+    public final NanoThread[] asyncAwaitReturnHandled(final Consumer<Unhandled> onFailure, final Consumer<Context>... runnable) {
         return waitFor(asyncReturnHandled(onFailure, runnable));
     }
 
@@ -306,7 +314,7 @@ public class Context extends ConcurrentTypeMap {
      * @return The current {@link Context} instance, enabling method chaining and additional configurations.
      */
     public Context broadcastEvent(final int eventType, final Object payload) {
-        nano.sendEvent(eventType, this, payload, null, true);
+        broadcastEvent(eventType, payload, null);
         return this;
     }
 
@@ -335,7 +343,7 @@ public class Context extends ConcurrentTypeMap {
      * @return An instance of {@link Event} that represents the event being processed. This object can be used for further operations or tracking.
      */
     public Event sendEventReturn(final int eventType, final Object payload) {
-        return nano.sendEventReturn(eventType, this, payload, null, false);
+        return sendEventReturn(eventType, payload, null);
     }
 
     /**
@@ -360,7 +368,7 @@ public class Context extends ConcurrentTypeMap {
      * @return An instance of {@link Event} that represents the event being processed. This object can be used for further operations or tracking.
      */
     public Event broadcastEventReturn(final int eventType, final Object payload) {
-        return nano.sendEventReturn(eventType, this, payload, null, true);
+        return broadcastEventReturn(eventType, payload, null);
     }
 
     /**
@@ -374,6 +382,72 @@ public class Context extends ConcurrentTypeMap {
      */
     public Event broadcastEventReturn(final int eventType, final Object payload, final Consumer<Object> responseListener) {
         return nano.sendEventReturn(eventType, this, payload, responseListener, true);
+    }
+
+    /**
+     * Registers a new event type with a given name if it does not already exist.
+     * If the event type already exists, it returns the existing event type's ID.
+     *
+     * @param typeName The name of the event type to register.
+     * @return The ID of the newly registered event type, or the ID of the existing event type
+     * if it already exists. Returns -1 if the input is null or empty.
+     */
+    public int registerEventType(final String typeName) {
+        return EventTypeRegister.registerEventType(typeName);
+    }
+
+    /**
+     * Retrieves the name of an event type given its ID.
+     *
+     * @param typeId The ID of the event type.
+     * @return The name of the event type associated with the given ID, or null if not found.
+     */
+    public String eventNameOf(final int typeId) {
+        return EventTypeRegister.eventNameOf(typeId);
+    }
+
+    /**
+     * Attempts to find the ID of an event type based on its name.
+     * This method is primarily used for debugging purposes or startup and is not optimized for performance.
+     *
+     * @param typeName The name of the event type.
+     * @return An {@link Optional} containing the ID of the event type if found, or empty if not found
+     * or if the input is null or empty.
+     */
+    public Optional<Integer> eventIdOf(final String typeName) {
+        return EventTypeRegister.evenIdOf(typeName);
+    }
+
+    /**
+     * Retrieves a {@link Service} of a specified type.
+     *
+     * @param <S>          The type of the service to retrieve, which extends {@link Service}.
+     * @param serviceClass The class of the {@link Service} to retrieve.
+     * @return The first instance of the specified {@link Service}, or null if not found.
+     */
+    public <S extends Service> S service(final Class<S> serviceClass) {
+        return nano.service(serviceClass);
+    }
+
+    /**
+     * Retrieves a list of services of a specified type.
+     *
+     * @param <S>          The type of the service to retrieve, which extends {@link Service}.
+     * @param serviceClass The class of the service to retrieve.
+     * @return A list of services of the specified type. If no services of this type are found,
+     * an empty list is returned.
+     */
+    public <S extends Service> List<S> services(final Class<S> serviceClass) {
+        return nano.services(serviceClass);
+    }
+
+    /**
+     * Provides an unmodifiable list of all registered {@link Service}.
+     *
+     * @return An unmodifiable list of {@link Service} instances.
+     */
+    public List<Service> services() {
+        return nano.services();
     }
 
     protected Context() {
@@ -393,7 +467,7 @@ public class Context extends ConcurrentTypeMap {
 
     public static void handleExecutionExceptions(final Context context, final Unhandled payload, final Supplier<String> errorMsg) {
         final AtomicBoolean wasHandled = new AtomicBoolean(false);
-        context.nano().sendEvent(EVENT_APP_UNHANDLED.id(), context, payload, result -> wasHandled.set(true), false);
+        context.nano().sendEvent(EVENT_APP_UNHANDLED, context, payload, result -> wasHandled.set(true), false);
         if (!wasHandled.get()) {
             context.logger().error(payload.exception(), errorMsg);
         }

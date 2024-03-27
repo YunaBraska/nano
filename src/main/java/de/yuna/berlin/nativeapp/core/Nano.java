@@ -3,11 +3,9 @@ package de.yuna.berlin.nativeapp.core;
 import berlin.yuna.typemap.model.FunctionOrNull;
 import de.yuna.berlin.nativeapp.core.model.Context;
 import de.yuna.berlin.nativeapp.core.model.Service;
-import de.yuna.berlin.nativeapp.helper.event.EventTypeRegister;
 import de.yuna.berlin.nativeapp.helper.event.model.Event;
 import de.yuna.berlin.nativeapp.helper.logger.logic.LogQueue;
 import de.yuna.berlin.nativeapp.helper.logger.logic.NanoLogger;
-import de.yuna.berlin.nativeapp.services.metric.model.MetricType;
 import de.yuna.berlin.nativeapp.services.metric.model.MetricUpdate;
 
 import java.lang.management.ManagementFactory;
@@ -19,10 +17,10 @@ import java.util.stream.Collectors;
 
 import static de.yuna.berlin.nativeapp.core.model.Config.APP_PARAMS;
 import static de.yuna.berlin.nativeapp.core.model.Context.tryExecute;
-import static de.yuna.berlin.nativeapp.core.model.NanoThread.*;
+import static de.yuna.berlin.nativeapp.core.model.NanoThread.activeCarrierThreads;
+import static de.yuna.berlin.nativeapp.core.model.NanoThread.activeNanoThreads;
 import static de.yuna.berlin.nativeapp.helper.NanoUtils.formatDuration;
 import static de.yuna.berlin.nativeapp.helper.event.model.EventType.*;
-import static de.yuna.berlin.nativeapp.services.metric.model.MetricType.COUNTER;
 import static de.yuna.berlin.nativeapp.services.metric.model.MetricType.GAUGE;
 import static java.lang.System.lineSeparator;
 import static java.util.stream.Collectors.joining;
@@ -71,11 +69,11 @@ public class Nano extends NanoServices<Nano> {
         final long initTime = System.currentTimeMillis() - createdAtMs;
         logger.debug(() -> "Init {} in [{}]", this.getClass().getSimpleName(), formatDuration(initTime));
         printParameters();
-        final Context context = this.context(this.getClass());
+        final Context context = this.newContext(this.getClass());
         final long service_startUpTime = System.currentTimeMillis();
         logger.debug(() -> "Start {}", this.getClass().getSimpleName());
         // INIT SHUTDOWN HOOK
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> shutdown(context(this.getClass()))));
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> shutdown(newContext(this.getClass()))));
         if (startupServices != null) {
             final List<Service> services = startupServices.apply(context);
             if (services != null) {
@@ -87,17 +85,16 @@ public class Nano extends NanoServices<Nano> {
                 context.asyncAwait(partitionedServices.getOrDefault(false, Collections.emptyList()).toArray(Service[]::new));
             }
         }
-        schedule(() -> sendEvent(EVENT_APP_HEARTBEAT.id(), context, this, result -> {}, true), 256, 256, TimeUnit.MILLISECONDS, () -> false);
+        schedule(() -> sendEvent(EVENT_APP_HEARTBEAT, context, this, result -> {}, true), 256, 256, TimeUnit.MILLISECONDS, () -> false);
         logger.info(() -> "Running Services [{}]", services().stream().collect(Collectors.groupingBy(Service::name, Collectors.counting())).entrySet().stream().map(entry -> entry.getValue() > 1 ? "(" + entry.getValue() + ") " + entry.getKey() : entry.getKey()).collect(joining(", ")));
         final long readyTime = System.currentTimeMillis() - service_startUpTime;
         logger.info(() -> "Started [{}] in [{}]", this.getClass().getSimpleName(), formatDuration(readyTime));
         printSystemInfo();
-        sendEvent(EVENT_METRIC_UPDATE.id(), context, null, result -> {}, true);
-        sendEvent(EVENT_METRIC_UPDATE.id(), context, new MetricUpdate(GAUGE, "application.started.time", initTime, null), result -> {}, false);
-        sendEvent(EVENT_METRIC_UPDATE.id(), context, new MetricUpdate(GAUGE, "application.ready.time", readyTime, null), result -> {}, false);
-        addEventListener(EVENT_APP_SHUTDOWN.id(), event -> event.acknowledge(() -> CompletableFuture.runAsync(() -> shutdown(context(this.getClass())))));
+        sendEvent(EVENT_METRIC_UPDATE, context, new MetricUpdate(GAUGE, "application.started.time", initTime, null), result -> {}, false);
+        sendEvent(EVENT_METRIC_UPDATE, context, new MetricUpdate(GAUGE, "application.ready.time", readyTime, null), result -> {}, false);
+        addEventListener(EVENT_APP_SHUTDOWN, event -> event.acknowledge(() -> CompletableFuture.runAsync(() -> shutdown(newContext(this.getClass())))));
         // INIT CLEANUP TASK - just for safety
-        addEventListener(EVENT_APP_HEARTBEAT.id(), event -> new HashSet<>(schedulers).stream().filter(scheduler -> scheduler.isShutdown() || scheduler.isTerminated()).forEach(schedulers::remove));
+        addEventListener(EVENT_APP_HEARTBEAT, event -> new HashSet<>(schedulers).stream().filter(scheduler -> scheduler.isShutdown() || scheduler.isTerminated()).forEach(schedulers::remove));
     }
 
     /**
@@ -106,8 +103,18 @@ public class Nano extends NanoServices<Nano> {
      * @param clazz The class for which the {@link Context} is to be created.
      * @return A new {@link Context} instance associated with the given class.
      */
-    public Context context(final Class<?> clazz) {
-        return rootContext.copy(clazz, this);
+    public Context newContext(final Class<?> clazz) {
+        return rootContext.newContext(clazz, this);
+    }
+
+    /**
+     * Creates a empty {@link Context} with {@link NanoLogger} for the specified class.
+     *
+     * @param clazz The class for which the {@link Context} is to be created.
+     * @return A new {@link Context} instance associated with the given class.
+     */
+    public Context newEmptyContext(final Class<?> clazz) {
+        return rootContext.newEmptyContext(clazz, this);
     }
 
     /**
@@ -118,7 +125,7 @@ public class Nano extends NanoServices<Nano> {
      */
     @Override
     public Nano stop(final Class<?> clazz) {
-        return stop(clazz != null ? context(clazz) : null);
+        return stop(clazz != null ? newContext(clazz) : null);
     }
 
     /**
@@ -129,7 +136,7 @@ public class Nano extends NanoServices<Nano> {
      */
     @Override
     public Nano stop(final Context context) {
-        sendEvent(EVENT_APP_SHUTDOWN.id(), context != null ? context : context(this.getClass()), null, result -> {
+        sendEvent(EVENT_APP_SHUTDOWN, context != null ? context : newContext(this.getClass()), null, result -> {
         }, true);
         return this;
     }
@@ -177,14 +184,14 @@ public class Nano extends NanoServices<Nano> {
             sendEventSameThread(event, broadCast);
         } else {
             //FIXME: batch processing to avoid too many threads?
-            event.context().async(ctx -> sendEventSameThread(event, broadCast));
+            context.async(ctx -> sendEventSameThread(event, broadCast));
         }
         return event;
     }
 
     /**
      * Sends an event on the same thread and determines whether to process it to the first listener.
-     * Used {@link Context#sendEvent(int, Object)} from {@link Nano#context(Class)} instead of the core method.
+     * Used {@link Context#sendEvent(int, Object)} from {@link Nano#newContext(Class)} instead of the core method.
      *
      * @param event     The event to be processed.
      * @param broadcast Whether to send the event only to the first matching listener or to all.
@@ -208,11 +215,11 @@ public class Nano extends NanoServices<Nano> {
     }
 
     protected void handleEventServiceException(final Event event, final Service service, final Throwable throwable) {
-        if (event.id() != EVENT_APP_UNHANDLED.id()) {
+        if (event.id() != EVENT_APP_UNHANDLED) {
             service.handleServiceException(event.context(), throwable);
         } else {
             // loop prevention
-            event.context().logger().error(throwable, () -> "Error processing {} [{}] service [{}] payload [{}]", Event.class.getSimpleName(), EventTypeRegister.eventNameOf(event.id()), service.name(), event.payload());
+            event.context().logger().error(throwable, () -> "Error processing {} [{}] service [{}] payload [{}]", Event.class.getSimpleName(), event.name(), service.name(), event.payload());
         }
     }
 
@@ -223,7 +230,7 @@ public class Nano extends NanoServices<Nano> {
      * @return Self for chaining
      */
     protected Nano shutdown(final Class<?> clazz) {
-        this.shutdown(context(clazz));
+        this.shutdown(newContext(clazz));
         return this;
     }
 

@@ -66,7 +66,7 @@ public class MetricCache {
     }
 
     public MetricCache gaugeSet(final String name, final double value, final Map<String, String> tags) {
-        if (name != null && value > 0) {
+        if (name != null && value > -1) {
             final String id = sanitizeMetricName(name);
             final TreeMap<String, String> sortedTags = new TreeMap<>(tags != null ? tags : emptyMap());
             gauges.put(tags == null ? id : generateUniqueKey(id, sortedTags), new Metric<>(value, sortedTags, id));

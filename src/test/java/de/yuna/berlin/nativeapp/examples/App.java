@@ -13,7 +13,6 @@ import java.util.concurrent.TimeUnit;
 
 import static de.yuna.berlin.nativeapp.core.model.Config.CONFIG_LOG_FORMATTER;
 import static de.yuna.berlin.nativeapp.core.model.Config.CONFIG_LOG_LEVEL;
-import static de.yuna.berlin.nativeapp.core.model.NanoThread.activeCarrierThreads;
 import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_SHUTDOWN;
 
 public class App {
@@ -33,7 +32,7 @@ public class App {
         final Service serviceC = new ServiceC();
         final Service serviceD = new ServiceD();
 
-        application.context(App.class)
+        application.newContext(App.class)
             .async(serviceA)
             .async(serviceA)
             .asyncAwait(serviceB, serviceC)
@@ -57,8 +56,8 @@ public class App {
         ;
 
         application.schedule(() -> {
-            final Context context = application.context(App.class);
-            context.sendEvent(EVENT_APP_SHUTDOWN.id(), null);
+            final Context context = application.newContext(App.class);
+            context.sendEvent(EVENT_APP_SHUTDOWN, null);
             context.sendEvent(99, null);
         }, 5, 5, TimeUnit.SECONDS, () -> false);
 

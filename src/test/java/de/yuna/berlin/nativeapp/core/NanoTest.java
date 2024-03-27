@@ -1,5 +1,6 @@
 package de.yuna.berlin.nativeapp.core;
 
+import de.yuna.berlin.nativeapp.core.model.Context;
 import de.yuna.berlin.nativeapp.core.model.Unhandled;
 import de.yuna.berlin.nativeapp.helper.event.model.Event;
 import de.yuna.berlin.nativeapp.helper.logger.model.LogLevel;
@@ -12,17 +13,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 import static de.yuna.berlin.nativeapp.core.config.TestConfig.*;
 import static de.yuna.berlin.nativeapp.core.model.Config.*;
-import static de.yuna.berlin.nativeapp.core.model.Context.tryExecute;
+import static de.yuna.berlin.nativeapp.core.model.Context.*;
 import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_SHUTDOWN;
 import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_UNHANDLED;
 import static de.yuna.berlin.nativeapp.model.TestService.TEST_EVENT;
-import static de.yuna.berlin.nativeapp.model.TestService.waitFor;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -46,8 +44,8 @@ class NanoTest {
     @RepeatedTest(TEST_REPEAT)
     void stopViaEvent() {
         assertThat(new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL))
-            .context(this.getClass())
-            .sendEvent(EVENT_APP_SHUTDOWN.id(), this)
+            .newContext(this.getClass())
+            .sendEvent(EVENT_APP_SHUTDOWN, this)
         ).isNotNull();
     }
 
@@ -120,7 +118,7 @@ class NanoTest {
 
     @RepeatedTest(TEST_REPEAT)
     void constructor_withLazyServices_Test() {
-        final Nano lazyServices = new Nano(context -> List.of(new TestService()), "-" + CONFIG_LOG_LEVEL.id() + "=" + TEST_LOG_LEVEL);
+        final Nano lazyServices = new Nano(context -> List.of(new TestService()), "-" + CONFIG_LOG_LEVEL + "=" + TEST_LOG_LEVEL);
         assertThat(lazyServices).isNotNull();
         assertThat(lazyServices.logger().level()).isEqualTo(TEST_LOG_LEVEL);
         waitForStartUp(lazyServices);
@@ -169,7 +167,7 @@ class NanoTest {
         waitForStartUp(nano);
 
         // send to first service
-        nano.sendEvent(TEST_EVENT, nano.context(this.getClass()), 11111111, eventResults::add, false);
+        nano.sendEvent(TEST_EVENT, nano.newContext(this.getClass()), 11111111, eventResults::add, false);
         assertThat(service.getEvent(TEST_EVENT, event -> event.payload(Integer.class) == 11111111)).isNotNull();
         waitForCondition(() -> eventResults.size() == 1);
 
@@ -177,14 +175,14 @@ class NanoTest {
         eventResults.clear();
         service.resetEvents();
         nano.addEventListener(TEST_EVENT, Event::acknowledge);
-        nano.sendEvent(TEST_EVENT, nano.context(this.getClass()), 22222222, eventResults::add, false);
+        nano.sendEvent(TEST_EVENT, nano.newContext(this.getClass()), 22222222, eventResults::add, false);
         assertThat(service.getEvent(TEST_EVENT, 256)).isNull();
         assertThat(eventResults).hasSize(1);
 
         // send to all (listener and services)
         eventResults.clear();
         service.resetEvents();
-        nano.sendEvent(TEST_EVENT, nano.context(this.getClass()), 33333333, eventResults::add, true);
+        nano.sendEvent(TEST_EVENT, nano.newContext(this.getClass()), 33333333, eventResults::add, true);
         assertThat(service.getEvent(TEST_EVENT, event -> event.payload(Integer.class) == 33333333)).isNotNull();
         assertThat(eventResults).hasSize(2);
 
@@ -201,16 +199,19 @@ class NanoTest {
             throw new RuntimeException("Nothing to see here, just a test exception");
         });
 
-        nano.sendEvent(TEST_EVENT, nano.context(this.getClass()), 44444444, result -> {
+        final Context context = nano.newEmptyContext(this.getClass());
+        assertThat(context).hasSize(2).containsKey(CONTEXT_TRACE_ID_KEY).containsKey(CONTEXT_LOGGER_KEY);
+
+        nano.sendEvent(TEST_EVENT, context, 44444444, result -> {
         }, false);
         assertThat(service.getEvent(TEST_EVENT, event -> event.payload(Integer.class) == 44444444)).isNotNull();
-        assertThat(service.getEvent(EVENT_APP_UNHANDLED.id(), event -> event.payload(Unhandled.class) != null)).isNotNull();
+        assertThat(service.getEvent(EVENT_APP_UNHANDLED, event -> event.payload(Unhandled.class) != null)).isNotNull();
         assertThat(service.startCount()).isEqualTo(1);
         assertThat(service.stopCount()).isZero();
         assertThat(service.failures()).isNotEmpty();
         assertThat(nano.isReady()).isTrue();
 
-        nano.shutdown(nano.context(this.getClass()));
+        nano.shutdown(context);
         assertThat(service.stopCount()).isEqualTo(1);
     }
 
@@ -258,7 +259,7 @@ class NanoTest {
             throw new RuntimeException("Nothing to see here, just a test exception");
         }, timer, timer * 2, MILLISECONDS, () -> false);
 
-        assertThat(service.getEvent(EVENT_APP_UNHANDLED.id(), event -> event.payload() != null)).isNotNull();
+        assertThat(service.getEvent(EVENT_APP_UNHANDLED, event -> event.payload() != null)).isNotNull();
         nano.stop(this.getClass());
     }
 
@@ -276,8 +277,8 @@ class NanoTest {
         assertThat(service.stopCount()).isZero();
 
         // Stop
-        waitFor(() -> !service.events().isEmpty());
-        nano.shutdown(nano.context(NanoTest.class));
+        waitForCondition(() -> !nano.services().isEmpty());
+        nano.shutdown(nano.newContext(NanoTest.class));
         assertThat(nano.isReady()).isFalse();
         assertThat(nano.services()).isEmpty();
         assertThat(nano.listeners()).isEmpty();
