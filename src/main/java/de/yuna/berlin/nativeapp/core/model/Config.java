@@ -20,7 +20,6 @@ public enum Config {
     CONFIG_LOG_QUEUE_SIZE("app_log_queue_size", "Log queue size. A full queue means that log messages will start to wait to be executed (see " + LogQueue.class.getSimpleName() + ")"),
     CONFIG_THREAD_POOL_TIMEOUT_MS("app_thread_pool_shutdown_timeout_ms", "Timeout for thread pool shutdown in milliseconds (see " + NanoThreads.class.getSimpleName() + ")"),
     CONFIG_PARALLEL_SHUTDOWN("app_service_shutdown_parallel", "Enable or disable parallel service shutdown (see " + NanoServices.class.getSimpleName() + "). Enabled = Can increase the shutdown performance on`true`"),
-    CONFIG_CONTEXT_CONCURRENT("app_context_concurrent", "Enable or disable concurrent `" + Context.class.getSimpleName() + "`Enabled = multiple `" + Service.class.getSimpleName() + "s` & Listeners write on the same to the same `" + Context.class.getSimpleName() + "`. Disabled = increases performance."),
     ;
 
     private final String id;
@@ -37,5 +36,10 @@ public enum Config {
 
     public String description() {
         return description;
+    }
+
+    @Override
+    public String toString() {
+        return id;
     }
 }

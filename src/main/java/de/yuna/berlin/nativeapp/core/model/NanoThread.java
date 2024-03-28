@@ -51,10 +51,6 @@ public class NanoThread {
         return this;
     }
 
-    public NanoThread execute(final ExRunnable task) {
-        return execute(null, task);
-    }
-
     public NanoThread await() {
         return await(null);
     }

@@ -65,7 +65,7 @@ class NanoThreadTest {
 
     @RepeatedTest(TEST_REPEAT)
     void activeNanoThreadCount() {
-        new NanoThread().execute(() -> {
+        new NanoThread().execute(null, () -> {
             assertThat(activeNanoThreads()).isPositive();
             assertThat(activeCarrierThreads()).isPositive();
         });

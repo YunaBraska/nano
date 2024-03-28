@@ -40,8 +40,8 @@ public abstract class NanoThreads<T extends NanoThreads<T>> extends NanoBase<T> 
     protected NanoThreads(final Map<Object, Object> config, final String... args) {
         super(config, args);
         this.schedulers = ConcurrentHashMap.newKeySet();
-        addEventListener(EVENT_APP_SCHEDULER_REGISTER.id(), event -> event.payloadOpt(ScheduledExecutorService.class).map(schedulers::add).ifPresent(nano -> event.acknowledge()));
-        addEventListener(EVENT_APP_SCHEDULER_UNREGISTER.id(), event -> event.payloadOpt(ScheduledExecutorService.class).map(scheduler -> {
+        addEventListener(EVENT_APP_SCHEDULER_REGISTER, event -> event.payloadOpt(ScheduledExecutorService.class).map(schedulers::add).ifPresent(nano -> event.acknowledge()));
+        addEventListener(EVENT_APP_SCHEDULER_UNREGISTER, event -> event.payloadOpt(ScheduledExecutorService.class).map(scheduler -> {
             scheduler.shutdown();
             schedulers.remove(scheduler);
             return this;
@@ -91,14 +91,14 @@ public abstract class NanoThreads<T extends NanoThreads<T>> extends NanoBase<T> 
             try {
                 task.run();
             } catch (final Exception e) {
-                final Context context = context(this.getClass());
+                final Context context = newContext(this.getClass());
                 final AtomicBoolean handled = new AtomicBoolean(false);
-                sendEvent(EVENT_APP_UNHANDLED.id(), context, new Unhandled(context, scheduler, e), response -> handled.set(true), true);
+                sendEvent(EVENT_APP_UNHANDLED, context, new Unhandled(context, scheduler, e), response -> handled.set(true), true);
                 if (!handled.get()) {
-                    logger().error(e, () -> "Execution error scheduler [{}]", scheduler.id());
+                    logger().error(e, () -> "Execution error scheduler [{}]", scheduler);
                 }
             } finally {
-                sendEvent(EVENT_APP_SCHEDULER_UNREGISTER.id(), context(this.getClass()), scheduler, result -> {}, true);
+                sendEvent(EVENT_APP_SCHEDULER_UNREGISTER, newContext(this.getClass()), scheduler, result -> {}, true);
             }
         }, delay, timeUnit);
         return (T) this;
@@ -148,7 +148,7 @@ public abstract class NanoThreads<T extends NanoThreads<T>> extends NanoBase<T> 
                 }
             }
         };
-        sendEvent(EVENT_APP_SCHEDULER_REGISTER.id(), context(Scheduler.class), scheduler, result -> {}, true);
+        sendEvent(EVENT_APP_SCHEDULER_REGISTER, newContext(Scheduler.class), scheduler, result -> {}, true);
         return scheduler;
     }
 

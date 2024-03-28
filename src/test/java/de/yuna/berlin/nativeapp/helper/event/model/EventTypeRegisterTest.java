@@ -1,12 +1,8 @@
 package de.yuna.berlin.nativeapp.helper.event.model;
 
-import de.yuna.berlin.nativeapp.helper.event.EventTypeRegister;
 import org.junit.jupiter.api.Test;
 
-import static de.yuna.berlin.nativeapp.helper.event.EventTypeRegister.eventNameOf;
-import static de.yuna.berlin.nativeapp.helper.event.EventTypeRegister.isEventTypeAvailable;
-import static de.yuna.berlin.nativeapp.helper.event.EventTypeRegister.registerEventType;
-import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_START;
+import static de.yuna.berlin.nativeapp.helper.event.EventTypeRegister.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class EventTypeRegisterTest {
@@ -25,13 +21,5 @@ class EventTypeRegisterTest {
 
         // should not find non registered eventIds
         assertThat(isEventTypeAvailable(-99)).isFalse();
-    }
-
-    @Test
-    void testEventType() {
-        final EventType eventType = EVENT_APP_START;
-        assertThat(eventType.id()).isPositive();
-        assertThat(eventType.description()).isNotNull().isNotBlank().isNotEmpty();
-        assertThat(eventType.name()).isEqualTo("EVENT_APP_START");
     }
 }

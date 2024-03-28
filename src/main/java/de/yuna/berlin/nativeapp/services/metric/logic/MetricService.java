@@ -54,13 +54,13 @@ public class MetricService extends Service {
     public void onEvent(final Event event) {
         super.onEvent(event);
         event
-            .ifPresentAck(EVENT_APP_HEARTBEAT.id(), Nano.class, this::updateMetrics)
-            .ifPresentAck(EVENT_METRIC_UPDATE.id(), MetricUpdate.class, this::updateMetric)
-            .ifPresent(EVENT_APP_LOG_LEVEL.id(), LogLevel.class, level -> {
+            .ifPresentAck(EVENT_APP_HEARTBEAT, Nano.class, this::updateMetrics)
+            .ifPresentAck(EVENT_METRIC_UPDATE, MetricUpdate.class, this::updateMetric)
+            .ifPresent(EVENT_APP_LOG_LEVEL, LogLevel.class, level -> {
                 Arrays.stream(LogLevel.values()).filter(other -> other != level).forEach(other -> metrics.gaugeSet("logger", 0, Map.of("level", other.name())));
                 metrics.gaugeSet("logger", 1, Map.of("level", level.name()));
             })
-            .ifPresent(EVENT_APP_LOG_QUEUE.id(), LogQueue.class, logger::logQueue);
+            .ifPresent(EVENT_APP_LOG_QUEUE, LogQueue.class, logger::logQueue);
     }
 
     public void updateMetric(final MetricUpdate metric) {

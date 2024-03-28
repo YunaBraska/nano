@@ -8,3 +8,4 @@ When contributing to this repository, please first discuss the change you wish t
 3) Increase the version by using [Semantic Versioning](https://semver.org)
 4) Ensure your changes are covered by tests
 5) Follow the rules of [Clean Code](https://gist.github.com/wojteklu/73c6914cc446146b8b533c0988cf8d29) while coding
+6) No reflection is used in the code

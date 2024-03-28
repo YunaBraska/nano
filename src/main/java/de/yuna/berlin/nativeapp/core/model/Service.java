@@ -36,8 +36,8 @@ public abstract class Service {
     public abstract Object onFailure(final Unhandled error);
 
     public void onEvent(final Event event) {
-        event.ifPresent(EVENT_APP_LOG_LEVEL.id(), LogLevel.class, logger::level);
-        event.ifPresent(EVENT_APP_LOG_QUEUE.id(), LogQueue.class, logger::logQueue);
+        event.ifPresent(EVENT_APP_LOG_LEVEL, LogLevel.class, logger::level);
+        event.ifPresent(EVENT_APP_LOG_QUEUE, LogQueue.class, logger::logQueue);
     }
 
     public NanoLogger logger() {
@@ -63,8 +63,8 @@ public abstract class Service {
             this.logger().level(context.logLevel());
             this.logger().logQueue(context.nano().logger().logQueue());
             this.start(() -> context);
-            context.sendEvent(EVENT_METRIC_UPDATE.id(), new MetricUpdate(GAUGE, "application.services.ready.time", System.currentTimeMillis() - startTime, Map.of("class", this.getClass().getSimpleName())), result -> {});
-            context.nano().sendEvent(EVENT_APP_SERVICE_REGISTER.id(), context, this, result -> {}, true);
+            context.nano().sendEvent(EVENT_APP_SERVICE_REGISTER, context, this, null, true);
+            context.sendEvent(EVENT_METRIC_UPDATE, new MetricUpdate(GAUGE, "application.services.ready.time", System.currentTimeMillis() - startTime, Map.of("class", this.getClass().getSimpleName())), result -> {});
         }).onComplete((nanoThread, error) -> {
             if (error != null)
                 handleServiceException(context, error);
