@@ -46,6 +46,10 @@ modern Java, stripped of complexity and enriched with functionality.
     * [HttpService](#httpservice)
     * 🔗 [Json](https://github.com/YunaBraska/type-map#json)
     * 🔗 [TypeConverter](https://github.com/YunaBraska/type-map#typeconverter)
+* 🧩[Integrations](#integrations)
+    * 🌱 [Spring Boot](#Nano-in-Spring-boot)
+    * 🧑‍🚀 [Micronaut](#Nano-in-micronaut)
+    * 🐸 [Quarkus](#Nano-in-quarkus)
 * 🤝 [Contributing](#-contributing)
 * 📜 [License](#-license)
 * 🙋‍ [Support](#-support)
@@ -165,7 +169,9 @@ add the native-image profile to your `pom.xml` and run `mvn package -Pnative-ima
 ### Start Nano
 
 * Step 1: start [Nano](src/main/java/de/yuna/berlin/nativeapp/core/Nano.java) `final Nano nano = new Nano();`
-* Step 2: create a [Context](src/main/java/de/yuna/berlin/nativeapp/core/model/Context.java) `final Context context = nano.newContext(ExampleApp.class);` (each context creates its own
+* Step 2: create
+  a [Context](src/main/java/de/yuna/berlin/nativeapp/core/model/Context.java) `final Context context = nano.newContext(ExampleApp.class);` (
+  each context creates its own
   logger and trace id)
 * Step 3: use nano
     * Logging: `context.logger().info(() -> "My info log");`
@@ -188,6 +194,7 @@ configurations that can adapt to various environments and use cases.
 2) Environment Variables: Utilize environment variables for configurations, ideal for containerized applications.
 3) Command Line Arguments: Pass configuration directly as command-line arguments when starting your application.
 
+* DSL config: `nano.config().set("nano.log.level", "INFO");`
 * Receiving a config
   value: `LogLevel logLevel = context.getOpt(LogLevel.class, "nano.log.level").orElse(LogLevel.INFO);`
 
@@ -283,6 +290,191 @@ application, streamlining the way you work with Nano's ecosystem.
 _(under construction)_
 
 * [HttpService](src/main/java/de/yuna/berlin/nativeapp/services/http/HttpService.java)
+
+## Integrations
+
+### Nano in Spring boot
+
+Run Nano as Bean:
+
+```java
+
+@Configuration
+public class NanoConfiguration {
+
+    @Bean
+    public Nano nanoInstance() {
+        // Initialize your Nano instance with the desired services
+        return new Nano(); // Optionally add your services and configurations here
+    }
+}
+```
+
+* Run Nano as Service
+
+```java
+
+@Service
+public class SomeService {
+
+    private final Nano nano;
+
+    @Autowired
+    public SomeService(final Nano nano) {
+        this.nano = nano;
+        // Use Nano instance as needed
+    }
+}
+```
+
+* Graceful shutdown using `DisposableBean`
+
+Nano has a graceful shutdown by itself, but it could be useful to trigger it from a Spring bean.
+
+```java
+
+@Component
+public class NanoManager implements DisposableBean {
+
+    private final Nano nano;
+
+    public NanoManager(final Nano nano) {
+        this.nano = nano;
+    }
+
+    @Override
+    public void destroy() {
+        nano.stop(); // Trigger Nano's shutdown process
+    }
+}
+```
+
+* Graceful shutdown using `@PreDestroy` annotation
+
+Nano has a graceful shutdown by itself, but it could be useful to trigger it from a Spring bean.
+
+```java
+
+@Component
+public class NanoManager {
+
+    private final Nano nano;
+
+    public NanoManager(final Nano nano) {
+        this.nano = nano;
+    }
+
+    @PreDestroy
+    public void onDestroy() {
+        nano.stop(); // Trigger Nano's shutdown process
+    }
+}
+```
+
+### Nano in Quarkus
+
+* Define the Nano Producer
+
+```java
+
+@ApplicationScoped
+public class NanoProducer {
+
+    @Produces
+    public Nano produceNano() {
+        // Initialize your Nano instance with the desired services
+        return new Nano(); // Optionally add your services and configurations here
+    }
+}
+```
+
+* Once you've defined your Nano producer, you can inject the Nano instance into any Quarkus bean using CDI (Contexts and
+  Dependency Injection).
+
+```java
+
+@ApplicationScoped
+public class BusinessLogicService {
+
+    @Inject
+    Nano nano;
+
+    public void performAction() {
+        // Use the Nano instance for your business logic
+    }
+}
+```
+
+* Graceful shutdown using `@Destroyed`
+
+Nano has a graceful shutdown by itself, but it could be useful to trigger it from a quarkus.
+
+```java
+
+@ApplicationScoped
+public class ShutdownListener {
+
+    @Inject
+    Nano nano;
+
+    public void onShutdown(@Observes @Destroyed(ApplicationScoped.class) final Object init) {
+        nano.stop(); // Trigger Nano's shutdown process
+    }
+}
+```
+
+### Nano in Micronaut
+
+* Define the Nano Bean
+
+```java
+
+@Factory
+public class NanoFactory {
+
+    @Singleton
+    public Nano nanoInstance() {
+        // Initialize your Nano instance with desired services
+        return new Nano(); // Optionally add services and configurations here
+    }
+}
+```
+
+* Use Nano in Your Application
+
+```java
+
+@Singleton
+public class SomeService {
+
+    private final Nano nano;
+
+    public SomeService(final Nano nano) {
+        this.nano = nano;
+        // Use the Nano instance as needed
+    }
+}
+```
+
+* Graceful shutdown using `@ServerShutdownEvent`
+
+```java
+
+@Singleton
+public class NanoManager implements ApplicationEventListener<ServerShutdownEvent> {
+
+    private final Nano nano;
+
+    public NanoManager(final Nano nano) {
+        this.nano = nano;
+    }
+
+    @Override
+    public void onApplicationEvent(final ServerShutdownEvent event) {
+        nano.stop(); // Trigger Nano's shutdown process
+    }
+}
+```
 
 ## 🤝 Contributing
 
