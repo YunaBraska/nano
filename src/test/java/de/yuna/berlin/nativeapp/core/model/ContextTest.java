@@ -68,8 +68,10 @@ class ContextTest {
         assertThat(context.service(testService.getClass())).isEqualTo(testService);
         assertThat(context.services(TestService.class)).containsExactly(testService);
 
-        nano.stop(this.getClass());
         //TODO: bring schedulers to context
+
+        nano.stop(this.getClass());
+        waitForCondition(() -> !nano.isReady());
     }
 
     @RepeatedTest(TEST_REPEAT)

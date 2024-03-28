@@ -57,5 +57,7 @@ class ServiceTest {
         assertThat(nano.services()).size().isEqualTo(1);
 
         nano.stop(context);
+        // wait for shutdown for JUnit to finish
+        waitForCondition(() -> !nano.isReady());
     }
 }

@@ -36,9 +36,11 @@ class NanoTest {
 
     @RepeatedTest(TEST_REPEAT)
     void stopViaMethod() {
-        assertThat(new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL))
-            .stop(this.getClass())
-        ).isNotNull();
+        final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL));
+        assertThat(nano.stop(this.getClass())
+        ).isNotNull().isEqualTo(nano);
+        // wait for shutdown for JUnit to finish
+        waitForCondition(() -> !nano.isReady());
     }
 
     @RepeatedTest(TEST_REPEAT)
@@ -97,6 +99,7 @@ class NanoTest {
         noArgs.setLogLevel(TEST_LOG_LEVEL);
         assertThat(noArgs.logger().level()).isEqualTo(TEST_LOG_LEVEL);
         noArgs.stop(this.getClass());
+        waitForCondition(() -> !noArgs.isReady());
     }
 
     @RepeatedTest(TEST_REPEAT)
@@ -105,6 +108,7 @@ class NanoTest {
         assertThat(config).isNotNull();
         assertThat(config.logger().level()).isEqualTo(TEST_LOG_LEVEL);
         config.stop(this.getClass());
+        waitForCondition(() -> !config.isReady());
     }
 
     @RepeatedTest(TEST_REPEAT)
@@ -114,6 +118,7 @@ class NanoTest {
         assertThat(configAndService.logger().level()).isEqualTo(TEST_LOG_LEVEL);
         waitForStartUp(configAndService);
         configAndService.stop(this.getClass());
+        waitForCondition(() -> !configAndService.isReady());
     }
 
     @RepeatedTest(TEST_REPEAT)
@@ -131,6 +136,7 @@ class NanoTest {
         assertThat(config).isNotNull();
         assertThat(config.logger().level()).isEqualTo(TEST_LOG_LEVEL);
         config.stop(this.getClass());
+        waitForCondition(() -> !config.isReady());
     }
 
 //    @RepeatedTest(TEST_REPEAT)
@@ -157,6 +163,7 @@ class NanoTest {
             "java=", "arch=", "os="
         );
         config.stop(this.getClass());
+        waitForCondition(() -> !config.isReady());
     }
 
     @RepeatedTest(TEST_REPEAT)
@@ -187,6 +194,7 @@ class NanoTest {
         assertThat(eventResults).hasSize(2);
 
         nano.stop(this.getClass());
+        waitForCondition(() -> !nano.isReady());
     }
 
     @RepeatedTest(TEST_REPEAT)
@@ -227,6 +235,7 @@ class NanoTest {
         assertThat(nano.listeners().get(TEST_EVENT)).isEmpty();
 
         nano.stop(this.getClass());
+        waitForCondition(() -> !nano.isReady());
     }
 
     @RepeatedTest(TEST_REPEAT)
@@ -242,6 +251,7 @@ class NanoTest {
         assertThat(scheduler1Triggered.await(TEST_TIMEOUT, MILLISECONDS)).isTrue();
         assertThat(scheduler2Triggered.await(TEST_TIMEOUT, MILLISECONDS)).isTrue();
         nano.stop(this.getClass());
+        waitForCondition(() -> !nano.isReady());
     }
 
     @RepeatedTest(TEST_REPEAT)
@@ -261,6 +271,7 @@ class NanoTest {
 
         assertThat(service.getEvent(EVENT_APP_UNHANDLED, event -> event.payload() != null)).isNotNull();
         nano.stop(this.getClass());
+        waitForCondition(() -> !nano.isReady());
     }
 
     private static void stopAndTestNano(final Nano nano, final TestService service) {

@@ -3,6 +3,7 @@ package de.yuna.berlin.nativeapp.core;
 import berlin.yuna.typemap.logic.ArgsDecoder;
 import de.yuna.berlin.nativeapp.core.model.Config;
 import de.yuna.berlin.nativeapp.core.model.Context;
+import de.yuna.berlin.nativeapp.helper.LockedBoolean;
 import de.yuna.berlin.nativeapp.helper.event.model.Event;
 import de.yuna.berlin.nativeapp.helper.logger.LogFormatRegister;
 import de.yuna.berlin.nativeapp.helper.logger.logic.LogQueue;
@@ -45,7 +46,7 @@ public abstract class NanoBase<T extends NanoBase<T>> {
     protected final long createdAtMs;
     protected final NanoLogger logger;
     protected final Map<Integer, Set<Consumer<Event>>> listeners = new ConcurrentHashMap<>();
-    protected final AtomicBoolean isReady = new AtomicBoolean(true);
+    protected final LockedBoolean isReady = new LockedBoolean(true);
     protected final AtomicInteger eventCount = new AtomicInteger(0);
     @SuppressWarnings("java:S2386")
     public static final Map<Integer, String> EVENT_TYPES = new ConcurrentHashMap<>();

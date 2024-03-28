@@ -7,8 +7,7 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.util.Map;
 
-import static de.yuna.berlin.nativeapp.core.config.TestConfig.TEST_LOG_LEVEL;
-import static de.yuna.berlin.nativeapp.core.config.TestConfig.TEST_REPEAT;
+import static de.yuna.berlin.nativeapp.core.config.TestConfig.*;
 import static de.yuna.berlin.nativeapp.core.model.Config.CONFIG_LOG_LEVEL;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -27,6 +26,7 @@ class UnhandledTest {
         assertThat(error.payload(String.class)).isEqualTo("111");
         assertThat(error.payload(Integer.class)).isEqualTo(111);
         assertThat(error.exception()).isNull();
+        waitForCondition(() -> !nano.isReady());
     }
 
     @RepeatedTest(TEST_REPEAT)

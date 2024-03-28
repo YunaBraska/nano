@@ -241,21 +241,19 @@ public class Nano extends NanoServices<Nano> {
      * @return Self for chaining
      */
     protected Nano shutdown(final Context context) {
-        final Thread thread = new Thread(() -> {
-            if (isReady.compareAndSet(true, false)) {
-                final long startTimeMs = System.currentTimeMillis();
-                logger.logQueue(null).info(() -> "Stop {} ...", this.getClass().getSimpleName());
-                printSystemInfo();
-                logger.debug(() -> "Shutdown Services count [{}] services [{}]", services.size(), services.stream().map(Service::getClass).map(Class::getSimpleName).distinct().collect(joining(", ")));
-                shutdownServices(context);
-                this.shutdownThreads();
-                listeners.clear();
-                printSystemInfo();
-                logger.info(() -> "Stopped {} in [{}] with uptime [{}]", this.getClass().getSimpleName(), formatDuration(System.currentTimeMillis() - startTimeMs), formatDuration(System.currentTimeMillis() - createdAtMs));
-                threadPool.shutdown();
-                schedulers.clear();
-            }
-        }, Nano.class.getSimpleName() + " Shutdown-Thread");
+        final Thread thread = new Thread(() -> isReady.set(true, false, run -> {
+            final long startTimeMs = System.currentTimeMillis();
+            logger.logQueue(null).info(() -> "Stop {} ...", this.getClass().getSimpleName());
+            printSystemInfo();
+            logger.debug(() -> "Shutdown Services count [{}] services [{}]", services.size(), services.stream().map(Service::getClass).map(Class::getSimpleName).distinct().collect(joining(", ")));
+            shutdownServices(context);
+            this.shutdownThreads();
+            listeners.clear();
+            printSystemInfo();
+            logger.info(() -> "Stopped {} in [{}] with uptime [{}]", this.getClass().getSimpleName(), formatDuration(System.currentTimeMillis() - startTimeMs), formatDuration(System.currentTimeMillis() - createdAtMs));
+            threadPool.shutdown();
+            schedulers.clear();
+        }), Nano.class.getSimpleName() + " Shutdown-Thread");
         thread.setDaemon(false); // JVM should wait until the thread is done
         thread.start();
 
