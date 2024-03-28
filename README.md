@@ -47,9 +47,9 @@ modern Java, stripped of complexity and enriched with functionality.
     * 🔗 [Json](https://github.com/YunaBraska/type-map#json)
     * 🔗 [TypeConverter](https://github.com/YunaBraska/type-map#typeconverter)
 * 🧩[Integrations](#integrations)
-    * 🌱 [Spring Boot](#Nano-in-Spring-boot)
-    * 🧑‍🚀 [Micronaut](#Nano-in-micronaut)
-    * 🐸 [Quarkus](#Nano-in-quarkus)
+    * 🌱 [Spring Boot](#-Nano-in-Spring-boot)
+    * 🧑‍🚀 [Micronaut](#-Nano-in-micronaut)
+    * 🐸 [Quarkus](#-Nano-in-quarkus)
 * 🤝 [Contributing](#-contributing)
 * 📜 [License](#-license)
 * 🙋‍ [Support](#-support)
@@ -293,9 +293,9 @@ _(under construction)_
 
 ## Integrations
 
-### Nano in Spring boot
+### 🌱 Nano in Spring boot
 
-Run Nano as Bean:
+* Run Nano as Bean
 
 ```java
 
@@ -310,7 +310,7 @@ public class NanoConfiguration {
 }
 ```
 
-* Run Nano as Service
+* Use Nano in a Service
 
 ```java
 
@@ -371,59 +371,7 @@ public class NanoManager {
 }
 ```
 
-### Nano in Quarkus
-
-* Define the Nano Producer
-
-```java
-
-@ApplicationScoped
-public class NanoProducer {
-
-    @Produces
-    public Nano produceNano() {
-        // Initialize your Nano instance with the desired services
-        return new Nano(); // Optionally add your services and configurations here
-    }
-}
-```
-
-* Once you've defined your Nano producer, you can inject the Nano instance into any Quarkus bean using CDI (Contexts and
-  Dependency Injection).
-
-```java
-
-@ApplicationScoped
-public class BusinessLogicService {
-
-    @Inject
-    Nano nano;
-
-    public void performAction() {
-        // Use the Nano instance for your business logic
-    }
-}
-```
-
-* Graceful shutdown using `@Destroyed`
-
-Nano has a graceful shutdown by itself, but it could be useful to trigger it from a quarkus.
-
-```java
-
-@ApplicationScoped
-public class ShutdownListener {
-
-    @Inject
-    Nano nano;
-
-    public void onShutdown(@Observes @Destroyed(ApplicationScoped.class) final Object init) {
-        nano.stop(); // Trigger Nano's shutdown process
-    }
-}
-```
-
-### Nano in Micronaut
+### 🧑‍🚀 Nano in Micronaut
 
 * Define the Nano Bean
 
@@ -471,6 +419,58 @@ public class NanoManager implements ApplicationEventListener<ServerShutdownEvent
 
     @Override
     public void onApplicationEvent(final ServerShutdownEvent event) {
+        nano.stop(); // Trigger Nano's shutdown process
+    }
+}
+```
+
+### 🐸 Nano in Quarkus
+
+* Define the Nano Producer
+
+```java
+
+@ApplicationScoped
+public class NanoProducer {
+
+    @Produces
+    public Nano produceNano() {
+        // Initialize your Nano instance with the desired services
+        return new Nano(); // Optionally add your services and configurations here
+    }
+}
+```
+
+* Once you've defined your Nano producer, you can inject the Nano instance into any Quarkus bean using CDI (Contexts and
+  Dependency Injection).
+
+```java
+
+@ApplicationScoped
+public class BusinessLogicService {
+
+    @Inject
+    Nano nano;
+
+    public void performAction() {
+        // Use the Nano instance for your business logic
+    }
+}
+```
+
+* Graceful shutdown using `@Destroyed`
+
+Nano has a graceful shutdown by itself, but it could be useful to trigger it from a quarkus.
+
+```java
+
+@ApplicationScoped
+public class ShutdownListener {
+
+    @Inject
+    Nano nano;
+
+    public void onShutdown(@Observes @Destroyed(ApplicationScoped.class) final Object init) {
         nano.stop(); // Trigger Nano's shutdown process
     }
 }
