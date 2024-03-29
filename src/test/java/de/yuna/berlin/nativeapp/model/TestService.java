@@ -15,7 +15,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static de.yuna.berlin.nativeapp.core.config.TestConfig.TEST_TIMEOUT;
-import static de.yuna.berlin.nativeapp.core.config.TestConfig.waitForCondition;
+import static de.yuna.berlin.nativeapp.helper.NanoUtils.waitForCondition;
 import static java.util.Optional.ofNullable;
 
 public class TestService extends Service {

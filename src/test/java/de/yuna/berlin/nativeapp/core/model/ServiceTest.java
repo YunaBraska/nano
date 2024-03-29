@@ -13,6 +13,7 @@ import java.util.Map;
 import static de.yuna.berlin.nativeapp.core.config.TestConfig.*;
 import static de.yuna.berlin.nativeapp.core.model.Config.CONFIG_LOG_LEVEL;
 import static de.yuna.berlin.nativeapp.core.model.Context.tryExecute;
+import static de.yuna.berlin.nativeapp.helper.NanoUtils.waitForCondition;
 import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_UNHANDLED;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -50,14 +51,12 @@ class ServiceTest {
         assertThat(nano.services()).isEmpty();
         service.nanoThread(context).execute(null, () -> {});
         service.handleServiceException(context, new RuntimeException("Nothing to see here, just a test exception"));
-        assertThat(waitForCondition(() -> service.startCount() == 2)).isTrue();
-        waitForCondition(() -> nano.services().size() == 1);
+        assertThat(waitForCondition(() -> service.startCount() == 2, TEST_TIMEOUT)).isTrue();
+        waitForCondition(() -> nano.services().size() == 1, TEST_TIMEOUT);
         assertThat(service.startCount()).isEqualTo(2);
         assertThat(service.failures()).hasSize(2);
         assertThat(nano.services()).size().isEqualTo(1);
 
-        nano.stop(context);
-        // wait for shutdown for JUnit to finish
-        waitForCondition(() -> !nano.isReady());
+        assertThat(nano.stop(this.getClass()).waitForStop().isReady()).isFalse();
     }
 }

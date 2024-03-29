@@ -194,7 +194,9 @@ configurations that can adapt to various environments and use cases.
 2) Environment Variables: Utilize environment variables for configurations, ideal for containerized applications.
 3) Command Line Arguments: Pass configuration directly as command-line arguments when starting your application.
 
-* DSL config: `nano.config().set("nano.log.level", "INFO");`
+* DSL set config: `nano.config().put("nano.log.level", "INFO");`
+* DSL get config: `nano.config().get(LogLevel.class, "nano.log.level")` (config is based
+  on [TypeMap](https://github.com/YunaBraska/type-map), and can automatically convert types)
 * Receiving a config
   value: `LogLevel logLevel = context.getOpt(LogLevel.class, "nano.log.level").orElse(LogLevel.INFO);`
 
@@ -274,12 +276,14 @@ Nano comes with pre-equipped services:
 ### Context
 
 The [Context](src/main/java/de/yuna/berlin/nativeapp/core/model/Context.java)
-in [Nano](src/main/java/de/yuna/berlin/nativeapp/core/Nano.java) Framework is like having a personal assistant by your
-side while you navigate through the development of your application. It's designed to simplify your interaction with
-Nano's core functionalities, ensuring you have everything you need within arm's reach. At its core, the Context serves
-three primary roles: managing logging, tracing, and holding configurations. Think of it as a mini-orchestrator for your
-application, streamlining the way you work with Nano's ecosystem.
+in [Nano](src/main/java/de/yuna/berlin/nativeapp/core/Nano.java) Framework is like having a personal assistant. It's
+designed to simplify your interaction with Nano's core functionalities, ensuring you have everything you need within
+arm's reach. At its core, the Context serves three primary roles: managing logging, tracing, and holding configurations.
+Think of it as a mini-orchestrator for your application, streamlining the way you work with Nano's ecosystem.
 
+* Setting conf e.g. `context.put("my config key", "my value")`
+* Getting conf e.g. `context.get(String.class, "my config key")` (config is based
+  on [TypeMap](https://github.com/YunaBraska/type-map), and can automatically convert types)
 * Tracing e.g. `context.traceId()`, `context.traceIds()`
 * Logging e.g. `context.logger().info(() -> "My info log")`, `context.logger().error(exception, () -> "My error log")`
 * Events e.g. `context.sendEvent(MY_EVENT, myPayloadObject)`

@@ -20,6 +20,7 @@ import static de.yuna.berlin.nativeapp.core.model.Context.tryExecute;
 import static de.yuna.berlin.nativeapp.core.model.NanoThread.activeCarrierThreads;
 import static de.yuna.berlin.nativeapp.core.model.NanoThread.activeNanoThreads;
 import static de.yuna.berlin.nativeapp.helper.NanoUtils.formatDuration;
+import static de.yuna.berlin.nativeapp.helper.NanoUtils.waitForCondition;
 import static de.yuna.berlin.nativeapp.helper.event.model.EventType.*;
 import static de.yuna.berlin.nativeapp.services.metric.model.MetricType.GAUGE;
 import static java.lang.System.lineSeparator;
@@ -138,6 +139,17 @@ public class Nano extends NanoServices<Nano> {
     public Nano stop(final Context context) {
         sendEvent(EVENT_APP_SHUTDOWN, context != null ? context : newContext(this.getClass()), null, result -> {
         }, true);
+        return this;
+    }
+
+    /**
+     * This method blocks the current thread for max 10 seconds until the {@link Nano} instance is no longer ready.
+     * This is useful in tests for ensuring that the application has fully stopped before proceeding with further operations.
+     *
+     * @return The current instance of {@link Nano} for method chaining.
+     */
+    public Nano waitForStop() {
+        waitForCondition(() -> !isReady(), 10000);
         return this;
     }
 

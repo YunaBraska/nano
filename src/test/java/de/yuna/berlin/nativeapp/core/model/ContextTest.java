@@ -15,6 +15,7 @@ import static de.yuna.berlin.nativeapp.core.config.TestConfig.*;
 import static de.yuna.berlin.nativeapp.core.model.Config.CONFIG_LOG_LEVEL;
 import static de.yuna.berlin.nativeapp.core.model.Context.CONTEXT_LOGGER_KEY;
 import static de.yuna.berlin.nativeapp.core.model.Context.CONTEXT_TRACE_ID_KEY;
+import static de.yuna.berlin.nativeapp.helper.NanoUtils.waitForCondition;
 import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_HEARTBEAT;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -64,14 +65,13 @@ class ContextTest {
         //Verify services
         final TestService testService = new TestService();
         assertThat(context.async(testService)).isEqualTo(context);
-        assertThat(waitForCondition(() -> context.services().contains(testService))).isTrue();
+        assertThat(waitForCondition(() -> context.services().contains(testService), TEST_TIMEOUT)).isTrue();
         assertThat(context.service(testService.getClass())).isEqualTo(testService);
         assertThat(context.services(TestService.class)).containsExactly(testService);
 
         //TODO: bring schedulers to context
 
-        nano.stop(this.getClass());
-        waitForCondition(() -> !nano.isReady());
+        assertThat(nano.stop(this.getClass()).waitForStop().isReady()).isFalse();
     }
 
     @RepeatedTest(TEST_REPEAT)

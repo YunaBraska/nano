@@ -4,12 +4,11 @@ import de.yuna.berlin.nativeapp.core.Nano;
 import de.yuna.berlin.nativeapp.helper.logger.model.LogLevel;
 
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 import static de.yuna.berlin.nativeapp.core.model.Context.tryExecute;
+import static de.yuna.berlin.nativeapp.helper.NanoUtils.waitForCondition;
 import static java.util.Optional.ofNullable;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,41 +41,8 @@ public class TestConfig {
     }
 
     public static Nano waitForStartUp(final Nano nano, final int numberOfServices) {
-        assertThat(waitForCondition(() -> nano.services().size() == numberOfServices)).isTrue();
+        assertThat(waitForCondition(() -> nano.services().size() == numberOfServices, TEST_TIMEOUT)).isTrue();
         return nano;
-    }
-
-    /**
-     * Waits for a condition to become true, with actions on success or timeout.
-     *
-     * @param condition The condition to wait for, returning true when met.
-     * @return true if the condition was met within the timeout, false otherwise.
-     */
-    public static boolean waitForCondition(final BooleanSupplier condition) {
-        return waitForCondition(condition, TEST_TIMEOUT);
-    }
-
-    /**
-     * Waits for a condition to become true, with actions on success or timeout.
-     *
-     * @param condition The condition to wait for, returning true when met.
-     * @param timeout   stops waiting after period of time to unblock the test.
-     * @return true if the condition was met within the timeout, false otherwise.
-     */
-    public static boolean waitForCondition(final BooleanSupplier condition, final long timeout) {
-        final long startTime = System.currentTimeMillis();
-        while (System.currentTimeMillis() - startTime < timeout) {
-            if (condition.getAsBoolean()) {
-                return true;
-            }
-            try {
-                TimeUnit.MILLISECONDS.sleep(100);
-            } catch (final InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-        }
-        return false;
     }
 
     public static boolean await(final CountDownLatch latch) throws InterruptedException {

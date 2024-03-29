@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 
 @SuppressWarnings({"UnusedReturnValue", "java:S6548"})
 public class NanoUtils {
@@ -24,27 +25,6 @@ public class NanoUtils {
 
     public static boolean hasText(final String str) {
         return (str != null && !str.isEmpty() && containsText(str));
-    }
-
-    public static String toJson(final Map<Object, Object> json) {
-        return new LinkedTypeMap(json).toJson();
-    }
-
-    public static String toJson(final List<Object> json) {
-        return new TypeList(json).toJson();
-    }
-
-    public static TypeContainer<?> fromJson(final String json) {
-        TypeConversionRegister.registerTypeConvert(String.class, Integer.class, Integer::valueOf);
-        return json != null && !json.isEmpty() && json.charAt(0) == '[' ? JsonDecoder.jsonListOf(json) : JsonDecoder.jsonMapOf(json);
-    }
-
-    public static LinkedTypeMap fromJsonMap(final String json) {
-        return JsonDecoder.jsonMapOf(json);
-    }
-
-    public static TypeList fromJsonArray(final String json) {
-        return JsonDecoder.jsonListOf(json);
     }
 
     public static String formatDuration(final long milliseconds) {
@@ -71,6 +51,40 @@ public class NanoUtils {
         if (remainder > 0) sb.append(remainder).append("ms");
 
         return sb.toString().trim();
+    }
+
+
+    /**
+     * Waits for a condition to become true, with actions on success or timeout.
+     *
+     * @param condition The condition to wait for, returning true when met.
+     * @return true if the condition was met within the timeout, false otherwise.
+     */
+    public static boolean waitForCondition(final BooleanSupplier condition) {
+        return waitForCondition(condition, 2000);
+    }
+
+    /**
+     * Waits for a condition to become true, with actions on success or timeout.
+     *
+     * @param condition The condition to wait for, returning true when met.
+     * @param timeout   stops waiting after period of time to unblock the test.
+     * @return true if the condition was met within the timeout, false otherwise.
+     */
+    public static boolean waitForCondition(final BooleanSupplier condition, final long timeout) {
+        final long startTime = System.currentTimeMillis();
+        while (System.currentTimeMillis() - startTime < timeout) {
+            if (condition.getAsBoolean()) {
+                return true;
+            }
+            try {
+                TimeUnit.MILLISECONDS.sleep(100);
+            } catch (final InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+        return false;
     }
 
     private static boolean containsText(final CharSequence str) {

@@ -9,6 +9,7 @@ import java.util.Map;
 
 import static de.yuna.berlin.nativeapp.core.config.TestConfig.*;
 import static de.yuna.berlin.nativeapp.core.model.Config.CONFIG_LOG_LEVEL;
+import static de.yuna.berlin.nativeapp.helper.NanoUtils.waitForCondition;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Execution(ExecutionMode.CONCURRENT)
@@ -26,7 +27,7 @@ class UnhandledTest {
         assertThat(error.payload(String.class)).isEqualTo("111");
         assertThat(error.payload(Integer.class)).isEqualTo(111);
         assertThat(error.exception()).isNull();
-        waitForCondition(() -> !nano.isReady());
+        assertThat(nano.waitForStop().isReady()).isFalse();
     }
 
     @RepeatedTest(TEST_REPEAT)
