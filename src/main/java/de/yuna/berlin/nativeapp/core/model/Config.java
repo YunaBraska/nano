@@ -5,6 +5,7 @@ import de.yuna.berlin.nativeapp.core.NanoThreads;
 import de.yuna.berlin.nativeapp.helper.logger.LogFormatRegister;
 import de.yuna.berlin.nativeapp.helper.logger.logic.LogQueue;
 import de.yuna.berlin.nativeapp.helper.logger.model.LogLevel;
+import de.yuna.berlin.nativeapp.services.http.HttpService;
 
 /**
  * Configuration keys enumeration to control various aspects of the NanoThreads framework.
@@ -20,6 +21,9 @@ public enum Config {
     CONFIG_LOG_QUEUE_SIZE("app_log_queue_size", "Log queue size. A full queue means that log messages will start to wait to be executed (see " + LogQueue.class.getSimpleName() + ")"),
     CONFIG_THREAD_POOL_TIMEOUT_MS("app_thread_pool_shutdown_timeout_ms", "Timeout for thread pool shutdown in milliseconds (see " + NanoThreads.class.getSimpleName() + ")"),
     CONFIG_PARALLEL_SHUTDOWN("app_service_shutdown_parallel", "Enable or disable parallel service shutdown (see " + NanoServices.class.getSimpleName() + "). Enabled = Can increase the shutdown performance on`true`"),
+
+    // ########## DEFAULT SERVICES ##########
+    CONFIG_SERVICE_HTTP_PORT("app_service_http_port", "Default port for the HTTP service (see " + HttpService.class.getSimpleName() + ")"),
     ;
 
     private final String id;

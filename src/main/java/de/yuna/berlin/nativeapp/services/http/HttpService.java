@@ -112,7 +112,7 @@ public class HttpService extends Service {
         try {
             final byte[] body = response.body() != null ? response.body() : new byte[0];
             final int statusCode = response.statusCode > -1 && response.statusCode < 600 ? response.statusCode : 200;
-            final Map<String, String> headers = new HashMap<>(response.headers);
+            final Map<String, String> headers = response.headers == null? new HashMap<>() :new HashMap<>(response.headers);
             headers.computeIfAbsent(HttpHeaders.CONTENT_TYPE, value -> {
                 final String str = new String(body, Charset.defaultCharset());
                 return (str.startsWith("{") && str.endsWith("}")) || (str.startsWith("[") && str.endsWith("]")) ? ContentType.APPLICATION_JSON.value() : ContentType.TEXT_PLAIN.value();

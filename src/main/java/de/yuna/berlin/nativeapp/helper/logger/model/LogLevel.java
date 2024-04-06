@@ -32,8 +32,16 @@ public enum LogLevel {
 
     public static LogLevel nanoLogLevelOf(final String level) {
         if (hasText(level)) {
+            // Nano log level
             for (final LogLevel logLevel : LogLevel.values()) {
                 if (logLevel.toString().equalsIgnoreCase(level)) {
+                    return logLevel;
+                }
+            }
+
+            // Java log level
+            for (final LogLevel logLevel : LogLevel.values()) {
+                if (logLevel.javaLogLevel.toString().equalsIgnoreCase(level)) {
                     return logLevel;
                 }
             }
