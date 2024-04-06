@@ -187,6 +187,7 @@ class NanoTest {
         service.resetEvents();
         nano.sendEvent(TEST_EVENT, nano.newContext(this.getClass()), 33333333, eventResults::add, true);
         assertThat(service.getEvent(TEST_EVENT, event -> event.payload(Integer.class) == 33333333)).isNotNull();
+        assertThat(waitForCondition(() -> eventResults.size() == 2)).isTrue();
         assertThat(eventResults).hasSize(2);
 
         assertThat(nano.stop(this.getClass()).waitForStop().isReady()).isFalse();
