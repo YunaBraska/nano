@@ -1,12 +1,14 @@
 package de.yuna.berlin.nativeapp.helper.logger.logic;
 
-import de.yuna.berlin.nativeapp.core.model.*;
+import de.yuna.berlin.nativeapp.core.model.Config;
+import de.yuna.berlin.nativeapp.core.model.Context;
+import de.yuna.berlin.nativeapp.core.model.Service;
+import de.yuna.berlin.nativeapp.core.model.Unhandled;
 import de.yuna.berlin.nativeapp.helper.Pair;
 import de.yuna.berlin.nativeapp.helper.event.model.Event;
 import de.yuna.berlin.nativeapp.helper.logger.model.LogLevel;
 
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -19,7 +21,6 @@ import static de.yuna.berlin.nativeapp.helper.event.model.EventType.EVENT_APP_LO
 
 @SuppressWarnings("UnusedReturnValue")
 public class LogQueue extends Service {
-    protected Future<Void> future;
     protected BlockingQueue<Pair<Logger, LogRecord>> queue;
     protected int queueCapacity;
 
@@ -45,9 +46,9 @@ public class LogQueue extends Service {
             final Context context = contextSub.get();
             queueCapacity = context.getOpt(Integer.class, Config.CONFIG_LOG_QUEUE_SIZE.id()).orElse(1000);
             queue = new LinkedBlockingQueue<>(queueCapacity);
-            future = context.nano().execute(this::process);
-            context.nano().schedule(this::checkQueueSizeAndWarn, 5, 5, TimeUnit.MINUTES, () -> !isReady());
-            context.broadcastEvent(EVENT_APP_LOG_QUEUE, this);
+            context.run(this::process)
+                .run(this::checkQueueSizeAndWarn, 5, 5, TimeUnit.MINUTES, () -> !isReady())
+                .broadcastEvent(EVENT_APP_LOG_QUEUE, this);
         });
     }
 
@@ -61,9 +62,6 @@ public class LogQueue extends Service {
                 queue = null;
             } catch (final InterruptedException e) {
                 Thread.currentThread().interrupt();
-            } finally {
-                future.cancel(true);
-                future = null;
             }
         });
     }

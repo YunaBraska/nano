@@ -78,7 +78,7 @@ public class NanoUtils {
                 return true;
             }
             try {
-                TimeUnit.MILLISECONDS.sleep(100);
+                TimeUnit.MILLISECONDS.sleep(64);
             } catch (final InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;

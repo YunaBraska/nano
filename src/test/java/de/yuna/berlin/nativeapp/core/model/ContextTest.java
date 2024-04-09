@@ -9,6 +9,8 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static de.yuna.berlin.nativeapp.core.config.TestConfig.*;
@@ -32,21 +34,21 @@ class ContextTest {
         final Consumer<Event> myListener = event -> {};
         assertContextBehaviour(context);
 
-        //Verify logger
+        // Verify logger
         assertThat(context.logger().logger().getName()).isEqualTo(Context.class.getCanonicalName());
-        assertThat(context.setLoggerReturn(Nano.class).logger().getName()).isEqualTo(Nano.class.getCanonicalName());
+        assertThat(context.loggerReturn(Nano.class).logger().getName()).isEqualTo(Nano.class.getCanonicalName());
 
-        //Verify event listener
+        // Verify event listener
         assertThat(nano.listeners().get(EVENT_APP_HEARTBEAT)).hasSize(1);
-        assertThat(context.addEventListener(EVENT_APP_HEARTBEAT, myListener)).isEqualTo(context);
+        assertThat(context.subscribeEvent(EVENT_APP_HEARTBEAT, myListener)).isEqualTo(context);
         assertThat(nano.listeners().get(EVENT_APP_HEARTBEAT)).hasSize(2);
-        assertThat(context.removeEventListener(EVENT_APP_HEARTBEAT, myListener)).isEqualTo(context);
+        assertThat(context.unsubscribeEvent(EVENT_APP_HEARTBEAT, myListener)).isEqualTo(context);
         assertThat(nano.listeners().get(EVENT_APP_HEARTBEAT)).hasSize(1);
 
-        //Verify event sending
+        // Verify event sending
         final CountDownLatch eventLatch = new CountDownLatch(4);
         final int eventType = context.registerEventType("TEST_EVENT");
-        context.addEventListener(eventType, event -> eventLatch.countDown());
+        context.subscribeEvent(eventType, event -> eventLatch.countDown());
         context.sendEvent(eventType, "AA");
         final Event event = context.sendEventReturn(eventType, "BB");
         context.broadcastEvent(eventType, "CC");
@@ -62,14 +64,24 @@ class ContextTest {
         assertThat(context.eventIdOf("TEST_EVENT")).contains(eventType);
         assertThat(context.eventNameOf(eventType)).isEqualTo("TEST_EVENT");
 
-        //Verify services
+        // Verify services
         final TestService testService = new TestService();
-        assertThat(context.async(testService)).isEqualTo(context);
+        assertThat(context.run(testService)).isEqualTo(context);
         assertThat(waitForCondition(() -> context.services().contains(testService), TEST_TIMEOUT)).isTrue();
         assertThat(context.service(testService.getClass())).isEqualTo(testService);
         assertThat(context.services(TestService.class)).containsExactly(testService);
 
-        //TODO: bring schedulers to context
+        // Verify schedule once
+        final AtomicInteger schedulerAck = new AtomicInteger(0);
+        context.run(schedulerAck::incrementAndGet, 24, MILLISECONDS);
+        assertThat(waitForCondition(() -> schedulerAck.get() == 1, TEST_TIMEOUT))
+            .withFailMessage(() -> "schedulerAck \nExpected: 1 \n Actual: " + schedulerAck.get())
+            .isTrue();
+        // Verify schedule multiple time with stop
+        context.run(schedulerAck::incrementAndGet, 0, 16, MILLISECONDS, () -> schedulerAck.get() == 4);
+        assertThat(waitForCondition(() -> schedulerAck.get() == 4, TEST_TIMEOUT))
+            .withFailMessage(() -> "schedulerAck \nExpected: 4 \n Actual: " + schedulerAck.get())
+            .isTrue();
 
         assertThat(nano.stop(this.getClass()).waitForStop().isReady()).isFalse();
     }
@@ -79,8 +91,8 @@ class ContextTest {
         final Context context = Context.createRootContext();
         final Consumer<Event> myListener = event -> {};
         assertContextBehaviour(context);
-        assertThatThrownBy(() -> context.addEventListener(EVENT_APP_HEARTBEAT, myListener)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> context.removeEventListener(EVENT_APP_HEARTBEAT, myListener)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> context.subscribeEvent(EVENT_APP_HEARTBEAT, myListener)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> context.unsubscribeEvent(EVENT_APP_HEARTBEAT, myListener)).isInstanceOf(NullPointerException.class);
     }
 
     @RepeatedTest(TEST_REPEAT)
@@ -92,14 +104,14 @@ class ContextTest {
     }
 
     @RepeatedTest(TEST_REPEAT)
-    void testAsyncHandled_withException() throws InterruptedException {
+    void testRunHandled_withException() throws InterruptedException {
         final Context context = Context.createRootContext();
         final CountDownLatch latch = new CountDownLatch(2);
         assertContextBehaviour(context);
-        assertThat(context.asyncHandled(unhandled -> latch.countDown(), xtx -> {
+        assertThat(context.runHandled(unhandled -> latch.countDown(), () -> {
             throw new RuntimeException("Nothing to see here, just a test exception");
         })).isEqualTo(context);
-        assertThat(context.asyncReturnHandled(unhandled -> latch.countDown(), xtx -> {
+        assertThat(context.runReturnHandled(unhandled -> latch.countDown(), () -> {
             throw new RuntimeException("Nothing to see here, just a test exception");
         })).isNotNull();
         assertThat(latch.await(1000, MILLISECONDS)).isTrue();
@@ -108,11 +120,11 @@ class ContextTest {
 
 
     @RepeatedTest(TEST_REPEAT)
-    void testAsyncAwaitHandled_withException() throws InterruptedException {
+    void testRunAwaitHandled_withException() throws InterruptedException {
         final Context context = Context.createRootContext();
         final CountDownLatch latch = new CountDownLatch(1);
         assertContextBehaviour(context);
-        context.asyncAwaitHandled(unhandled -> latch.countDown(), xtx -> {
+        context.runAwaitHandled(unhandled -> latch.countDown(), () -> {
             throw new RuntimeException("Nothing to see here, just a test exception");
         });
         assertThat(latch.await(1000, MILLISECONDS)).isTrue();
@@ -120,10 +132,10 @@ class ContextTest {
     }
 
     @RepeatedTest(TEST_REPEAT)
-    void testAsyncAwait_withException() {
+    void testRunAwait_withException() {
         final Context context = Context.createRootContext();
         assertContextBehaviour(context);
-        context.asyncAwait(ctx -> {
+        context.runAwait(() -> {
             throw new RuntimeException("Nothing to see here, just a test exception");
         });
         //TODO: create an unhandled element and check if the error was unhandled
@@ -164,5 +176,11 @@ class ContextTest {
         assertThat(subContext.logger().logQueue()).isNull();
     }
 
+    @RepeatedTest(TEST_REPEAT)
+    void testToString() {
+        final Context context = Context.createRootContext();
+        assertThat(context).hasToString("Context{size=" + context.size() + ", loglevel=null, logQueue=false}");
+
+    }
 
 }

@@ -240,8 +240,8 @@ class NanoTest {
         final CountDownLatch scheduler2Triggered = new CountDownLatch(1);
         final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL));
 
-        nano.schedule(scheduler1Triggered::countDown, timer, MILLISECONDS);
-        nano.schedule(scheduler2Triggered::countDown, timer, timer * 2, MILLISECONDS, () -> false);
+        nano.run(scheduler1Triggered::countDown, timer, MILLISECONDS);
+        nano.run(scheduler2Triggered::countDown, timer, timer * 2, MILLISECONDS, () -> false);
 
         assertThat(scheduler1Triggered.await(TEST_TIMEOUT, MILLISECONDS)).isTrue();
         assertThat(scheduler2Triggered.await(TEST_TIMEOUT, MILLISECONDS)).isTrue();
@@ -255,11 +255,11 @@ class NanoTest {
         final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL), service);
         waitForStartUp(nano);
 
-        nano.schedule(() -> {
+        nano.run(() -> {
             throw new RuntimeException("Nothing to see here, just a test exception");
         }, timer, MILLISECONDS);
 
-        nano.schedule(() -> {
+        nano.run(() -> {
             throw new RuntimeException("Nothing to see here, just a test exception");
         }, timer, timer * 2, MILLISECONDS, () -> false);
 

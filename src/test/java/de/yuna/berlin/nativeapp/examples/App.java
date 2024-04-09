@@ -32,22 +32,22 @@ public class App {
         final Service serviceC = new ServiceC();
         final Service serviceD = new ServiceD();
 
-        application.newContext(App.class)
-            .async(serviceA)
-            .async(serviceA)
-            .asyncAwait(serviceB, serviceC)
-            .asyncAwait(serviceD)
-            .async(serviceD)
-            .asyncAwait(serviceA)
-            .asyncAwait(serviceD)
-            .async(serviceD)
-            .async(c -> c.logger().info(() -> "I was here"))
-            .async(c -> {
+        final Context ctx = application.newContext(App.class);
+        ctx.run(serviceA)
+            .run(serviceA)
+            .runAwait(serviceB, serviceC)
+            .runAwait(serviceD)
+            .run(serviceD)
+            .runAwait(serviceA)
+            .runAwait(serviceD)
+            .run(serviceD)
+            .run(() -> ctx.logger().info(() -> "I was here"))
+            .run(() -> {
                 try {
-                    c.logger().info(() -> "START HELLO");
+                    ctx.logger().info(() -> "START HELLO");
                     Thread.sleep(5000);
                     new RuntimeException("Test Exception");
-                    c.logger().info(() -> "END WORLD");
+                    ctx.logger().info(() -> "END WORLD");
                 } catch (final InterruptedException e) {
                     Thread.currentThread().interrupt();
                     throw new RuntimeException(e);
@@ -55,7 +55,7 @@ public class App {
             })
         ;
 
-        application.schedule(() -> {
+        application.run(() -> {
             final Context context = application.newContext(App.class);
             context.sendEvent(EVENT_APP_SHUTDOWN, null);
             context.sendEvent(99, null);

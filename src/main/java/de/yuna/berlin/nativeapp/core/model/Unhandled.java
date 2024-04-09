@@ -21,7 +21,7 @@ public record Unhandled(Context context, Object payload, Throwable exception) {
     @Override
     public String toString() {
         return "Unhandled{" +
-            ", payload=" + payload +
+            "payload=" + payload +
             ", exception=" + exception +
             '}';
     }

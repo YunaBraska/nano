@@ -9,7 +9,6 @@ import de.yuna.berlin.nativeapp.services.metric.model.MetricUpdate;
 
 import java.util.Map;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 import static de.yuna.berlin.nativeapp.core.model.Context.handleExecutionExceptions;
 import static de.yuna.berlin.nativeapp.helper.event.model.EventType.*;
@@ -58,7 +57,7 @@ public abstract class Service {
 
     //########## GLOBAL SERVICE METHODS ##########
     public NanoThread nanoThread(final Context context) {
-        return new NanoThread().execute(context.nano() != null ? context.nano().threadPool() : null, () -> {
+        return new NanoThread().run(context.nano() != null ? context.nano().threadPool() : null, () -> context.nano() != null ? context : null, () -> {
             final long startTime = System.currentTimeMillis();
             this.logger().level(context.logLevel());
             this.logger().logQueue(context.nano().logger().logQueue());

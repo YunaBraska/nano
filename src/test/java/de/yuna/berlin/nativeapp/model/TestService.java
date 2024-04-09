@@ -158,5 +158,6 @@ public class TestService extends Service {
     public void onEvent(final Event event) {
         events.add(event);
         ofNullable(doOnEvent.get()).ifPresent(consumer -> consumer.accept(event));
+        super.onEvent(event);
     }
 }

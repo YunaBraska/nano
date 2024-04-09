@@ -27,6 +27,7 @@ class UnhandledTest {
         assertThat(error.payload(String.class)).isEqualTo("111");
         assertThat(error.payload(Integer.class)).isEqualTo(111);
         assertThat(error.exception()).isNull();
+        assertThat(error).hasToString("Unhandled{payload=111, exception=null}");
         assertThat(nano.waitForStop().isReady()).isFalse();
     }
 

@@ -12,6 +12,9 @@ import java.util.Objects;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
+
+import static java.util.Optional.ofNullable;
 
 public class NanoThread {
 
@@ -29,7 +32,7 @@ public class NanoThread {
     public NanoThread(final Context context) {
         this.context = context;
         if (context != null)
-            context.setLogger(this.getClass());
+            context.logger(this.getClass());
     }
 
     public Context context() {
@@ -59,8 +62,8 @@ public class NanoThread {
         return waitFor(onDone, this)[0];
     }
 
-    @SuppressWarnings("java:S1181")
-    public NanoThread execute(final ExecutorService executor, final ExRunnable task) {
+    @SuppressWarnings("java:S1181") // Throwable is caught
+    public NanoThread run(final ExecutorService executor, final Supplier<Context> context, final ExRunnable task) {
         (executor != null ? executor : fallbackExecutor).submit(() -> {
             try {
                 activeNanoThreadCount.incrementAndGet();
@@ -69,12 +72,9 @@ public class NanoThread {
             } catch (final Throwable error) {
                 //TODO: handle OutOfMemory
                 //TODO: handle InternalError
-                //TODO: create an unhandled element and check if the error was unhandled
                 isComplete.set(true, state -> onCompleteCallbacks.forEach(onComplete -> onComplete.accept(this, error)));
-                if (context != null && onCompleteCallbacks.isEmpty()) {
-                    // TODO: send unhandled event
-                    context.logger().error(() -> "Unhandled Exception", error);
-                }
+                ofNullable(context).filter(ctx -> onCompleteCallbacks.isEmpty()).map(Supplier::get).ifPresent(ctx -> ctx
+                    .sendEventError(task, error, () -> "Unhandled Exception [{}]", error.getClass().getSimpleName()));
             } finally {
                 activeNanoThreadCount.decrementAndGet();
             }

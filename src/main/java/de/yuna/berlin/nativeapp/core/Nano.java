@@ -81,12 +81,12 @@ public class Nano extends NanoServices<Nano> {
                 logger.debug(() -> "PreStartupServices count [{}] services [{}]", services.size(), services.stream().map(Service::name).distinct().collect(joining(", ")));
                 final Map<Boolean, List<Service>> partitionedServices = services.stream().collect(Collectors.partitioningBy(LogQueue.class::isInstance));
                 // INIT ASYNC LOGGING
-                partitionedServices.getOrDefault(true, Collections.emptyList()).stream().findFirst().ifPresent(context::async);
+                partitionedServices.getOrDefault(true, Collections.emptyList()).stream().findFirst().ifPresent(context::run);
                 // INIT SERVICES
-                context.asyncAwait(partitionedServices.getOrDefault(false, Collections.emptyList()).toArray(Service[]::new));
+                context.runAwait(partitionedServices.getOrDefault(false, Collections.emptyList()).toArray(Service[]::new));
             }
         }
-        schedule(() -> sendEvent(EVENT_APP_HEARTBEAT, context, this, result -> {}, true), 256, 256, TimeUnit.MILLISECONDS, () -> false);
+        run(() -> sendEvent(EVENT_APP_HEARTBEAT, context, this, result -> {}, true), 256, 256, TimeUnit.MILLISECONDS, () -> false);
         logger.info(() -> "Running Services [{}]", services().stream().collect(Collectors.groupingBy(Service::name, Collectors.counting())).entrySet().stream().map(entry -> entry.getValue() > 1 ? "(" + entry.getValue() + ") " + entry.getKey() : entry.getKey()).collect(joining(", ")));
         final long readyTime = System.currentTimeMillis() - service_startUpTime;
         logger.info(() -> "Started [{}] in [{}]", this.getClass().getSimpleName(), formatDuration(readyTime));
@@ -196,7 +196,7 @@ public class Nano extends NanoServices<Nano> {
             sendEventSameThread(event, broadCast);
         } else {
             //FIXME: batch processing to avoid too many threads?
-            context.async(ctx -> sendEventSameThread(event, broadCast));
+            context.run(() -> sendEventSameThread(event, broadCast));
         }
         return event;
     }

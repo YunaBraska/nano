@@ -2,12 +2,12 @@ package de.yuna.berlin.nativeapp.core;
 
 import de.yuna.berlin.nativeapp.core.model.Context;
 import de.yuna.berlin.nativeapp.core.model.Service;
+import de.yuna.berlin.nativeapp.helper.ExRunnable;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static de.yuna.berlin.nativeapp.core.model.Config.CONFIG_PARALLEL_SHUTDOWN;
@@ -89,7 +89,7 @@ public abstract class NanoServices<T extends NanoServices<T>> extends NanoThread
     protected void shutdownServices(final Context context) {
         if (context.getOpt(Boolean.class, CONFIG_PARALLEL_SHUTDOWN.id()).orElse(false)) {
             try {
-                CompletableFuture.allOf(services.stream().map(service -> execute(() -> unregisterService(context, service))).toArray(CompletableFuture[]::new)).join();
+                context.runAwait(services.stream().map(service -> (ExRunnable) () -> unregisterService(context, service)).toArray(ExRunnable[]::new));
             } catch (final Exception err) {
                 logger.fatal(err, () -> "[{}] shutdown error", Service.class.getSimpleName());
                 Thread.currentThread().interrupt();

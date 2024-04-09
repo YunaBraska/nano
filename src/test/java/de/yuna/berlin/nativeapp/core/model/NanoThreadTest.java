@@ -5,7 +5,9 @@ import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.util.Arrays;
-import java.util.concurrent.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
@@ -65,16 +67,17 @@ class NanoThreadTest {
 
     @RepeatedTest(TEST_REPEAT)
     void activeNanoThreadCount() {
-        new NanoThread().execute(null, () -> {
+        new NanoThread().run(null, null, () -> {
             assertThat(activeNanoThreads()).isPositive();
             assertThat(activeCarrierThreads()).isPositive();
         });
     }
 
+    @SuppressWarnings("java:S2925")
     private static NanoThread[] startConcurrentThreads(final AtomicInteger doneThreads) {
         return IntStream.range(0, TEST_REPEAT).parallel().mapToObj(i -> {
             final NanoThread thread = new NanoThread();
-            thread.execute(null, () -> {
+            thread.run(null, null, () -> {
                 try {
                     Thread.sleep((long) (Math.random() * 100));
                     doneThreads.incrementAndGet();

@@ -1,8 +1,6 @@
 package de.yuna.berlin.nativeapp.core;
 
-import de.yuna.berlin.nativeapp.core.model.Context;
 import de.yuna.berlin.nativeapp.core.model.Scheduler;
-import de.yuna.berlin.nativeapp.core.model.Unhandled;
 import de.yuna.berlin.nativeapp.helper.ExRunnable;
 
 import java.util.Arrays;
@@ -10,7 +8,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 
 import static de.yuna.berlin.nativeapp.core.model.Config.CONFIG_THREAD_POOL_TIMEOUT_MS;
@@ -67,17 +64,7 @@ public abstract class NanoThreads<T extends NanoThreads<T>> extends NanoBase<T> 
     }
 
     /**
-     * Executes a {@link Runnable} task asynchronously using the thread pool ({@link NanoThreads#threadPool}).
-     *
-     * @param runnable The {@link Runnable} task to execute.
-     * @return A {@link CompletableFuture} representing the task's completion.
-     */
-    public CompletableFuture<Void> execute(final Runnable runnable) {
-        return CompletableFuture.runAsync(runnable, threadPool);
-    }
-
-    /**
-     * Schedules a task to be executed asynchronously after a specified delay.
+     * Executes a task asynchronously after a specified delay.
      *
      * @param task     The task to execute.
      * @param delay    The delay before executing the task.
@@ -85,37 +72,24 @@ public abstract class NanoThreads<T extends NanoThreads<T>> extends NanoBase<T> 
      * @return Self for chaining
      */
     @SuppressWarnings({"resource", "unchecked"})
-    public T schedule(final ExRunnable task, final long delay, final TimeUnit timeUnit) {
+    public T run(final ExRunnable task, final long delay, final TimeUnit timeUnit) {
         final Scheduler scheduler = asyncFromPool();
-        scheduler.schedule(() -> {
-            try {
-                task.run();
-            } catch (final Exception e) {
-                final Context context = newContext(this.getClass());
-                final AtomicBoolean handled = new AtomicBoolean(false);
-                sendEvent(EVENT_APP_UNHANDLED, context, new Unhandled(context, scheduler, e), response -> handled.set(true), true);
-                if (!handled.get()) {
-                    logger().error(e, () -> "Execution error scheduler [{}]", scheduler);
-                }
-            } finally {
-                sendEvent(EVENT_APP_SCHEDULER_UNREGISTER, newContext(this.getClass()), scheduler, result -> {}, true);
-            }
-        }, delay, timeUnit);
+        scheduler.schedule(() -> executeScheduler(task, scheduler, false), delay, timeUnit);
         return (T) this;
     }
 
     /**
-     * Schedules a task to be executed periodically, starting after an initial delay.
+     * Executes a task periodically, starting after an initial delay.
      *
-     * @param task         The task to execute.
-     * @param initialDelay The initial delay before executing the task.
-     * @param period       The period between successive task executions.
-     * @param unit         The time unit of the initialDelay and period parameters.
-     * @param until        A BooleanSupplier indicating the termination condition.
+     * @param task   The task to execute.
+     * @param delay  The initial delay before executing the task.
+     * @param period The period between successive task executions.
+     * @param unit   The time unit of the initialDelay and period parameters.
+     * @param until  A BooleanSupplier indicating the termination condition. <code>true</code> stops the next execution.
      * @return Self for chaining
      */
     @SuppressWarnings({"resource", "unchecked"})
-    public T schedule(final Runnable task, final long initialDelay, final long period, final TimeUnit unit, final BooleanSupplier until) {
+    public T run(final ExRunnable task, final long delay, final long period, final TimeUnit unit, final BooleanSupplier until) {
         final Scheduler scheduler = asyncFromPool();
 
         // Periodic task
@@ -123,9 +97,9 @@ public abstract class NanoThreads<T extends NanoThreads<T>> extends NanoBase<T> 
             if (until.getAsBoolean()) {
                 scheduler.shutdown();
             } else {
-                task.run();
+                executeScheduler(task, scheduler, true);
             }
-        }, initialDelay, period, unit);
+        }, delay, period, unit);
         return (T) this;
     }
 
@@ -211,4 +185,16 @@ public abstract class NanoThreads<T extends NanoThreads<T>> extends NanoBase<T> 
             }
         }
     }
+
+    protected void executeScheduler(final ExRunnable task, final Scheduler scheduler, final boolean periodically) {
+        try {
+            task.run();
+            if (!periodically)
+                sendEvent(EVENT_APP_SCHEDULER_UNREGISTER, newContext(this.getClass()), scheduler, result -> {}, true);
+        } catch (final Exception e) {
+            sendEvent(EVENT_APP_SCHEDULER_UNREGISTER, newContext(this.getClass()), scheduler, result -> {}, true);
+            newContext(this.getClass()).sendEventError(scheduler, e, () -> "Execution error scheduler [{}]");
+        }
+    }
+
 }

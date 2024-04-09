@@ -30,7 +30,7 @@ class ServiceTest {
 
         assertThat(service).isNotNull();
         assertThat(service.createdAtMs()).isGreaterThan(startTime);
-        assertThat(service.startCount()).isEqualTo(0);
+        assertThat(service.startCount()).isZero();
         assertThat(service.stopCount()).isZero();
         assertThat(service.events()).isEmpty();
         assertThat(service.failures()).isEmpty();
@@ -49,7 +49,7 @@ class ServiceTest {
         assertThat(service.getEvent(EVENT_APP_UNHANDLED)).isNotNull().has(new Condition<>(e -> e.payload(Unhandled.class) == error, "Should contain payload with error"));
 
         assertThat(nano.services()).isEmpty();
-        service.nanoThread(context).execute(null, () -> {});
+        service.nanoThread(context).run(null, () -> context, () -> {});
         service.handleServiceException(context, new RuntimeException("Nothing to see here, just a test exception"));
         assertThat(waitForCondition(() -> service.startCount() == 2, TEST_TIMEOUT)).isTrue();
         waitForCondition(() -> nano.services().size() == 1, TEST_TIMEOUT);
