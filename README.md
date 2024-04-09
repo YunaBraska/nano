@@ -168,9 +168,9 @@ add the native-image profile to your `pom.xml` and run `mvn package -Pnative-ima
 
 ### Start Nano
 
-* Step 1: start [Nano](src/main/java/de/yuna/berlin/nativeapp/core/Nano.java) `final Nano nano = new Nano();`
+* Step 1: start [Nano](src/main/java/berlin/yuna/nano/core/Nano.java) `final Nano nano = new Nano();`
 * Step 2: create
-  a [Context](src/main/java/de/yuna/berlin/nativeapp/core/model/Context.java) `final Context context = nano.newContext(ExampleApp.class);` (
+  a [Context](src/main/java/berlin/yuna/nano/core/model/Context.java) `final Context context = nano.newContext(ExampleApp.class);` (
   each context creates its own
   logger and trace id)
 * Step 3: use nano
@@ -183,7 +183,7 @@ add the native-image profile to your `pom.xml` and run `mvn package -Pnative-ima
 
 ### Configurations
 
-See also [default configs](src/main/java/de/yuna/berlin/nativeapp/core/model/Config.java)
+See also [default configs](src/main/java/berlin/yuna/nano/core/model/Config.java)
 
 Configuration in Nano is designed to be straightforward and intuitive, empowering developers to tailor the framework to
 their specific needs with minimal effort. Nano leverages a simple key-value pairing system, allowing configurations to
@@ -209,11 +209,11 @@ seamlessly within the framework, providing a hassle-free experience for capturin
 * `context.logger().info(() -> "Processing something important");`
 * `context.logger().error(e, () -> "Error processing request");`
 
-logging [console](src/main/java/de/yuna/berlin/nativeapp/helper/logger/logic/LogFormatterConsole.java) / [json](src/main/java/de/yuna/berlin/nativeapp/helper/logger/logic/LogFormatterJson.java)
+logging [console](src/main/java/berlin/yuna/nano/helper/logger/logic/LogFormatterConsole.java) / [json](src/main/java/berlin/yuna/nano/helper/logger/logic/LogFormatterJson.java)
 
-* [NanoLogger](src/main/java/de/yuna/berlin/nativeapp/helper/logger/logic/NanoLogger.java)
-* [LogQueue](src/main/java/de/yuna/berlin/nativeapp/helper/logger/logic/LogQueue.java)
-* [LogLevel](src/main/java/de/yuna/berlin/nativeapp/helper/logger/model/LogLevel.java)
+* [NanoLogger](src/main/java/berlin/yuna/nano/helper/logger/logic/NanoLogger.java)
+* [LogQueue](src/main/java/berlin/yuna/nano/helper/logger/logic/LogQueue.java)
+* [LogLevel](src/main/java/berlin/yuna/nano/helper/logger/model/LogLevel.java)
 
 ### Events
 
@@ -224,14 +224,14 @@ scalability.
 
 * `context.sendEvent(MyEventId, myPayloadObject);`
 
-* [Event](src/main/java/de/yuna/berlin/nativeapp/helper/event/model/Event.java)
-* [Predefined Event](src/main/java/de/yuna/berlin/nativeapp/helper/event/model/EventType.java)
-* [EventTypeRegister](src/main/java/de/yuna/berlin/nativeapp/helper/event/EventTypeRegister.java)
+* [Event](src/main/java/berlin/yuna/nano/helper/event/model/Event.java)
+* [Predefined Event](src/main/java/berlin/yuna/nano/helper/event/model/EventType.java)
+* [EventTypeRegister](src/main/java/berlin/yuna/nano/helper/event/EventTypeRegister.java)
 
 ### Schedulers
 
-[Scheduler](src/main/java/de/yuna/berlin/nativeapp/core/model/Scheduler.java) within
-the [Nano](src/main/java/de/yuna/berlin/nativeapp/core/Nano.java) Framework play a crucial role in orchestrating
+[Scheduler](src/main/java/berlin/yuna/nano/core/model/Scheduler.java) within
+the [Nano](src/main/java/berlin/yuna/nano/core/Nano.java) Framework play a crucial role in orchestrating
 asynchronous tasks and operations, enabling precise timing and execution of code blocks based on specific timing
 strategies. These utilities are designed to facilitate time-based task management, allowing developers to schedule
 one-off or recurring tasks with ease.
@@ -245,7 +245,7 @@ _(methods will be added soon to the `Context` as well)_
 
 Listeners within the Nano Framework are designed to embody the essence of simplicity and functionality, serving as a
 powerful mechanism for reacting to events without the overhead of creating full-fledged services. They are a key
-component in [Nano](src/main/java/de/yuna/berlin/nativeapp/core/Nano.java)'s event-driven architecture, enabling
+component in [Nano](src/main/java/berlin/yuna/nano/core/Nano.java)'s event-driven architecture, enabling
 developers to write clean, modular, and maintainable code by
 focusing on event responses rather than the intricacies of service management.
 
@@ -253,30 +253,30 @@ focusing on event responses rather than the intricacies of service management.
 
 ### Services
 
-[Services](src/main/java/de/yuna/berlin/nativeapp/core/model/Service.java) within
-the [Nano](src/main/java/de/yuna/berlin/nativeapp/core/Nano.java) Framework embody the essence
+[Services](src/main/java/berlin/yuna/nano/core/model/Service.java) within
+the [Nano](src/main/java/berlin/yuna/nano/core/Nano.java) Framework embody the essence
 of modularity and flexibility, functioning as standalone entities that seamlessly integrate into the core ecosystem.
-Designed to be primarily event-driven, [services](src/main/java/de/yuna/berlin/nativeapp/core/model/Service.java)
+Designed to be primarily event-driven, [services](src/main/java/berlin/yuna/nano/core/model/Service.java)
 respond dynamically to incoming events and can dispatch their own, fostering a highly reactive and interconnected
 environment. This design principle ensures that
-each [service](src/main/java/de/yuna/berlin/nativeapp/core/model/Service.java), while autonomous, contributes to the
+each [service](src/main/java/berlin/yuna/nano/core/model/Service.java), while autonomous, contributes to the
 collective functionality of the application, promoting loose coupling and high cohesion.
 
 Nano comes with pre-equipped services:
 
-* [HttpService](src/main/java/de/yuna/berlin/nativeapp/services/http/HttpService.java): A built-in service that
+* [HttpService](src/main/java/berlin/yuna/nano/services/http/HttpService.java): A built-in service that
   simplifies the process of handling HTTP requests. By abstracting the underlying
   complexities, it allows developers to focus on implementing business logic rather than dealing with boilerplate code
   associated with server communication.
-* [MetricService](src/main/java/de/yuna/berlin/nativeapp/services/metric/logic/MetricService.java): This service
+* [MetricService](src/main/java/berlin/yuna/nano/services/metric/logic/MetricService.java): This service
   provides an out-of-the-box solution for monitoring and recording application metrics.
   Whether it's tracking the number of active threads, memory usage, or custom application-specific metrics, the
   MetricService offers a streamlined approach to gather insightful data about your application's performance.
 
 ### Context
 
-The [Context](src/main/java/de/yuna/berlin/nativeapp/core/model/Context.java)
-in [Nano](src/main/java/de/yuna/berlin/nativeapp/core/Nano.java) Framework is like having a personal assistant. It's
+The [Context](src/main/java/berlin/yuna/nano/core/model/Context.java)
+in [Nano](src/main/java/berlin/yuna/nano/core/Nano.java) Framework is like having a personal assistant. It's
 designed to simplify your interaction with Nano's core functionalities, ensuring you have everything you need within
 arm's reach. At its core, the Context serves three primary roles: managing logging, tracing, and holding configurations.
 Think of it as a mini-orchestrator for your application, streamlining the way you work with Nano's ecosystem.
@@ -293,7 +293,7 @@ Think of it as a mini-orchestrator for your application, streamlining the way yo
 
 _(under construction)_
 
-* [HttpService](src/main/java/de/yuna/berlin/nativeapp/services/http/HttpService.java)
+* [HttpService](src/main/java/berlin/yuna/nano/services/http/HttpService.java)
 
 ## Integrations
 
