@@ -1,12 +1,12 @@
 package berlin.yuna.nano.services.http;
 
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpServer;
 import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.core.model.Service;
 import berlin.yuna.nano.core.model.Unhandled;
 import berlin.yuna.nano.services.http.model.ContentType;
 import berlin.yuna.nano.services.http.model.HttpHeaders;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -112,7 +112,7 @@ public class HttpService extends Service {
         try {
             final byte[] body = response.body() != null ? response.body() : new byte[0];
             final int statusCode = response.statusCode > -1 && response.statusCode < 600 ? response.statusCode : 200;
-            final Map<String, String> headers = response.headers == null? new HashMap<>() :new HashMap<>(response.headers);
+            final Map<String, String> headers = response.headers == null ? new HashMap<>() : new HashMap<>(response.headers);
             headers.computeIfAbsent(HttpHeaders.CONTENT_TYPE, value -> {
                 final String str = new String(body, Charset.defaultCharset());
                 return (str.startsWith("{") && str.endsWith("}")) || (str.startsWith("[") && str.endsWith("]")) ? ContentType.APPLICATION_JSON.value() : ContentType.TEXT_PLAIN.value();
@@ -125,12 +125,6 @@ public class HttpService extends Service {
         } catch (final IOException ignored) {
             // Response was already sent
         }
-    }
-
-    public interface HttpRequestListener {
-        boolean accept(final HttpExchange exchange, final Context context);
-
-        HttpResponse handle(final HttpExchange exchange, final Context context);
     }
 
     public record HttpResponse(int statusCode, byte[] body, Map<String, String> headers) {
