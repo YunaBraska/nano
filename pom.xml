@@ -3,7 +3,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>berlin.yuna</groupId>
-    <artifactId>poc-native-app</artifactId>
+    <artifactId>nano</artifactId>
     <version>0.0.1</version>
     <packaging>jar</packaging>
 
@@ -36,7 +36,7 @@
         <project.build.sourceEncoding>${project.encoding}</project.build.sourceEncoding>
         <project.reporting.outputEncoding>${project.encoding}</project.reporting.outputEncoding>
         <!-- PRODUCTION -->
-        <type-map.version>2.0.1</type-map.version>
+        <type-map.version>2.1.1</type-map.version>
         <!-- TEST -->
         <junit-jupiter-api.version>5.10.2</junit-jupiter-api.version>
         <assertj-core.version>3.25.3</assertj-core.version>
@@ -44,10 +44,10 @@
         <maven-gpg-plugin.version>1.6</maven-gpg-plugin.version>
         <maven-scm-plugin.version>1.11.2</maven-scm-plugin.version>
         <maven-source-plugin.version>3.2.1</maven-source-plugin.version>
-        <jacoco-maven-plugin.version>0.8.11</jacoco-maven-plugin.version>
+        <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
         <maven-javadoc-plugin.version>3.1.0</maven-javadoc-plugin.version>
         <maven-release-plugin.version>2.5.3</maven-release-plugin.version>
-        <maven-compiler-plugin.version>3.12.1</maven-compiler-plugin.version>
+        <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
         <nexus-staging-maven-plugin.version>1.6.8</nexus-staging-maven-plugin.version>
     </properties>
@@ -91,11 +91,11 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${maven-surefire-plugin.version}</version>
                 <configuration>
-                    <threadCount>1</threadCount>
+                    <threadCount>2</threadCount>
                     <useUnlimitedThreads>false</useUnlimitedThreads>
                     <!-- Flag to test exit code in NanoTest (https://stackoverflow.com/questions/76151072/error-during-sbt-launcher-java-lang-unsupportedoperationexception-the-security) -->
                     <argLine>-Djava.security.manager=allow</argLine>
-                    <forkedProcessExitTimeoutInSeconds>240</forkedProcessExitTimeoutInSeconds>
+<!--                    <forkedProcessExitTimeoutInSeconds>240</forkedProcessExitTimeoutInSeconds>-->
                 </configuration>
             </plugin>
             <plugin>
