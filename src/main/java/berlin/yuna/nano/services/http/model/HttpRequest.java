@@ -1,4 +1,4 @@
-package de.yuna.berlin.nativeapp.services.http.model;
+package berlin.yuna.nano.services.http.model;
 
 import berlin.yuna.typemap.logic.JsonDecoder;
 import berlin.yuna.typemap.model.TypeContainer;
@@ -6,8 +6,9 @@ import berlin.yuna.typemap.model.TypeMap;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Map;
+import java.io.InputStream;
+import java.nio.charset.Charset;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class HttpRequest {
@@ -20,33 +21,25 @@ public class HttpRequest {
     protected TypeMap queryParams;
     protected TypeMap pathParams;
 
-    public HttpRequest(HttpExchange exchange) {
+    public HttpRequest(final HttpExchange exchange) {
         this.method = HttpMethod.httpMethodOf(exchange.getRequestMethod());
         this.path = exchange.getRequestURI().getPath();
         this.headers = convertHeaders(exchange.getRequestHeaders());
         this.exchange = exchange;
     }
 
-    public HttpMethod getMethod() {
-        return method;
-    }
-
-    public String getPath() {
-        return path;
-    }
-
     public static TypeMap convertHeaders(Headers headers) {
         return headers.entrySet().stream()
             .collect(Collectors.toMap(
-                entry-> entry.getKey().toLowerCase(),
+                entry -> entry.getKey().toLowerCase(),
                 Map.Entry::getValue,
                 (v1, v2) -> v1,
                 TypeMap::new
             ));
     }
 
-    public static boolean isMethod(HttpRequest request, HttpMethod method) {
-        return request.getMethod().name().equals(method.name());
+    public static boolean isMethod(final HttpRequest request, final HttpMethod method) {
+        return request.method.name().equals(method.name());
     }
 
     public boolean isMethodGet() {
@@ -81,7 +74,11 @@ public class HttpRequest {
         return HttpMethod.TRACE.equals(method);
     }
 
-    public boolean isContentType(String contentType) {
+    public String method() {
+        return method.name();
+    }
+
+    public boolean isContentType(final String contentType) {
         return headers.getList(HttpHeaders.CONTENT_TYPE).contains(contentType);
     }
 
@@ -141,11 +138,17 @@ public class HttpRequest {
         return isContentType(ContentType.VIDEO_MP4.value());
     }
 
+    public List contentType() {
+        return headers.getList(HttpHeaders.CONTENT_TYPE);
+    }
+
+    public String getPath() {
+        return path;
+    }
 
     public String bodyAsString() {
         try {
-            if (body == null)
-                body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            if (body == null) body = new String(exchange.getRequestBody().readAllBytes(), Charset.defaultCharset());
             return body;
         } catch (Exception ignored) {
             return null;
@@ -154,6 +157,10 @@ public class HttpRequest {
 
     public TypeContainer bodyAsJson() {
         return JsonDecoder.jsonTypeOf(bodyAsString());
+    }
+
+    public InputStream getRequestBody() {
+        return exchange.getRequestBody();
     }
 
     public TypeMap queryParameters() {
@@ -167,54 +174,54 @@ public class HttpRequest {
                         String[] keyValue = param.split("=");
 
                         if (keyValue.length == 2) {
-                            String key = java.net.URLDecoder.decode(keyValue[0], StandardCharsets.UTF_8);
-                            String value = java.net.URLDecoder.decode(keyValue[1], StandardCharsets.UTF_8);
+                            String key = java.net.URLDecoder.decode(keyValue[0], Charset.defaultCharset());
+                            String value = java.net.URLDecoder.decode(keyValue[1], Charset.defaultCharset());
                             queryParams.put(key, value);
                         } else if (keyValue.length == 1) {
-                            String key = java.net.URLDecoder.decode(keyValue[0], StandardCharsets.UTF_8);
+                            String key = java.net.URLDecoder.decode(keyValue[0], Charset.defaultCharset());
                             queryParams.put(key, "");
                         }
                     }
                 }
-            }catch (Exception ignored) {
+            } catch (Exception ignored) {
             }
         }
         return queryParams;
     }
 
-    public boolean containsQueryParam(String key) {
+    public boolean containsQueryParam(final String key) {
         return queryParams.containsKey(key);
     }
 
-    public String getQueryParam(String key) {
-        return queryParams.get(key).toString();
+    public String getQueryParam(final String key) {
+        Object value = queryParams.get(key);
+        return value != null ? value.toString() : null;
     }
 
-
-    public boolean exactMatch(String path) {
+    public boolean exactMatch(final String path) {
         return this.path.startsWith(path);
     }
 
-    public boolean match(String pathToMatch) {
+    public boolean match(final String pathToMatch) {
 
         String[] partsToMatch = pathToMatch.split("/");
         String[] parts = path.split("/");
 
-        if (exactMatch(pathToMatch) && pathToMatch.contains("{"))
-            return true;
+        if (exactMatch(pathToMatch) && pathToMatch.contains("{")) return true;
 
-        if (partsToMatch.length != parts.length)
-            return false;
+        if (partsToMatch.length != parts.length) return false;
 
-        if (pathParams == null) {
+        if (pathParams == null)
             pathParams = new TypeMap();
-            for (int i = 0; i < partsToMatch.length; i++) {
-                if (!partsToMatch[i].equals(parts[i])) {
-                    if (partsToMatch[i].startsWith("{")) {
-                        pathParams.put(partsToMatch[i], parts[i]);
-                    }else {
-                        return false;
-                    }
+        else
+            pathParams.clear();
+        for (int i = 0; i < partsToMatch.length; i++) {
+            if (!partsToMatch[i].equals(parts[i])) {
+                if (partsToMatch[i].startsWith("{")) {
+                    String key = partsToMatch[i].substring(1, partsToMatch[i].length() - 1);
+                    pathParams.put(key, parts[i]);
+                } else {
+                    return false;
                 }
             }
         }
@@ -227,24 +234,74 @@ public class HttpRequest {
         return pathParams;
     }
 
-    public String getHeader(String name) {
-        return headers.get(name).toString();
+    public String getPathParam(final String key) {
+        return pathParams.get(key).toString();
+    }
+
+    public String getHeader(final String name) {
+        String value = headers.get(name).toString();
+        if (value.startsWith("[")) {
+            value = value.substring(1, value.length() - 1);
+        }
+        return value;
     }
 
     public TypeMap getHeaders() {
         return headers;
     }
 
-    public void addHeader(String name, String value) {
-        headers.put(name, value);
-    }
-
-    public void removeHeader(String name) {
-        headers.remove(name);
-    }
-
-    public boolean containsHeader(String name) {
+    public boolean containsHeader(final String name) {
         return headers.containsKey(name.toLowerCase());
     }
 
+    public String host() {
+        return exchange.getLocalAddress().getHostName();
+    }
+
+    public int port() {
+        return exchange.getLocalAddress().getPort();
+    }
+
+    public String protocol() {
+        return exchange.getProtocol();
+    }
+
+    public String userAgent() {
+        return getHeader(HttpHeaders.USER_AGENT);
+    }
+
+    public String getAuthorisationToken() {
+        String value = getHeader(HttpHeaders.AUTHORIZATION);
+        if (value.startsWith("Bearer ")) {
+            value = value.substring("Bearer ".length());
+        }
+        return value;
+    }
+
+    public List<String> getPreferredLanguages() {
+        String acceptLanguageHeader = getHeader(HttpHeaders.ACCEPT_LANGUAGE);
+        if (acceptLanguageHeader == null || acceptLanguageHeader.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        return Arrays.stream(acceptLanguageHeader.split(","))
+            .map(s -> s.split(";q="))
+            .sorted(Comparator.comparing(parts -> parts.length > 1 ? Double.parseDouble(parts[1]) : 1.0, Comparator.reverseOrder()))
+            .map(parts -> {
+                Locale locale = Locale.forLanguageTag(parts[0]);
+                return "Language [" + locale.getLanguage() + "] Country [" + locale.getCountry() + "]";
+            })
+            .collect(Collectors.toList());
+    }
+
+    public HttpExchange getExchange() {
+        return exchange;
+    }
+
+    private HttpResponse generateHttpResponse(final int statusCode, final byte[] body, final Map<String, String> headers) {
+        return new HttpResponse(statusCode, body, headers);
+    }
+    public HttpResponse generateHttpResponse(final int statusCode, final String body, final Map<String, String> headers) {
+        return generateHttpResponse(statusCode, body.getBytes(), headers);
+    }
 }

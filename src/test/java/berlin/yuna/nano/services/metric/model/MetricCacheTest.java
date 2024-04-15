@@ -1,19 +1,28 @@
+<<<<<<<< HEAD:src/test/java/berlin/yuna/nano/services/metric/model/MetricCacheTest.java
 package berlin.yuna.nano.services.metric.model;
+========
+package berlin.yuna.nano.model;
+>>>>>>>> 4f57581 (fix: package structure):src/test/java/berlin/yuna/nano/model/MetricCacheTest.java
 
+import berlin.yuna.nano.core.config.TestConfig;
+import berlin.yuna.nano.services.metric.model.MetricCache;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.util.Map;
 
+<<<<<<<< HEAD:src/test/java/berlin/yuna/nano/services/metric/model/MetricCacheTest.java
 import static berlin.yuna.nano.core.config.TestConfig.TEST_REPEAT;
+========
+>>>>>>>> 4f57581 (fix: package structure):src/test/java/berlin/yuna/nano/model/MetricCacheTest.java
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Execution(ExecutionMode.CONCURRENT)
 class MetricCacheTest {
 
 
-    @RepeatedTest(TEST_REPEAT)
+    @RepeatedTest(TestConfig.TEST_REPEAT)
     void generateMetricFormats() throws InterruptedException {
         final MetricCache metricCache = new MetricCache()
             .counterIncrement("my_counter")
@@ -39,7 +48,7 @@ class MetricCacheTest {
         assertThat(metricCache).hasToString(MetricCache.class.getSimpleName() + "{counters=1, gauges=1, timers=1}");
     }
 
-    @RepeatedTest(TEST_REPEAT)
+    @RepeatedTest(TestConfig.TEST_REPEAT)
     void generateMetricFormatsWithTags() throws InterruptedException {
         final Map<String, String> tags = Map.of("aa", "bb", "cc", "dd");
         final MetricCache metricCache = new MetricCache()
