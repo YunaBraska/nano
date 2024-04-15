@@ -19,6 +19,7 @@ import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.Scanner;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -200,7 +201,7 @@ public class HttpRequestTest {
         headers.add("Accept-Language", "en-US,en;q=0.9,de;q=0.8");
         HttpExchange exchange = createMockHttpExchange("GET", "/test", headers);
         HttpRequest request = new HttpRequest(exchange);
-        assertThat(request.getPreferredLanguages()).containsExactly("English", "German");
+        assertThat(request.getPreferredLanguages()).containsExactly(Locale.of("en", "us"), Locale.ENGLISH, Locale.GERMAN);
     }
 
     @Test

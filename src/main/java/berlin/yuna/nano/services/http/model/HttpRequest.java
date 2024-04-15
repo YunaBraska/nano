@@ -2,6 +2,7 @@ package berlin.yuna.nano.services.http.model;
 
 import berlin.yuna.typemap.logic.JsonDecoder;
 import berlin.yuna.typemap.model.TypeContainer;
+import berlin.yuna.typemap.model.TypeList;
 import berlin.yuna.typemap.model.TypeMap;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
@@ -28,7 +29,7 @@ public class HttpRequest {
         this.exchange = exchange;
     }
 
-    public static TypeMap convertHeaders(Headers headers) {
+    public static TypeMap convertHeaders(final Headers headers) {
         return headers.entrySet().stream()
             .collect(Collectors.toMap(
                 entry -> entry.getKey().toLowerCase(),
@@ -138,7 +139,7 @@ public class HttpRequest {
         return isContentType(ContentType.VIDEO_MP4.value());
     }
 
-    public List contentType() {
+    public TypeList contentType() {
         return headers.getList(HttpHeaders.CONTENT_TYPE);
     }
 
@@ -150,12 +151,12 @@ public class HttpRequest {
         try {
             if (body == null) body = new String(exchange.getRequestBody().readAllBytes(), Charset.defaultCharset());
             return body;
-        } catch (Exception ignored) {
+        } catch (final Exception ignored) {
             return null;
         }
     }
 
-    public TypeContainer bodyAsJson() {
+    public TypeContainer<?> bodyAsJson() {
         return JsonDecoder.jsonTypeOf(bodyAsString());
     }
 
@@ -166,24 +167,24 @@ public class HttpRequest {
     public TypeMap queryParameters() {
         if (queryParams == null) {
             try {
-                String query = exchange.getRequestURI().getQuery();
+                final String query = exchange.getRequestURI().getQuery();
                 queryParams = new TypeMap();
                 if (query != null) {
-                    String[] queryParamsArray = query.split("&");
-                    for (String param : queryParamsArray) {
-                        String[] keyValue = param.split("=");
+                    final String[] queryParamsArray = query.split("&");
+                    for (final String param : queryParamsArray) {
+                        final String[] keyValue = param.split("=");
 
                         if (keyValue.length == 2) {
-                            String key = java.net.URLDecoder.decode(keyValue[0], Charset.defaultCharset());
-                            String value = java.net.URLDecoder.decode(keyValue[1], Charset.defaultCharset());
+                            final String key = java.net.URLDecoder.decode(keyValue[0], Charset.defaultCharset());
+                            final String value = java.net.URLDecoder.decode(keyValue[1], Charset.defaultCharset());
                             queryParams.put(key, value);
                         } else if (keyValue.length == 1) {
-                            String key = java.net.URLDecoder.decode(keyValue[0], Charset.defaultCharset());
+                            final String key = java.net.URLDecoder.decode(keyValue[0], Charset.defaultCharset());
                             queryParams.put(key, "");
                         }
                     }
                 }
-            } catch (Exception ignored) {
+            } catch (final Exception ignored) {
             }
         }
         return queryParams;
@@ -194,7 +195,7 @@ public class HttpRequest {
     }
 
     public String getQueryParam(final String key) {
-        Object value = queryParams.get(key);
+        final Object value = queryParams.get(key);
         return value != null ? value.toString() : null;
     }
 
@@ -204,8 +205,8 @@ public class HttpRequest {
 
     public boolean match(final String pathToMatch) {
 
-        String[] partsToMatch = pathToMatch.split("/");
-        String[] parts = path.split("/");
+        final String[] partsToMatch = pathToMatch.split("/");
+        final String[] parts = path.split("/");
 
         if (exactMatch(pathToMatch) && pathToMatch.contains("{")) return true;
 
@@ -218,7 +219,7 @@ public class HttpRequest {
         for (int i = 0; i < partsToMatch.length; i++) {
             if (!partsToMatch[i].equals(parts[i])) {
                 if (partsToMatch[i].startsWith("{")) {
-                    String key = partsToMatch[i].substring(1, partsToMatch[i].length() - 1);
+                    final String key = partsToMatch[i].substring(1, partsToMatch[i].length() - 1);
                     pathParams.put(key, parts[i]);
                 } else {
                     return false;
@@ -278,8 +279,8 @@ public class HttpRequest {
         return value;
     }
 
-    public List<String> getPreferredLanguages() {
-        String acceptLanguageHeader = getHeader(HttpHeaders.ACCEPT_LANGUAGE);
+    public List<Locale> getPreferredLanguages() {
+        final String acceptLanguageHeader = getHeader(HttpHeaders.ACCEPT_LANGUAGE);
         if (acceptLanguageHeader == null || acceptLanguageHeader.isEmpty()) {
             return Collections.emptyList();
         }
@@ -287,11 +288,8 @@ public class HttpRequest {
         return Arrays.stream(acceptLanguageHeader.split(","))
             .map(s -> s.split(";q="))
             .sorted(Comparator.comparing(parts -> parts.length > 1 ? Double.parseDouble(parts[1]) : 1.0, Comparator.reverseOrder()))
-            .map(parts -> {
-                Locale locale = Locale.forLanguageTag(parts[0]);
-                return "Language [" + locale.getLanguage() + "] Country [" + locale.getCountry() + "]";
-            })
-            .collect(Collectors.toList());
+            .map(parts -> Locale.forLanguageTag(parts[0]))
+            .toList();
     }
 
     public HttpExchange getExchange() {

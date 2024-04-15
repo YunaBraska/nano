@@ -15,23 +15,23 @@ public class HttpResponse {
         this.headers = headers;
     }
 
-    public int getStatusCode() {
+    public int statusCode() {
         return statusCode;
     }
 
-    public byte[] getBody() {
+    public byte[] body() {
         return body;
     }
 
-    public Map<String, String> getHeaders() {
+    public Map<String, String> headers() {
         return headers;
     }
 
     @Override
-    public boolean equals(Object object) {
+    public boolean equals(final Object object) {
         if (this == object) return true;
         if (object == null || getClass() != object.getClass()) return false;
-        HttpResponse that = (HttpResponse) object;
+        final HttpResponse that = (HttpResponse) object;
         return statusCode == that.statusCode && Arrays.equals(body, that.body) && Objects.equals(headers, that.headers);
     }
 

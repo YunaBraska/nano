@@ -6,6 +6,8 @@ import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.helper.logger.LogFormatRegister;
 import berlin.yuna.nano.helper.logger.logic.LogQueue;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
+import berlin.yuna.nano.services.http.model.ContentType;
+import berlin.yuna.nano.services.http.model.HttpMethod;
 import berlin.yuna.typemap.logic.ArgsDecoder;
 import berlin.yuna.nano.helper.LockedBoolean;
 import berlin.yuna.nano.helper.logger.logic.NanoLogger;
@@ -53,6 +55,8 @@ public abstract class NanoBase<T extends NanoBase<T>> {
         registerTypeConvert(String.class, LogLevel.class, LogLevel::nanoLogLevelOf);
         registerTypeConvert(LogLevel.class, String.class, Enum::name);
         registerTypeConvert(Config.class, String.class, Config::id);
+        registerTypeConvert(ContentType.class, String.class, ContentType::name);
+        registerTypeConvert(HttpMethod.class, String.class, HttpMethod::name);
     }
 
     /**

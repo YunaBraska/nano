@@ -5,6 +5,8 @@ import berlin.yuna.nano.core.model.Service;
 import berlin.yuna.nano.core.model.Unhandled;
 import berlin.yuna.nano.services.http.model.ContentType;
 import berlin.yuna.nano.services.http.model.HttpHeaders;
+import berlin.yuna.nano.services.http.model.HttpRequest;
+import berlin.yuna.nano.services.http.model.HttpResponse;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
@@ -111,8 +113,8 @@ public class HttpService extends Service {
     private void sendResponse(final HttpExchange exchange, final HttpResponse response) {
         try {
             final byte[] body = response.body() != null ? response.body() : new byte[0];
-            final int statusCode = response.statusCode > -1 && response.statusCode < 600 ? response.statusCode : 200;
-            final Map<String, String> headers = response.headers == null ? new HashMap<>() : new HashMap<>(response.headers);
+            final int statusCode = response.statusCode() > -1 && response.statusCode() < 600 ? response.statusCode() : 200;
+            final Map<String, String> headers = response.headers() == null ? new HashMap<>() : new HashMap<>(response.headers());
             headers.computeIfAbsent(HttpHeaders.CONTENT_TYPE, value -> {
                 final String str = new String(body, Charset.defaultCharset());
                 return (str.startsWith("{") && str.endsWith("}")) || (str.startsWith("[") && str.endsWith("]")) ? ContentType.APPLICATION_JSON.value() : ContentType.TEXT_PLAIN.value();
@@ -124,32 +126,6 @@ public class HttpService extends Service {
             }
         } catch (final IOException ignored) {
             // Response was already sent
-        }
-    }
-
-    public record HttpResponse(int statusCode, byte[] body, Map<String, String> headers) {
-        @Override
-        public boolean equals(final Object object) {
-            if (this == object) return true;
-            if (object == null || getClass() != object.getClass()) return false;
-            final HttpResponse that = (HttpResponse) object;
-            return statusCode == that.statusCode && Arrays.equals(body, that.body) && Objects.equals(headers, that.headers);
-        }
-
-        @Override
-        public int hashCode() {
-            int result = Objects.hash(statusCode, headers);
-            result = 31 * result + Arrays.hashCode(body);
-            return result;
-        }
-
-        @Override
-        public String toString() {
-            return new StringJoiner(", ", HttpResponse.class.getSimpleName() + "[", "]")
-                .add("statusCode=" + statusCode)
-                .add("body=" + Arrays.toString(body))
-                .add("headers=" + headers)
-                .toString();
         }
     }
 }
