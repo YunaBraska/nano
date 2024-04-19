@@ -9,6 +9,8 @@ public class HttpResponse {
     private int statusCode;
     private byte[] body;
     private Map<String, String> headers;
+    // merge with HttpRequest as HttpObject
+    //add content type
 
     public HttpResponse statusCode(int statusCode) {
         this.statusCode = statusCode;

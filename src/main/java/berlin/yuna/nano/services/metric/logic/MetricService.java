@@ -32,6 +32,12 @@ public class MetricService extends Service {
     @Override
     public void start(final Supplier<Context> contextSupplier) {
         isReady.set(false, true, run -> updateSystemMetrics());
+        //addlistener for event
+        // metrics.prometheus() this will the response body
+        // GET call
+        // http://localhost:8080/metrics thinks of good word
+        // status code 200
+
     }
 
     @Override
@@ -41,6 +47,7 @@ public class MetricService extends Service {
             metrics.timers().clear();
             metrics.counters().clear();
         });
+        //remove listener
     }
 
     @Override

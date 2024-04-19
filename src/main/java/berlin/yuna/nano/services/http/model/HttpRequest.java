@@ -1,13 +1,12 @@
 package berlin.yuna.nano.services.http.model;
 
 import berlin.yuna.typemap.logic.JsonDecoder;
+import berlin.yuna.typemap.logic.XmlDecoder;
 import berlin.yuna.typemap.model.TypeContainer;
-import berlin.yuna.typemap.model.TypeList;
 import berlin.yuna.typemap.model.TypeMap;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 
-import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -18,7 +17,7 @@ public class HttpRequest {
     protected final String path;
     protected final TypeMap headers;
     protected final HttpExchange exchange;
-    protected String body;
+    protected byte[] body;
     protected TypeMap queryParams;
     protected TypeMap pathParams;
 
@@ -30,6 +29,7 @@ public class HttpRequest {
     }
 
     public static TypeMap convertHeaders(final Headers headers) {
+        // handle all value as list if it have comma separated values
         return headers.entrySet().stream()
             .collect(Collectors.toMap(
                 entry -> entry.getKey().toLowerCase(),
@@ -139,8 +139,16 @@ public class HttpRequest {
         return isContentType(ContentType.VIDEO_MP4.value());
     }
 
-    public TypeList contentType() {
-        return headers.getList(HttpHeaders.CONTENT_TYPE);
+    public List<ContentType> contentTypes() {
+        return headers.getList(ContentType.class, HttpHeaders.CONTENT_TYPE);
+    }
+
+    public ContentType contentType() {
+        return headers.get(ContentType.class, HttpHeaders.CONTENT_TYPE);
+    }
+
+    public List<ContentType> accept() {
+        return headers.getList(ContentType.class, HttpHeaders.ACCEPT);
     }
 
     public String path() {
@@ -149,8 +157,10 @@ public class HttpRequest {
 
     public String bodyAsString() {
         try {
-            if (body == null) body = new String(exchange.getRequestBody().readAllBytes(), Charset.defaultCharset());
-            return body;
+            if (body == null) {
+                body = exchange.getRequestBody().readAllBytes();
+            }
+            return new String(body, Charset.defaultCharset());
         } catch (final Exception ignored) {
             return null;
         }
@@ -160,8 +170,10 @@ public class HttpRequest {
         return JsonDecoder.jsonTypeOf(bodyAsString());
     }
 
-    public InputStream requestBody() {
-        return exchange.getRequestBody();
+    public TypeContainer<?> bodyAsXml() {return XmlDecoder.xmlTypeOf(bodyAsString()); }
+
+    public byte[] body() {
+        return body;
     }
 
     public TypeMap queryParameters() {
@@ -240,11 +252,11 @@ public class HttpRequest {
     }
 
     public String header(final String name) {
-        String value = headers.get(name).toString();
-        if (value.startsWith("[")) {
-            value = value.substring(1, value.length() - 1);
+        String value = headers.get(String.class, name);
+        if (value != null && value.startsWith("[")) {
+           return value.substring(1, value.length() - 1);
         }
-        return value;
+        return null;
     }
 
     public TypeMap getHeaders() {
@@ -278,7 +290,7 @@ public class HttpRequest {
             .orElse(null);
     }
 
-    public String[] basicAuth() {
+    public String[] authBasic() {
         return Optional.ofNullable(header(HttpHeaders.AUTHORIZATION))
             .filter(value -> value.startsWith("Basic "))
             .map(value -> value.substring("Basic ".length()))

@@ -56,7 +56,9 @@ public abstract class NanoBase<T extends NanoBase<T>> {
         registerTypeConvert(LogLevel.class, String.class, Enum::name);
         registerTypeConvert(Config.class, String.class, Config::id);
         registerTypeConvert(ContentType.class, String.class, ContentType::name);
+        registerTypeConvert(String.class, ContentType.class, ContentType::valueOf);
         registerTypeConvert(HttpMethod.class, String.class, HttpMethod::name);
+        registerTypeConvert(String.class, HttpMethod.class, HttpMethod::valueOf);
     }
 
     /**
