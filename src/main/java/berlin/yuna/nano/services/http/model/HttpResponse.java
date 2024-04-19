@@ -5,14 +5,24 @@ import java.util.Objects;
 import java.util.StringJoiner;
 
 public class HttpResponse {
-    private final int statusCode;
-    private final byte[] body;
-    private final Map<String, String> headers;
 
-    public HttpResponse(final int statusCode,final byte[] body,final Map<String, String> headers) {
+    private int statusCode;
+    private byte[] body;
+    private Map<String, String> headers;
+
+    public HttpResponse statusCode(int statusCode) {
         this.statusCode = statusCode;
+        return this;
+    }
+
+    public HttpResponse body(byte[] body) {
         this.body = body;
+        return this;
+    }
+
+    public HttpResponse headers(Map<String, String> headers) {
         this.headers = headers;
+        return this;
     }
 
     public int statusCode() {

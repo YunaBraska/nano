@@ -143,7 +143,7 @@ public class HttpRequest {
         return headers.getList(HttpHeaders.CONTENT_TYPE);
     }
 
-    public String getPath() {
+    public String path() {
         return path;
     }
 
@@ -160,7 +160,7 @@ public class HttpRequest {
         return JsonDecoder.jsonTypeOf(bodyAsString());
     }
 
-    public InputStream getRequestBody() {
+    public InputStream requestBody() {
         return exchange.getRequestBody();
     }
 
@@ -194,7 +194,7 @@ public class HttpRequest {
         return queryParams.containsKey(key);
     }
 
-    public String getQueryParam(final String key) {
+    public String queryParam(final String key) {
         final Object value = queryParams.get(key);
         return value != null ? value.toString() : null;
     }
@@ -231,15 +231,15 @@ public class HttpRequest {
     }
 
 
-    public TypeMap getPathParams() {
+    public TypeMap pathParams() {
         return pathParams;
     }
 
-    public String getPathParam(final String key) {
+    public String pathParam(final String key) {
         return pathParams.get(key).toString();
     }
 
-    public String getHeader(final String name) {
+    public String header(final String name) {
         String value = headers.get(name).toString();
         if (value.startsWith("[")) {
             value = value.substring(1, value.length() - 1);
@@ -268,19 +268,32 @@ public class HttpRequest {
     }
 
     public String userAgent() {
-        return getHeader(HttpHeaders.USER_AGENT);
+        return header(HttpHeaders.USER_AGENT);
     }
 
-    public String getAuthorisationToken() {
-        String value = getHeader(HttpHeaders.AUTHORIZATION);
-        if (value.startsWith("Bearer ")) {
-            value = value.substring("Bearer ".length());
-        }
-        return value;
+    public String authToken() {
+        return Optional.ofNullable(header(HttpHeaders.AUTHORIZATION))
+            .filter(value -> value.startsWith("Bearer "))
+            .map(value -> value.substring("Bearer ".length()))
+            .orElse(null);
     }
 
-    public List<Locale> getPreferredLanguages() {
-        final String acceptLanguageHeader = getHeader(HttpHeaders.ACCEPT_LANGUAGE);
+    public String[] basicAuth() {
+        return Optional.ofNullable(header(HttpHeaders.AUTHORIZATION))
+            .filter(value -> value.startsWith("Basic "))
+            .map(value -> value.substring("Basic ".length()))
+            .map(this::decodeBasicAuth)
+            .map(decodedCredentials -> decodedCredentials.split(":"))
+            .orElse(null);
+    }
+
+    private String decodeBasicAuth(String encodedCredentials) {
+        byte[] decodedBytes = Base64.getDecoder().decode(encodedCredentials);
+        return new String(decodedBytes);
+    }
+
+    public List<Locale> locale() {
+        final String acceptLanguageHeader = header(HttpHeaders.ACCEPT_LANGUAGE);
         if (acceptLanguageHeader == null || acceptLanguageHeader.isEmpty()) {
             return Collections.emptyList();
         }
@@ -292,14 +305,18 @@ public class HttpRequest {
             .toList();
     }
 
-    public HttpExchange getExchange() {
+    public HttpExchange exchange() {
         return exchange;
     }
 
-    private HttpResponse generateHttpResponse(final int statusCode, final byte[] body, final Map<String, String> headers) {
-        return new HttpResponse(statusCode, body, headers);
-    }
-    public HttpResponse generateHttpResponse(final int statusCode, final String body, final Map<String, String> headers) {
-        return generateHttpResponse(statusCode, body.getBytes(), headers);
+//    private HttpResponse generateHttpResponse(final int statusCode, final byte[] body, final Map<String, String> headers) {
+//        return new HttpResponse(statusCode, body, headers);
+//    }
+//    public HttpResponse generateHttpResponse(final int statusCode, final String body, final Map<String, String> headers) {
+//        return generateHttpResponse(statusCode, body.getBytes(), headers);
+//    }
+
+    public HttpResponse generateHttpResponse() {
+        return new HttpResponse();
     }
 }

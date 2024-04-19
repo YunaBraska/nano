@@ -44,9 +44,9 @@ public class HttpRequestTest {
     @Test
     void testConstructor() {
         assertThat(httpRequest.method()).isEqualTo(HttpMethod.GET.toString());
-        assertThat(httpRequest.getPath()).isEqualTo("/test");
+        assertThat(httpRequest.path()).isEqualTo("/test");
         assertThat(httpRequest.getHeaders()).containsEntry("content-type", Collections.singletonList("application/json"));
-        assertThat(httpRequest.getExchange()).isNotNull();
+        assertThat(httpRequest.exchange()).isNotNull();
     }
 
     @Test
@@ -84,25 +84,25 @@ public class HttpRequestTest {
     void testBodyMethods() throws IOException {
         String testBody = "{\"key\": \"value\"}";
         InputStream bodyStream = new ByteArrayInputStream(testBody.getBytes(Charset.defaultCharset()));
-        InputStream oldStream = httpRequest.getExchange().getRequestBody();
-        httpRequest.getExchange().setStreams(bodyStream, null);
+        InputStream oldStream = httpRequest.exchange().getRequestBody();
+        httpRequest.exchange().setStreams(bodyStream, null);
 
         assertThat(httpRequest.bodyAsString()).isEqualTo(testBody);
         assertThat(httpRequest.bodyAsJson().get(String.class, "key")).isEqualTo("value");
 
-        httpRequest.getExchange().setStreams(oldStream, null);
+        httpRequest.exchange().setStreams(oldStream, null);
     }
 
     @Test
     void testGetRequestBody() throws IOException {
         String testBody = "{\"key\": \"value\"}";
         InputStream expectedStream = new ByteArrayInputStream(testBody.getBytes(Charset.defaultCharset()));
-        InputStream oldStream = httpRequest.getExchange().getRequestBody();
-        httpRequest.getExchange().setStreams(expectedStream, null);
+        InputStream oldStream = httpRequest.exchange().getRequestBody();
+        httpRequest.exchange().setStreams(expectedStream, null);
 
-        InputStream actualStream = httpRequest.getRequestBody();
+        InputStream actualStream = httpRequest.requestBody();
         assertThat(inputStreamToString(actualStream)).isEqualTo(inputStreamToString(expectedStream));
-        httpRequest.getExchange().setStreams(oldStream, null);
+        httpRequest.exchange().setStreams(oldStream, null);
     }
 
     private String inputStreamToString(InputStream inputStream) {
@@ -119,9 +119,9 @@ public class HttpRequestTest {
         assertThat(request.containsQueryParam("key1")).isTrue();
         assertThat(request.containsQueryParam("key2")).isTrue();
         assertThat(request.containsQueryParam("key3")).isFalse();
-        assertThat(request.getQueryParam("key1")).isEqualTo("value1");
-        assertThat(request.getQueryParam("key2")).isEqualTo("value2");
-        assertThat(request.getQueryParam("key3")).isNull();
+        assertThat(request.queryParam("key1")).isEqualTo("value1");
+        assertThat(request.queryParam("key2")).isEqualTo("value2");
+        assertThat(request.queryParam("key3")).isNull();
     }
 
     @Test
@@ -140,7 +140,7 @@ public class HttpRequestTest {
 
     @Test
     void testHeaderMethods() {
-        assertThat(httpRequest.getHeader("content-type")).isEqualTo("application/json");
+        assertThat(httpRequest.header("content-type")).isEqualTo("application/json");
         assertThat(httpRequest.getHeaders()).containsKey("content-type");
     }
 
@@ -150,9 +150,9 @@ public class HttpRequestTest {
         HttpRequest request = new HttpRequest(exchange);
 
         request.match("/test/{param1}/{param2}");
-        assertThat(request.getPathParams().size()).isEqualTo(2);
-        assertThat(request.getPathParam("param1")).isEqualTo("param1");
-        assertThat(request.getPathParam("param2")).isEqualTo("param2");
+        assertThat(request.pathParams().size()).isEqualTo(2);
+        assertThat(request.pathParam("param1")).isEqualTo("param1");
+        assertThat(request.pathParam("param2")).isEqualTo("param2");
 
     }
 
@@ -201,7 +201,7 @@ public class HttpRequestTest {
         headers.add("Accept-Language", "en-US,en;q=0.9,de;q=0.8");
         HttpExchange exchange = createMockHttpExchange("GET", "/test", headers);
         HttpRequest request = new HttpRequest(exchange);
-        assertThat(request.getPreferredLanguages()).containsExactly(Locale.of("en", "us"), Locale.ENGLISH, Locale.GERMAN);
+        assertThat(request.locale()).containsExactly(Locale.of("en", "us"), Locale.ENGLISH, Locale.GERMAN);
     }
 
     @Test

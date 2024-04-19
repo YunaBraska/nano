@@ -52,13 +52,13 @@ public class HttpService extends Service {
                             response -> sendResponse(exchange, response),
                             () -> context.sendEventReturn(EVENT_HTTP_REQUEST_UNHANDLED, httpRequest).responseOpt(HttpResponse.class).ifPresentOrElse(
                                 response -> sendResponse(exchange, response),
-                                () -> sendResponse(exchange, new HttpResponse(404, "Page not found".getBytes(), new HashMap<>()))
+                                () -> sendResponse(exchange, new HttpResponse().statusCode(404).body("Page not found".getBytes()).headers(new HashMap<>()))
                             )
                         );
                     } catch (final Exception e) {
                         context.sendEventReturn(EVENT_APP_UNHANDLED, new Unhandled(context, httpRequest, e)).responseOpt(HttpResponse.class).ifPresentOrElse(
                             response -> sendResponse(exchange, response),
-                            () -> new HttpResponse(500, ("Internal Server Error " + e.getMessage()).getBytes(), new HashMap<>())
+                            () -> new HttpResponse().statusCode(500).body("Internal Server Error".getBytes()).headers(new HashMap<>())
                         );
                     }
                 });
