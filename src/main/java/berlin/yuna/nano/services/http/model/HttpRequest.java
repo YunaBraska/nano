@@ -2,7 +2,6 @@ package berlin.yuna.nano.services.http.model;
 
 import berlin.yuna.typemap.logic.JsonDecoder;
 import berlin.yuna.typemap.model.TypeContainer;
-import berlin.yuna.typemap.model.TypeList;
 import berlin.yuna.typemap.model.TypeMap;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
@@ -10,7 +9,10 @@ import com.sun.net.httpserver.HttpExchange;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static java.util.Collections.emptyList;
 
 public class HttpRequest {
 
@@ -79,69 +81,177 @@ public class HttpRequest {
         return method.name();
     }
 
-    public boolean isContentType(final String contentType) {
-        return headers.getList(HttpHeaders.CONTENT_TYPE).contains(contentType);
+    public ContentType contentType() {
+        final List<ContentType> result = contentTypes();
+        return result.isEmpty() ? null : result.getFirst();
     }
 
-    public boolean isContentTypeJson() {
-        return isContentType(ContentType.APPLICATION_JSON.value());
+    public List<ContentType> contentTypes() {
+        return contentSplitType(HttpHeaders.CONTENT_TYPE);
     }
 
-    public boolean isContentTypeXml() {
-        return isContentType(ContentType.APPLICATION_XML.value());
+    public ContentType accept() {
+        final List<ContentType> result = accepts();
+        return result.isEmpty() ? null : result.getFirst();
     }
 
-    public boolean isContentTypeXmlSoap() {
-        return isContentType(ContentType.APPLICATION_SOAP_XML.value());
+    public List<ContentType> accepts() {
+        return contentSplitType(HttpHeaders.ACCEPT);
     }
 
-    public boolean isContentTypeOctetStream() {
-        return isContentType(ContentType.APPLICATION_OCTET_STREAM.value());
+    public boolean hasContentType(final String... contentTypes) {
+        final List<String> result = splitHeaderValue(headers.getList(String.class, HttpHeaders.CONTENT_TYPE), v -> v);
+        return Arrays.stream(contentTypes).allMatch(result::contains);
     }
 
-    public boolean isContentTypePdf() {
-        return isContentType(ContentType.APPLICATION_PDF.value());
+    public boolean hasContentType(final ContentType contentType) {
+        return contentSplitType(HttpHeaders.CONTENT_TYPE).contains(contentType);
     }
 
-    public boolean isContentTypeFormUrlEncoded() {
-        return isContentType(ContentType.APPLICATION_FORM_URLENCODED.value());
+    public boolean hasAccept(final String... contentTypes) {
+        final List<String> result = splitHeaderValue(headers.getList(String.class, HttpHeaders.ACCEPT), v -> v);
+        return Arrays.stream(contentTypes).allMatch(result::contains);
     }
 
-    public boolean isContentTypeMultiPartFormData() {
-        return isContentType(ContentType.MULTIPART_FORM_DATA.value());
+    public boolean hasAccept(final ContentType contentType) {
+        return contentSplitType(HttpHeaders.ACCEPT).contains(contentType);
     }
 
-    public boolean isContentTypePlainText() {
-        return isContentType(ContentType.TEXT_PLAIN.value());
+    public String acceptEncoding() {
+        final List<String> result = acceptEncodings();
+        return result.isEmpty() ? null : result.getFirst();
     }
 
-    public boolean isContentTypeHtml() {
-        return isContentType(ContentType.TEXT_HTML.value());
+    public List<String> acceptEncodings() {
+        return splitHeaderValue(headers.getList(String.class, HttpHeaders.ACCEPT_ENCODING), v -> v);
     }
 
-    public boolean isContentTypeJpeg() {
-        return isContentType(ContentType.IMAGE_JPEG.value());
+    public boolean hasAcceptEncoding(final String... contentTypes) {
+        final List<String> result = splitHeaderValue(headers.getList(String.class, HttpHeaders.ACCEPT_ENCODING), v -> v);
+        return Arrays.stream(contentTypes).allMatch(result::contains);
     }
 
-    public boolean isContentTypePng() {
-        return isContentType(ContentType.IMAGE_PNG.value());
+    public List<Locale> acceptLanguage() {
+        final List<Locale> result = acceptLanguages();
+        return result.isEmpty() ? null : result;
     }
 
-    public boolean isContentTypeGif() {
-        return isContentType(ContentType.IMAGE_GIF.value());
+    public List<Locale> acceptLanguages() {
+        return splitHeaderValue(headers.getList(String.class, HttpHeaders.ACCEPT_LANGUAGE), Locale::forLanguageTag);
     }
 
-    public boolean isContentTypeMpeg() {
-        return isContentType(ContentType.AUDIO_MPEG.value());
+    public boolean hasContentTypeJson() {
+        return hasContentType(ContentType.APPLICATION_JSON);
     }
 
-    public boolean isContentTypeMp4() {
-        return isContentType(ContentType.VIDEO_MP4.value());
+    public boolean hasContentTypeXml() {
+        return hasContentType(ContentType.APPLICATION_XML);
     }
 
-    public TypeList contentType() {
-        return headers.getList(HttpHeaders.CONTENT_TYPE);
+    public boolean hasContentTypeXmlSoap() {
+        return hasContentType(ContentType.APPLICATION_SOAP_XML);
     }
+
+    public boolean hasContentTypeOctetStream() {
+        return hasContentType(ContentType.APPLICATION_OCTET_STREAM);
+    }
+
+    public boolean hasContentTypePdf() {
+        return hasContentType(ContentType.APPLICATION_PDF);
+    }
+
+    public boolean hasContentTypeFormUrlEncoded() {
+        return hasContentType(ContentType.APPLICATION_FORM_URLENCODED);
+    }
+
+    public boolean hasContentTypeMultiPartFormData() {
+        return hasContentType(ContentType.MULTIPART_FORM_DATA);
+    }
+
+    public boolean hasContentTypePlainText() {
+        return hasContentType(ContentType.TEXT_PLAIN);
+    }
+
+    public boolean hasContentTypeHtml() {
+        return hasContentType(ContentType.TEXT_HTML);
+    }
+
+    public boolean hasContentTypeJpeg() {
+        return hasContentType(ContentType.IMAGE_JPEG);
+    }
+
+    public boolean hasContentTypePng() {
+        return hasContentType(ContentType.IMAGE_PNG);
+    }
+
+    public boolean hasContentTypeGif() {
+        return hasContentType(ContentType.IMAGE_GIF);
+    }
+
+    public boolean hasContentTypeMpeg() {
+        return hasContentType(ContentType.AUDIO_MPEG);
+    }
+
+    public boolean hasContentTypeMp4() {
+        return hasContentType(ContentType.VIDEO_MP4);
+    }
+
+    public boolean hasAcceptJson() {
+        return hasContentType(ContentType.APPLICATION_JSON);
+    }
+
+    public boolean hasAcceptXml() {
+        return hasContentType(ContentType.APPLICATION_XML);
+    }
+
+    public boolean hasAcceptXmlSoap() {
+        return hasContentType(ContentType.APPLICATION_SOAP_XML);
+    }
+
+    public boolean hasAcceptOctetStream() {
+        return hasContentType(ContentType.APPLICATION_OCTET_STREAM);
+    }
+
+    public boolean hasAcceptPdf() {
+        return hasContentType(ContentType.APPLICATION_PDF);
+    }
+
+    public boolean hasAcceptFormUrlEncoded() {
+        return hasContentType(ContentType.APPLICATION_FORM_URLENCODED);
+    }
+
+    public boolean hasAcceptMultiPartFormData() {
+        return hasContentType(ContentType.MULTIPART_FORM_DATA);
+    }
+
+    public boolean hasAcceptPlainText() {
+        return hasContentType(ContentType.TEXT_PLAIN);
+    }
+
+    public boolean hasAcceptHtml() {
+        return hasContentType(ContentType.TEXT_HTML);
+    }
+
+    public boolean hasAcceptJpeg() {
+        return hasContentType(ContentType.IMAGE_JPEG);
+    }
+
+    public boolean hasAcceptPng() {
+        return hasContentType(ContentType.IMAGE_PNG);
+    }
+
+    public boolean hasAcceptGif() {
+        return hasContentType(ContentType.IMAGE_GIF);
+    }
+
+    public boolean hasAcceptMpeg() {
+        return hasContentType(ContentType.AUDIO_MPEG);
+    }
+
+    public boolean hasAcceptMp4() {
+        return hasContentType(ContentType.VIDEO_MP4);
+    }
+
 
     public String path() {
         return path;
@@ -292,19 +402,6 @@ public class HttpRequest {
         return new String(decodedBytes);
     }
 
-    public List<Locale> locale() {
-        final String acceptLanguageHeader = header(HttpHeaders.ACCEPT_LANGUAGE);
-        if (acceptLanguageHeader == null || acceptLanguageHeader.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        return Arrays.stream(acceptLanguageHeader.split(","))
-            .map(s -> s.split(";q="))
-            .sorted(Comparator.comparing(parts -> parts.length > 1 ? Double.parseDouble(parts[1]) : 1.0, Comparator.reverseOrder()))
-            .map(parts -> Locale.forLanguageTag(parts[0]))
-            .toList();
-    }
-
     public HttpExchange exchange() {
         return exchange;
     }
@@ -318,5 +415,22 @@ public class HttpRequest {
 
     public HttpResponse generateHttpResponse() {
         return new HttpResponse();
+    }
+
+    protected List<ContentType> contentSplitType(final String header) {
+        return splitHeaderValue(headers.getList(String.class, header), ContentType::fromValue);
+    }
+
+    protected static <R> List<R> splitHeaderValue(final Collection<String> value, final Function<String, R> mapper) {
+        if (value == null)
+            return emptyList();
+        if (value.size() != 1)
+            return value.stream().map(mapper).toList();
+        return Arrays.stream(value.iterator().next().split(","))
+            .map(s -> s.split(";q="))
+            .sorted(Comparator.comparing(parts -> parts.length > 1 ? Double.parseDouble(parts[1]) : 1.0, Comparator.reverseOrder()))
+            .map(parts -> mapper.apply(parts[0]))
+            .filter(Objects::nonNull)
+            .toList();
     }
 }

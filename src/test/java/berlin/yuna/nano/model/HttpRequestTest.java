@@ -1,12 +1,13 @@
 package berlin.yuna.nano.model;
 
+import berlin.yuna.nano.services.http.model.ContentType;
+import berlin.yuna.nano.services.http.model.HttpMethod;
+import berlin.yuna.nano.services.http.model.HttpRequest;
 import berlin.yuna.typemap.model.TypeMap;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpContext;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpPrincipal;
-import berlin.yuna.nano.services.http.model.HttpMethod;
-import berlin.yuna.nano.services.http.model.HttpRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -75,9 +76,9 @@ public class HttpRequestTest {
 
     @Test
     void testContentTypeMethods() {
-        assertThat(httpRequest.isContentType("application/json")).isTrue();
-        assertThat(httpRequest.isContentTypeJson()).isTrue();
-        assertThat(httpRequest.isContentTypeXml()).isFalse();
+        assertThat(httpRequest.hasContentType("application/json")).isTrue();
+        assertThat(httpRequest.hasContentTypeJson()).isTrue();
+        assertThat(httpRequest.hasContentTypeXml()).isFalse();
     }
 
     @Test
@@ -192,7 +193,7 @@ public class HttpRequestTest {
         headers.add("Authorization", TOKEN);
         HttpExchange exchange = createMockHttpExchange("GET", "/test", headers);
         HttpRequest request = new HttpRequest(exchange);
-        assertThat(request.getAuthorisationToken()).isEqualTo("123");
+        assertThat(request.authToken()).isEqualTo("123");
     }
 
     @Test
@@ -201,7 +202,7 @@ public class HttpRequestTest {
         headers.add("Accept-Language", "en-US,en;q=0.9,de;q=0.8");
         HttpExchange exchange = createMockHttpExchange("GET", "/test", headers);
         HttpRequest request = new HttpRequest(exchange);
-        assertThat(request.locale()).containsExactly(Locale.of("en", "us"), Locale.ENGLISH, Locale.GERMAN);
+        assertThat(request.acceptLanguages()).containsExactly(Locale.of("en", "us"), Locale.ENGLISH, Locale.GERMAN);
     }
 
     @Test
@@ -210,7 +211,7 @@ public class HttpRequestTest {
         headers.add("Content-Type", "application/json");
         HttpExchange exchange = createMockHttpExchange("GET", "/test", headers);
         HttpRequest request = new HttpRequest(exchange);
-        assertThat(request.contentType().get(0)).isEqualTo("application/json");
+        assertThat(request.contentTypes()).containsExactly(ContentType.APPLICATION_JSON);
     }
 
 

@@ -7,6 +7,7 @@ public class HttpHeaders {
     private HttpHeaders() {
     }
 
+    public static final String ALL = "*/*";
     public static final String ACCEPT = "accept";
     public static final String ACCEPT_CHARSET = "accept-charset";
     public static final String ACCEPT_ENCODING = "accept-encoding";
