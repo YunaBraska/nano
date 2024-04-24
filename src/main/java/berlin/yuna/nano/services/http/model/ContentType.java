@@ -26,8 +26,7 @@ public enum ContentType {
     TEXT_XML("text/xml"),
     WILDCARD("*/*"),
     AUDIO_MPEG("audio/mpeg"),
-    VIDEO_MP4("video/mp4")
-    ;
+    VIDEO_MP4("video/mp4");
 
     private final String value;
 
@@ -37,5 +36,14 @@ public enum ContentType {
 
     public String value() {
         return value;
+    }
+
+    public static ContentType fromValue(final String value) {
+        for (final ContentType type : values()) {
+            if (type.value().equals(value) || type.name().equals(value)) {
+                return type;
+            }
+        }
+        return null;
     }
 }
