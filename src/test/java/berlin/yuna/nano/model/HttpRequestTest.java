@@ -1,8 +1,11 @@
 package berlin.yuna.nano.model;
 
 import berlin.yuna.nano.services.http.model.ContentType;
+import berlin.yuna.nano.services.http.model.HttpHeaders;
 import berlin.yuna.nano.services.http.model.HttpMethod;
 import berlin.yuna.nano.services.http.model.HttpRequest;
+import berlin.yuna.typemap.logic.XmlDecoder;
+import berlin.yuna.typemap.model.TypeContainer;
 import berlin.yuna.typemap.model.TypeMap;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpContext;
@@ -19,9 +22,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.Locale;
-import java.util.Scanner;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -37,7 +38,12 @@ public class HttpRequestTest {
     @BeforeEach
     void setUp() {
         Headers headers = new Headers();
-        headers.add("Content-Type", "application/json");
+        headers.add(HttpHeaders.CONTENT_TYPE, "application/json");
+        headers.add(HttpHeaders.ACCEPT, "application/json");
+        headers.add(HttpHeaders.ACCEPT, "text/html");
+        headers.add(HttpHeaders.ACCEPT_ENCODING, "gzip");
+        headers.add(HttpHeaders.ACCEPT_ENCODING, "deflate");
+        headers.add(HttpHeaders.ACCEPT_LANGUAGE, "en-US");
         HttpExchange exchange = createMockHttpExchange("GET", "/test", headers);
         httpRequest = new HttpRequest(exchange);
     }
@@ -72,13 +78,43 @@ public class HttpRequestTest {
         assertThat(httpRequest.isMethodPost()).isFalse();
         assertThat(httpRequest.isMethodPut()).isFalse();
         assertThat(httpRequest.isMethodHead()).isFalse();
+        assertThat(httpRequest.isMethodPatch()).isFalse();
+        assertThat(httpRequest.isMethodDelete()).isFalse();
+        assertThat(httpRequest.isMethodOptions()).isFalse();
+        assertThat(httpRequest.isMethodTrace()).isFalse();
     }
 
     @Test
     void testContentTypeMethods() {
         assertThat(httpRequest.hasContentType("application/json")).isTrue();
         assertThat(httpRequest.hasContentTypeJson()).isTrue();
+        assertThat(httpRequest.hasAcceptJson()).isTrue();
+        assertThat(httpRequest.hasContentTypeHtml()).isFalse();
+        assertThat(httpRequest.hasContentTypeMp4()).isFalse();
+        assertThat(httpRequest.hasContentTypeGif()).isFalse();
+        assertThat(httpRequest.hasContentTypeJpeg()).isFalse();
+        assertThat(httpRequest.hasContentTypeMpeg()).isFalse();
+        assertThat(httpRequest.hasContentTypePdf()).isFalse();
+        assertThat(httpRequest.hasContentTypePng()).isFalse();
         assertThat(httpRequest.hasContentTypeXml()).isFalse();
+        assertThat(httpRequest.hasContentTypeOctetStream()).isFalse();
+        assertThat(httpRequest.hasContentTypeMultiPartFormData()).isFalse();
+        assertThat(httpRequest.hasContentTypePlainText()).isFalse();
+        assertThat(httpRequest.hasContentTypeXmlSoap()).isFalse();
+        assertThat(httpRequest.hasContentTypeFormUrlEncoded()).isFalse();
+        assertThat(httpRequest.hasAcceptXml()).isFalse();
+        assertThat(httpRequest.hasAcceptXmlSoap()).isFalse();
+        assertThat(httpRequest.hasAcceptOctetStream()).isFalse();
+        assertThat(httpRequest.hasAcceptPdf()).isFalse();
+        assertThat(httpRequest.hasAcceptFormUrlEncoded()).isFalse();
+        assertThat(httpRequest.hasAcceptMultiPartFormData()).isFalse();
+        assertThat(httpRequest.hasAcceptPlainText()).isFalse();
+        assertThat(httpRequest.hasAcceptHtml()).isFalse();
+        assertThat(httpRequest.hasAcceptJpeg()).isFalse();
+        assertThat(httpRequest.hasAcceptPng()).isFalse();
+        assertThat(httpRequest.hasAcceptGif()).isFalse();
+        assertThat(httpRequest.hasAcceptMpeg()).isFalse();
+        assertThat(httpRequest.hasAcceptMp4()).isFalse();
     }
 
     @Test
@@ -97,20 +133,17 @@ public class HttpRequestTest {
     @Test
     void testGetRequestBody() throws IOException {
         String testBody = "{\"key\": \"value\"}";
-        InputStream expectedStream = new ByteArrayInputStream(testBody.getBytes(Charset.defaultCharset()));
-        InputStream oldStream = httpRequest.exchange().getRequestBody();
-        httpRequest.exchange().setStreams(expectedStream, null);
-
-//        byte[] actualBody = httpRequest.body();
-//        assertThat((actualBody)).isEqualTo(inputStreamToString(expectedStream));
-//        httpRequest.exchange().setStreams(oldStream, null);
+        byte[] expectedStream = testBody.getBytes(Charset.defaultCharset());
+        httpRequest.bodyAsString();
+        byte[] actualBody = httpRequest.body();
+        assertThat((actualBody)).isEqualTo(expectedStream);
     }
 
-    private String inputStreamToString(InputStream inputStream) {
-        try (Scanner scanner = new Scanner(inputStream, StandardCharsets.UTF_8.name()).useDelimiter("\\A")) {
-            return scanner.hasNext() ? scanner.next() : "";
-        }
-    }
+//    private String inputStreamToString(InputStream inputStream) {
+//        try (Scanner scanner = new Scanner(inputStream, StandardCharsets.UTF_8.name()).useDelimiter("\\A")) {
+//            return scanner.hasNext() ? scanner.next() : "";
+//        }
+//    }
 
     @Test
     void testQueryParameters() {
@@ -160,7 +193,7 @@ public class HttpRequestTest {
     @Test
     void testcontainsHeader() {
         assertThat(httpRequest.containsHeader("content-type")).isTrue();
-        assertThat(httpRequest.containsHeader("accept")).isFalse();
+        assertThat(httpRequest.containsHeader("accept")).isTrue();
     }
 
     @Test
@@ -188,12 +221,18 @@ public class HttpRequestTest {
     }
 
     @Test
-    void testAuthorisationToken() {
+    void testAuthToken() {
         Headers headers = new Headers();
         headers.add("Authorization", TOKEN);
         HttpExchange exchange = createMockHttpExchange("GET", "/test", headers);
         HttpRequest request = new HttpRequest(exchange);
         assertThat(request.authToken()).isEqualTo("123");
+    }
+
+    @Test
+    void testAuthBasic() {
+        Headers headers = new Headers();
+        // todo : add basic token auth
     }
 
     @Test
@@ -206,12 +245,69 @@ public class HttpRequestTest {
     }
 
     @Test
+    // todo : getList is not returning casted listed
     void testContentType() {
         Headers headers = new Headers();
         headers.add("Content-Type", "application/json");
         HttpExchange exchange = createMockHttpExchange("GET", "/test", headers);
         HttpRequest request = new HttpRequest(exchange);
         assertThat(request.contentTypes()).containsExactly(ContentType.APPLICATION_JSON);
+        assertThat(httpRequest.contentType()).isEqualTo(ContentType.APPLICATION_JSON);
+    }
+
+    @Test
+    public void testHasAccept_StringArray() {
+        boolean result = httpRequest.hasAccept("application/json", "text/html");
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    public void testHasAccept_ContentType() {
+
+        boolean result = httpRequest.hasAccept(ContentType.APPLICATION_JSON);
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    public void testAcceptEncoding() {
+
+        String result = httpRequest.acceptEncoding();
+        assertThat(result).isEqualTo("gzip");
+    }
+
+    @Test
+    public void testHasAcceptEncoding_StringArray() {
+        boolean result = httpRequest.hasAcceptEncoding("gzip", "deflate");
+
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    public void testAccepts() {
+
+        List<ContentType> result = httpRequest.accepts();
+        assertThat(result).containsExactly(ContentType.APPLICATION_JSON, ContentType.TEXT_HTML);
+    }
+
+    @Test
+    public void testAccept() {
+
+        ContentType result = httpRequest.accept();
+        assertThat(result).isEqualTo(ContentType.APPLICATION_JSON);
+    }
+
+    @Test
+    public void testAcceptLanguage() {
+
+        List<Locale> result = httpRequest.acceptLanguage();
+        assertThat(result).containsExactly(Locale.US);
+    }
+
+    @Test
+    public void testBodyAsXml() {
+        String xmlBody = "<example><name>John</name></example>";
+        TypeContainer<?> result = httpRequest.bodyAsXml();
+        assertThat(result).isEqualTo(XmlDecoder.xmlTypeOf(xmlBody));
     }
 
 

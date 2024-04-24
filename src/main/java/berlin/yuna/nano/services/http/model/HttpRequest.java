@@ -84,9 +84,9 @@ public class HttpRequest {
         return method.name();
     }
 
-    public boolean isContentType(final String contentType) {
-        return headers.getList(HttpHeaders.CONTENT_TYPE).contains(contentType);
-    }
+//    public boolean isContentType(final String contentType) {
+//        return headers.getList(HttpHeaders.CONTENT_TYPE).contains(contentType);
+//    }
 
     public ContentType contentType() {
         final List<ContentType> result = contentTypes();
@@ -360,12 +360,15 @@ public class HttpRequest {
         return pathParams.get(key).toString();
     }
 
+    // todo: do functional
     public String header(final String name) {
         String value = headers.get(String.class, name);
         if (value != null && value.startsWith("[")) {
            return value.substring(1, value.length() - 1);
-        }
-        return null;
+        }else if(value != null)
+            return value;
+        else
+            return null;
     }
 
     public TypeMap getHeaders() {
