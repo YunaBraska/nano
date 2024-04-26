@@ -13,8 +13,12 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.nio.charset.Charset;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 import static berlin.yuna.nano.helper.event.model.EventType.*;
@@ -39,8 +43,7 @@ public class HttpService extends Service {
     public synchronized void start(final Supplier<Context> contextSub) {
         isReady.set(false, true, state -> {
             final Context context = contextSub.get().newContext(HttpService.class, null);
-            //TODO: use next free port instead of hardcoded 8080
-            final int port = context.getOpt(Integer.class, "app_service_http_port").filter(p -> p > 0).orElse(8080);
+            final int port = context.getOpt(Integer.class, "app_service_http_port").filter(p -> p > 0).orElseGet(() -> nextFreePort(8080));
             handleHttps(context);
             try {
                 server = HttpServer.create(new InetSocketAddress(port), 0);
@@ -110,7 +113,7 @@ public class HttpService extends Service {
         return null;
     }
 
-    private void sendResponse(final HttpExchange exchange, final HttpResponse response) {
+    protected void sendResponse(final HttpExchange exchange, final HttpResponse response) {
         try {
             final byte[] body = response.body() != null ? response.body() : new byte[0];
             final int statusCode = response.statusCode() > -1 && response.statusCode() < 600 ? response.statusCode() : 200;
@@ -126,6 +129,25 @@ public class HttpService extends Service {
             }
         } catch (final IOException ignored) {
             // Response was already sent
+        }
+    }
+
+    public static int nextFreePort(final int startPort) {
+        for (int i = 1; i < 1024; i++) {
+            final int port = i + startPort;
+            if (!isPortInUse(port)) {
+                return port;
+            }
+        }
+        throw new IllegalStateException("Could not find any free port");
+    }
+
+    public static boolean isPortInUse(final int portNumber) {
+        try {
+            new Socket("localhost", portNumber).close();
+            return true;
+        } catch (final Exception e) {
+            return false;
         }
     }
 }
