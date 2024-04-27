@@ -5,8 +5,9 @@ import berlin.yuna.nano.core.model.Service;
 import berlin.yuna.nano.core.model.Unhandled;
 import berlin.yuna.nano.services.http.model.ContentType;
 import berlin.yuna.nano.services.http.model.HttpHeaders;
-import berlin.yuna.nano.services.http.model.HttpRequest;
-import berlin.yuna.nano.services.http.model.HttpResponse;
+import berlin.yuna.nano.services.http.model.HttpObject;
+import berlin.yuna.typemap.model.TypeMap;
+import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
@@ -49,19 +50,19 @@ public class HttpService extends Service {
                 server = HttpServer.create(new InetSocketAddress(port), 0);
                 server.setExecutor(context.nano().threadPool());
                 server.createContext("/", exchange -> {
-                    final HttpRequest httpRequest = new HttpRequest(exchange);
+                    final HttpObject httpRequest = new HttpObject(exchange);
                     try {
-                        context.sendEventReturn(EVENT_HTTP_REQUEST, httpRequest).responseOpt(HttpResponse.class).ifPresentOrElse(
+                        context.sendEventReturn(EVENT_HTTP_REQUEST, httpRequest).responseOpt(HttpObject.class).ifPresentOrElse(
                             response -> sendResponse(exchange, response),
-                            () -> context.sendEventReturn(EVENT_HTTP_REQUEST_UNHANDLED, httpRequest).responseOpt(HttpResponse.class).ifPresentOrElse(
+                            () -> context.sendEventReturn(EVENT_HTTP_REQUEST_UNHANDLED, httpRequest).responseOpt(HttpObject.class).ifPresentOrElse(
                                 response -> sendResponse(exchange, response),
-                                () -> sendResponse(exchange, new HttpResponse().statusCode(404).body("Page not found".getBytes()).headers(new HashMap<>()))
+                                () -> sendResponse(exchange, new HttpObject().statusCode(404).body("Page not found".getBytes()).headers(new HashMap<>()))
                             )
                         );
                     } catch (final Exception e) {
-                        context.sendEventReturn(EVENT_APP_UNHANDLED, new Unhandled(context, httpRequest, e)).responseOpt(HttpResponse.class).ifPresentOrElse(
+                        context.sendEventReturn(EVENT_APP_UNHANDLED, new Unhandled(context, httpRequest, e)).responseOpt(HttpObject.class).ifPresentOrElse(
                             response -> sendResponse(exchange, response),
-                            () -> new HttpResponse().statusCode(500).body("Internal Server Error".getBytes()).headers(new HashMap<>())
+                            () -> new HttpObject().statusCode(500).body("Internal Server Error".getBytes()).headers(new HashMap<>())
                         );
                     }
                 });
@@ -113,7 +114,7 @@ public class HttpService extends Service {
         return null;
     }
 
-    protected void sendResponse(final HttpExchange exchange, final HttpResponse response) {
+    protected void sendResponse(final HttpExchange exchange, final HttpObject response) {
         try {
             final byte[] body = response.body() != null ? response.body() : new byte[0];
             final int statusCode = response.statusCode() > -1 && response.statusCode() < 600 ? response.statusCode() : 200;

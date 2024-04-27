@@ -3,12 +3,10 @@ package berlin.yuna.nano.services.http.model;
 import berlin.yuna.typemap.logic.JsonDecoder;
 import berlin.yuna.typemap.logic.XmlDecoder;
 import berlin.yuna.typemap.model.TypeContainer;
-import berlin.yuna.typemap.model.TypeList;
 import berlin.yuna.typemap.model.TypeMap;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 
-import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.function.Function;
@@ -16,21 +14,29 @@ import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
 
-public class HttpRequest {
+public class HttpObject {
 
     protected final HttpMethod method;
     protected final String path;
-    protected final TypeMap headers;
+    protected TypeMap headers;
     protected final HttpExchange exchange;
     protected byte[] body;
     protected TypeMap queryParams;
     protected TypeMap pathParams;
+    private int statusCode;
 
-    public HttpRequest(final HttpExchange exchange) {
+    public HttpObject(final HttpExchange exchange) {
         this.method = HttpMethod.httpMethodOf(exchange.getRequestMethod());
         this.path = exchange.getRequestURI().getPath();
         this.headers = convertHeaders(exchange.getRequestHeaders());
         this.exchange = exchange;
+    }
+
+    public HttpObject() {
+        this.method = null;
+        this.path = null;
+        this.headers = new TypeMap();
+        this.exchange = null;
     }
 
     public static TypeMap convertHeaders(final Headers headers) {
@@ -44,7 +50,20 @@ public class HttpRequest {
             ));
     }
 
-    public static boolean isMethod(final HttpRequest request, final HttpMethod method) {
+    public static TypeMap convertSimpleHeaders(final Map<String, String> headers) {
+        return headers.entrySet().stream()
+            .collect(Collectors.toMap(
+                entry -> entry.getKey().toLowerCase(),
+                entry -> {
+                    String value = entry.getValue();
+                    return value.split("\\s*,\\s*");
+                },
+                (v1, v2) -> v1,
+                TypeMap::new
+            ));
+    }
+
+    public static boolean isMethod(final HttpObject request, final HttpMethod method) {
         return request.method.name().equals(method.name());
     }
 
@@ -279,7 +298,7 @@ public class HttpRequest {
         return JsonDecoder.jsonTypeOf(bodyAsString());
     }
 
-    public TypeContainer<?> bodyAsXml() {return XmlDecoder.xmlTypeOf(bodyAsString()); }
+    public TypeContainer<?> bodyAsXml() {return XmlDecoder.xmlTypeOf(bodyAsString());}
 
     public byte[] body() {
         return body;
@@ -362,13 +381,9 @@ public class HttpRequest {
 
     // todo: do functional
     public String header(final String name) {
-        String value = headers.get(String.class, name);
-        if (value != null && value.startsWith("[")) {
-           return value.substring(1, value.length() - 1);
-        }else if(value != null)
-            return value;
-        else
-            return null;
+        return Optional.ofNullable(headers.get(String.class, name))
+            .map(value -> value.startsWith("[") ? value.substring(1, value.length() - 1) : value)
+            .orElse(null);
     }
 
     public TypeMap getHeaders() {
@@ -427,10 +442,6 @@ public class HttpRequest {
 //        return generateHttpResponse(statusCode, body.getBytes(), headers);
 //    }
 
-    public HttpResponse generateHttpResponse() {
-        return new HttpResponse();
-    }
-
     protected List<ContentType> contentSplitType(final String header) {
         return splitHeaderValue(headers.getList(String.class, header), ContentType::fromValue);
     }
@@ -447,4 +458,53 @@ public class HttpRequest {
             .filter(Objects::nonNull)
             .toList();
     }
+
+    public HttpObject statusCode(int statusCode) {
+        this.statusCode = statusCode;
+        return this;
+    }
+
+    public HttpObject body(byte[] body) {
+        this.body = body;
+        return this;
+    }
+
+    public HttpObject headers(Map<String, String> headers) {
+        this.headers = convertSimpleHeaders(headers);
+        return this;
+    }
+
+    public int statusCode() {
+        return statusCode;
+    }
+
+
+    public Map<String, String> headers() {
+        // TODO : convert TypeMap to Map<String, String>
+        return headers.getMap(String.class, String.class);
+    }
+
+    @Override
+    public boolean equals(final Object object) {
+        if (this == object) return true;
+        if (object == null || getClass() != object.getClass()) return false;
+        return statusCode == this.statusCode && Arrays.equals(body, this.body) && Objects.equals(headers, this.headers);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hash(statusCode, headers);
+        result = 31 * result + Arrays.hashCode(body);
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return new StringJoiner(", ", HttpObject.class.getSimpleName() + "[", "]")
+            .add("statusCode=" + statusCode)
+            .add("body=" + Arrays.toString(body))
+            .add("headers=" + headers)
+            .toString();
+    }
+
 }
