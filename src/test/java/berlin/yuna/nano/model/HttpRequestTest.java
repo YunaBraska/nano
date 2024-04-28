@@ -30,6 +30,33 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class HttpRequestTest {
 
     @Test
+    void browserRequest() {
+        final HttpObject httpObject = new HttpObject()
+            .method(HttpMethod.GET)
+            .path("/notifications/indicator")
+            .header("Accept", "application/json")
+            .header("Accept-Encoding", "gzip, deflate, br")
+            .header("Accept-Language", "en-GB,en;q=0.9")
+            .header("Connection", "keep-alive")
+            .header("Host", "example.com")
+            .header("Referer", "https://example.com/test")
+            .header("Sec-Fetch-Dest", "empty")
+            .header("Sec-Fetch-Mode", "cors")
+            .header("Sec-Fetch-Site", "same-origin")
+            .header("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15")
+            .header("X-Requested-With", "XMLHttpRequest");
+        assertThat(httpObject.method()).isEqualTo(HttpMethod.GET);
+        assertThat(httpObject.path()).isEqualTo("/notifications/indicator");
+        assertThat(httpObject.accepts()).containsExactly(APPLICATION_JSON);
+        assertThat(httpObject.acceptEncodings()).containsExactly("gzip", "deflate", "br");
+        assertThat(httpObject.acceptLanguages()).containsExactly(Locale.UK, Locale.ENGLISH);
+        assertThat(httpObject.header(HOST)).isEqualTo("example.com");
+        assertThat(httpObject.header(REFERER)).isEqualTo("https://example.com/test");
+        assertThat(httpObject.userAgent()).isEqualTo("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15");
+        assertThat(httpObject.header("X-Requested-With")).isEqualTo("XMLHttpRequest");
+    }
+
+    @Test
     void testConstructor_withHttpExchange() {
         final Headers headers = new Headers();
         headers.add(CONTENT_TYPE, APPLICATION_JSON.value());
@@ -401,7 +428,7 @@ class HttpRequestTest {
         httpObject2.statusCode(200)
             .body("Sample body".getBytes());
 
-        assertThat(httpObject1.hashCode()).isEqualTo(httpObject2.hashCode());
+        assertThat(httpObject1.hashCode()).hasSameHashCodeAs(httpObject2.hashCode());
         assertThat(httpObject1.equals(httpObject2)).isTrue();
         assertThat(httpObject1.equals(new HttpObject())).isFalse();
         assertThat(httpObject1.equals("invalid")).isFalse();
