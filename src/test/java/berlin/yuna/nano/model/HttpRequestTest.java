@@ -318,10 +318,14 @@ class HttpRequestTest {
             assertThat(httpObject.containsHeader(null)).isFalse();
             assertThat(httpObject.header("myNumber")).isEqualTo("123");
             assertThat(httpObject.header("mynumber")).isEqualTo("123");
+            assertThat(httpObject.header("invalid")).isNull();
+            assertThat(httpObject.header(null)).isNull();
             assertThat(httpObject.headers().get(Integer.class, "mynumber")).isEqualTo(123);
             assertThat(httpObject.contentTypes()).containsExactly(APPLICATION_JSON, TEXT_PLAIN);
             assertThat(httpObject.accepts()).containsExactly(APPLICATION_PDF, APPLICATION_JSON);
         }
+
+        assertThat(new HttpObject().headers()).isEmpty();
     }
 
     @Test
@@ -336,6 +340,8 @@ class HttpRequestTest {
         assertThat(httpObject2.host()).isEqualTo("example.com");
         assertThat(httpObject2.address()).isNotNull();
         assertThat(httpObject2.port()).isEqualTo(1337);
+
+        assertThat(new HttpObject().header(HttpHeaders.HOST, "no-port.com").port()).isEqualTo(-1);
     }
 
     @Test
@@ -358,6 +364,7 @@ class HttpRequestTest {
     void testAuthToken() {
         assertThat(new HttpObject().header(AUTHORIZATION, "Bearer 123").authToken()).containsExactly("123");
         assertThat(new HttpObject().header(AUTHORIZATION, "Basic QWxhZGRpbjpPcGVuU2VzYW1l").authToken()).containsExactly("Aladdin", "OpenSesame");
+        assertThat(new HttpObject().header(AUTHORIZATION, "123ABC").authToken()).containsExactly("123ABC");
     }
 
     @Test
@@ -385,38 +392,6 @@ class HttpRequestTest {
     }
 
     @Test
-    void testHttpObjectMethods() {
-        // Create a sample HTTP response
-//        final HttpObject httpObject = new HttpObject();
-//        httpObject.statusCode(200)
-//            .body("Sample body".getBytes())
-//            .headers(createSampleHeaders());
-//
-//        assertEquals(200, httpObject.statusCode());
-//        assertArrayEquals("Sample body".getBytes(), httpObject.body());
-//
-////        assertEquals(createSampleHeaders(), httpObject.headers());
-//
-//        httpObject.statusCode(404);
-//        assertEquals(404, httpObject.statusCode());
-//
-//        final HttpObject httpObjectCopy = new HttpObject();
-//        httpObjectCopy.statusCode(404)
-//            .body("Sample body".getBytes())
-//            .headers(createSampleHeaders());
-//        assertEquals(httpObjectCopy, httpObject);
-
-//        assertEquals(httpObjectCopy.hashCode(), httpObject.hashCode());
-//        final String expectedToString = "HttpObject[statusCode=404, body=[83, 97, 109, 112, 108, 101, 32, 98, 111, 100, 121], headers={Header1=Value1, Header2=Value2, NewHeader=Value}]";
-//        assertEquals(expectedToString, httpObject.toString());
-    }
-
-    // Utility method to create sample headers
-    private Map<String, String> createSampleHeaders() {
-        return Map.of("Content-Type", "application/json");
-    }
-
-    @Test
     void testHashCode() {
         final HttpObject httpObject1 = new HttpObject();
         httpObject1.statusCode(200)
@@ -426,17 +401,22 @@ class HttpRequestTest {
         httpObject2.statusCode(200)
             .body("Sample body".getBytes());
 
-        assertEquals(httpObject1.hashCode(), httpObject2.hashCode());
+        assertThat(httpObject1.hashCode()).isEqualTo(httpObject2.hashCode());
+        assertThat(httpObject1.equals(httpObject2)).isTrue();
+        assertThat(httpObject1.equals(new HttpObject())).isFalse();
+        assertThat(httpObject1.equals("invalid")).isFalse();
     }
 
     @Test
     void testToString() {
         final HttpObject httpObject = new HttpObject();
-        httpObject.statusCode(200)
-            .body("Sample body".getBytes());
+        httpObject
+            .statusCode(200)
+            .method(HttpMethod.GET)
+            .path("/test")
+            .body("Sample body");
 
-        final String expectedToString = "HttpObject[statusCode=200, body=[83, 97, 109, 112, 108, 101, 32, 98, 111, 100, 121], headers={}]";
-        assertEquals(expectedToString, httpObject.toString());
+        assertThat(httpObject).hasToString("HttpObject[statusCode=200, path=/test, method=GET, headers=null, body=Sample body]");
     }
 
 

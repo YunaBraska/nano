@@ -37,9 +37,6 @@ public class HttpObject {
     }
 
     public HttpObject() {
-        this.method = null;
-        this.path = null;
-        this.headers = new TypeMap();
         this.exchange = null;
     }
 
@@ -161,11 +158,11 @@ public class HttpObject {
     }
 
     public List<String> acceptEncodings() {
-        return splitHeaderValue(headers.getList(String.class, HttpHeaders.ACCEPT_ENCODING), v -> v);
+        return splitHeaderValue(headers().getList(String.class, HttpHeaders.ACCEPT_ENCODING), v -> v);
     }
 
     public boolean hasAcceptEncoding(final String... contentTypes) {
-        final List<String> result = splitHeaderValue(headers.getList(String.class, HttpHeaders.ACCEPT_ENCODING), v -> v);
+        final List<String> result = splitHeaderValue(headers().getList(String.class, HttpHeaders.ACCEPT_ENCODING), v -> v);
         return Arrays.stream(contentTypes).allMatch(result::contains);
     }
 
@@ -175,7 +172,7 @@ public class HttpObject {
     }
 
     public List<Locale> acceptLanguages() {
-        return splitHeaderValue(headers.getList(String.class, HttpHeaders.ACCEPT_LANGUAGE), Locale::forLanguageTag);
+        return splitHeaderValue(headers().getList(String.class, HttpHeaders.ACCEPT_LANGUAGE), Locale::forLanguageTag);
     }
 
     public boolean hasContentTypeJson() {
@@ -453,13 +450,6 @@ public class HttpObject {
         return exchange;
     }
 
-//    private HttpResponse generateHttpResponse(final int statusCode, final byte[] body, final Map<String, String> headers) {
-//        return new HttpResponse(statusCode, body, headers);
-//    }
-//    public HttpResponse generateHttpResponse(final int statusCode, final String body, final Map<String, String> headers) {
-//        return generateHttpResponse(statusCode, body.getBytes(), headers);
-//    }
-
     protected List<ContentType> contentSplitType(final String key) {
         return splitHeaderValue(headers().getList(String.class, key), ContentType::fromValue);
     }
@@ -532,25 +522,25 @@ public class HttpObject {
     }
 
     @Override
-    public boolean equals(final Object object) {
-        if (this == object) return true;
-        if (object == null || getClass() != object.getClass()) return false;
-        return statusCode == this.statusCode && Arrays.equals(body, this.body) && Objects.equals(headers, this.headers);
+    public boolean equals(final Object o) {
+        if (this == o) return true;
+        if (!(o instanceof final HttpObject that)) return false;
+        return statusCode == that.statusCode && method == that.method && Objects.equals(path, that.path) && Objects.deepEquals(body, that.body) && Objects.equals(headers, that.headers);
     }
 
     @Override
     public int hashCode() {
-        int result = Objects.hash(statusCode, headers);
-        result = 31 * result + Arrays.hashCode(body);
-        return result;
+        return Objects.hash(method, path, Arrays.hashCode(body), headers, statusCode);
     }
 
     @Override
     public String toString() {
         return new StringJoiner(", ", HttpObject.class.getSimpleName() + "[", "]")
             .add("statusCode=" + statusCode)
-            .add("body=" + Arrays.toString(body))
+            .add("path=" + path)
+            .add("method=" + method)
             .add("headers=" + headers)
+            .add("body=" + bodyAsString())
             .toString();
     }
 
