@@ -46,6 +46,7 @@ class HttpRequestTest {
         headers.add(HttpHeaders.ACCEPT_ENCODING, "gzip");
         headers.add(HttpHeaders.ACCEPT_ENCODING, "deflate");
         headers.add(HttpHeaders.ACCEPT_LANGUAGE, "en-US");
+        headers.add(HttpHeaders.HOST, "example.com:1337");
         final String testBody = "{\"key\": \"value\"}";
         final HttpExchange exchange = createMockHttpExchange("GET", "/test", headers, testBody);
         httpObject = new HttpObject(exchange);
@@ -206,12 +207,12 @@ class HttpRequestTest {
 
     @Test
     void testPort() {
-        assertThat(httpObject.port()).isEqualTo(PORT);
+        assertThat(httpObject.port()).isEqualTo(1337);
     }
 
     @Test
     void testHost() {
-        assertThat(httpObject.host()).isEqualTo(HOST);
+        assertThat(httpObject.host()).isEqualTo("example.com");
     }
 
     @Test

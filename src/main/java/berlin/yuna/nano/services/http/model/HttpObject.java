@@ -1,6 +1,7 @@
 package berlin.yuna.nano.services.http.model;
 
 import berlin.yuna.typemap.logic.JsonDecoder;
+import berlin.yuna.typemap.logic.TypeConverter;
 import berlin.yuna.typemap.logic.XmlDecoder;
 import berlin.yuna.typemap.model.TypeContainer;
 import berlin.yuna.typemap.model.TypeMap;
@@ -284,14 +285,17 @@ public class HttpObject {
     }
 
     public String bodyAsString() {
-        try {
-            if (body == null) {
-                body = exchange.getRequestBody().readAllBytes();
-            }
-            return new String(body, Charset.defaultCharset());
-        } catch (final Exception ignored) {
-            return null;
+
+        if (body == null) {
+            body = fromExchange(httpExchange -> {
+                try {
+                    return httpExchange.getRequestBody().readAllBytes();
+                } catch (final Exception ignored) {
+                    return null;
+                }
+            });
         }
+        return new String(body, Charset.defaultCharset());
     }
 
     public TypeContainer<?> bodyAsJson() {
@@ -306,7 +310,7 @@ public class HttpObject {
 
     public TypeMap queryParameters() {
         if (queryParams == null) {
-            queryParams = Optional.ofNullable(exchange.getRequestURI().getQuery())
+            queryParams = Optional.ofNullable(fromExchange(httpExchange -> httpExchange.getRequestURI().getQuery()))
                 .map(query -> {
                     final TypeMap result = new TypeMap();
                     Arrays.stream(split(query, "&"))
@@ -388,15 +392,26 @@ public class HttpObject {
     }
 
     public String host() {
-        return exchange.getLocalAddress().getHostName();
+        return headers.getOpt(String.class, HttpHeaders.HOST).map(s -> split(s, ":")[0])
+            .orElseGet(() -> fromExchange(httpExchange -> httpExchange.getLocalAddress().getHostName()));
+    }
+
+    public String address() {
+        return headers.getOpt(String.class, HttpHeaders.HOST).map(s -> split(s, ":")[0])
+            .orElseGet(() -> fromExchange(httpExchange -> httpExchange.getLocalAddress().getAddress().getHostAddress()));
     }
 
     public int port() {
-        return exchange.getLocalAddress().getPort();
+        return headers.getOpt(String.class, HttpHeaders.HOST)
+            .map(s -> split(s, ":"))
+            .filter(a -> a.length > 1)
+            .map(a -> a[1])
+            .map(s -> TypeConverter.convertObj(s, Integer.class))
+            .orElseGet(() -> fromExchange(httpExchange -> httpExchange.getLocalAddress().getPort()));
     }
 
     public String protocol() {
-        return exchange.getProtocol();
+        return fromExchange(HttpExchange::getProtocol);
     }
 
     public String userAgent() {
@@ -475,6 +490,10 @@ public class HttpObject {
     public Map<String, String> headers() {
         // TODO : convert TypeMap to Map<String, String>
         return headers.getMap(String.class, String.class);
+    }
+
+    public <T> T fromExchange(final Function<HttpExchange, T> mapper) {
+        return exchange != null ? mapper.apply(exchange) : null;
     }
 
     @Override
