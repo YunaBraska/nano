@@ -296,8 +296,8 @@ public class HttpObject {
     }
 
     public HttpObject path(final String path) {
-        final String[] parts = split(path, "?");
-        this.path = removeLast(parts[0], "/");
+        final String[] parts = path == null ? new String[0] : split(path, "?");
+        this.path = parts.length > 0 ? removeLast(parts[0], "/") : null;
         if (parts.length > 1) {
             queryParams = queryParamsOf(parts[1]);
         }
@@ -305,7 +305,7 @@ public class HttpObject {
     }
 
     public String bodyAsString() {
-        return body() == null ? null : new String(body(), Charset.defaultCharset());
+        return new String(body(), Charset.defaultCharset());
     }
 
     public TypeContainer<?> bodyAsJson() {

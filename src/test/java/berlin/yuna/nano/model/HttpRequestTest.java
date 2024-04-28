@@ -119,6 +119,10 @@ class HttpRequestTest {
         assertThat(new HttpObject().contentType("application/json", "TexT/Plain").hasContentType(APPLICATION_JSON.value())).isTrue();
         assertThat(new HttpObject().contentType("application/json", "TexT/Plain").hasContentType(APPLICATION_JSON.value(), TEXT_PLAIN.value())).isTrue();
         assertThat(new HttpObject().contentType("application/json", "TexT/Plain").hasContentType(APPLICATION_JSON.value(), TEXT_PLAIN.value(), APPLICATION_PDF.value())).isFalse();
+
+        // General
+        assertThat(new HttpObject().contentTypes()).isEmpty();
+        assertThat(new HttpObject().contentType()).isNull();
     }
 
     @Test
@@ -174,6 +178,10 @@ class HttpRequestTest {
         assertThat(new HttpObject().accept("application/json", "text/plain").hasAccept(APPLICATION_JSON.value())).isTrue();
         assertThat(new HttpObject().accept("application/json", "text/plain").hasAccept(APPLICATION_JSON.value(), TEXT_PLAIN.value())).isTrue();
         assertThat(new HttpObject().accept("application/json", "text/plain").hasAccept(APPLICATION_JSON.value(), TEXT_PLAIN.value(), APPLICATION_PDF.value())).isFalse();
+
+        // General
+        assertThat(new HttpObject().accepts()).isEmpty();
+        assertThat(new HttpObject().accept()).isNull();
     }
 
     @Test
@@ -222,6 +230,11 @@ class HttpRequestTest {
         assertThat(exchangeTest.bodyAsJson()).isEqualTo(bodyJson);
         assertThat(exchangeTest.bodyAsXml()).isNotNull();
         assertThat(exchangeTest.bodyAsJson().get(String.class, "key")).isEqualTo("value");
+
+        // General
+        assertThat(new HttpObject().bodyAsJson()).isEqualTo(new TypeList().addReturn(""));
+        assertThat(new HttpObject().bodyAsXml()).isEqualTo(new TypeList());
+        assertThat(new HttpObject().bodyAsString()).isEmpty();
     }
 
     @Test
@@ -234,6 +247,10 @@ class HttpRequestTest {
         assertThat(httpObject.queryParam("key1")).isEqualTo("value1");
         assertThat(httpObject.queryParam("key2")).isEqualTo("value2");
         assertThat(httpObject.queryParam("key3")).isNull();
+
+        // General
+        assertThat(new HttpObject(createMockHttpExchange("GET", "/test?key1=value1&key2=value2", new Headers(), "{\"key\": \"value\"}")).queryParams()).hasSize(2);
+        assertThat(new HttpObject().queryParams()).isEmpty();
     }
 
     @Test
@@ -263,6 +280,10 @@ class HttpRequestTest {
         assertThat(httpObject1.pathParam("value1")).isEqualTo("bb");
         assertThat(httpObject2.pathParams().get(String.class, "value2")).isEqualTo("dd");
         assertThat(httpObject2.queryParams().get(Integer.class, "myNumber")).isEqualTo(2468);
+
+        // General
+        assertThat(new HttpObject().path(null).pathMatch("/aa/bb/cc/dd")).isFalse();
+        assertThat(new HttpObject().path(null).pathMatch(null)).isFalse();
     }
 
     @Test
@@ -293,6 +314,8 @@ class HttpRequestTest {
             assertThat(httpObject.headers()).hasSize(3);
             assertThat(httpObject.containsHeader("mynumber")).isTrue();
             assertThat(httpObject.containsHeader("myNumber")).isTrue();
+            assertThat(httpObject.containsHeader("invalid")).isFalse();
+            assertThat(httpObject.containsHeader(null)).isFalse();
             assertThat(httpObject.header("myNumber")).isEqualTo("123");
             assertThat(httpObject.header("mynumber")).isEqualTo("123");
             assertThat(httpObject.headers().get(Integer.class, "mynumber")).isEqualTo(123);
@@ -342,6 +365,10 @@ class HttpRequestTest {
         final HttpObject httpObject = new HttpObject().header(ACCEPT_LANGUAGE, "en-US,en;q=0.9,de;q=0.8");
         assertThat(httpObject.acceptLanguage()).isEqualTo(Locale.of("en", "us"));
         assertThat(httpObject.acceptLanguages()).containsExactly(Locale.of("en", "us"), Locale.ENGLISH, Locale.GERMAN);
+
+        // General
+        assertThat(new HttpObject().acceptLanguages()).isEmpty();
+        assertThat(new HttpObject().acceptLanguage()).isNull();
     }
 
     @Test
@@ -351,6 +378,10 @@ class HttpRequestTest {
         assertThat(httpObject.acceptEncodings()).containsExactly("gzip", "deflate");
         assertThat(httpObject.hasAcceptEncoding("gzip", "deflate")).isTrue();
         assertThat(httpObject.hasAcceptEncoding("gzip", "deflate", "unknown")).isFalse();
+
+        // General
+        assertThat(new HttpObject().acceptEncodings()).isEmpty();
+        assertThat(new HttpObject().acceptEncoding()).isNull();
     }
 
     @Test
