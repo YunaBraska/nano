@@ -7,6 +7,7 @@ import berlin.yuna.typemap.model.TypeMap;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 
+import java.net.URLDecoder;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.function.Function;
@@ -18,9 +19,9 @@ public class HttpObject {
 
     protected final HttpMethod method;
     protected final String path;
-    protected TypeMap headers;
     protected final HttpExchange exchange;
     protected byte[] body;
+    protected TypeMap headers;
     protected TypeMap queryParams;
     protected TypeMap pathParams;
     private int statusCode;
@@ -40,7 +41,6 @@ public class HttpObject {
     }
 
     public static TypeMap convertHeaders(final Headers headers) {
-        // handle all value as list if it have comma separated values
         return headers.entrySet().stream()
             .collect(Collectors.toMap(
                 entry -> entry.getKey().toLowerCase(),
@@ -55,7 +55,7 @@ public class HttpObject {
             .collect(Collectors.toMap(
                 entry -> entry.getKey().toLowerCase(),
                 entry -> {
-                    String value = entry.getValue();
+                    final String value = entry.getValue();
                     return value.split("\\s*,\\s*");
                 },
                 (v1, v2) -> v1,
@@ -306,26 +306,19 @@ public class HttpObject {
 
     public TypeMap queryParameters() {
         if (queryParams == null) {
-            try {
-                final String query = exchange.getRequestURI().getQuery();
-                queryParams = new TypeMap();
-                if (query != null) {
-                    final String[] queryParamsArray = query.split("&");
-                    for (final String param : queryParamsArray) {
-                        final String[] keyValue = param.split("=");
-
-                        if (keyValue.length == 2) {
-                            final String key = java.net.URLDecoder.decode(keyValue[0], Charset.defaultCharset());
-                            final String value = java.net.URLDecoder.decode(keyValue[1], Charset.defaultCharset());
-                            queryParams.put(key, value);
-                        } else if (keyValue.length == 1) {
-                            final String key = java.net.URLDecoder.decode(keyValue[0], Charset.defaultCharset());
-                            queryParams.put(key, "");
-                        }
-                    }
-                }
-            } catch (final Exception ignored) {
-            }
+            queryParams = Optional.ofNullable(exchange.getRequestURI().getQuery())
+                .map(query -> {
+                    final TypeMap result = new TypeMap();
+                    Arrays.stream(split(query, "&"))
+                        .map(param -> split(param, "="))
+                        .forEach(keyValue -> {
+                            final String key = URLDecoder.decode(keyValue[0], Charset.defaultCharset());
+                            final String value = keyValue.length > 1 ? URLDecoder.decode(keyValue[1], Charset.defaultCharset()) : "";
+                            result.put(key, value);
+                        });
+                    return result;
+                })
+                .orElseGet(TypeMap::new);
         }
         return queryParams;
     }
@@ -345,8 +338,8 @@ public class HttpObject {
 
     public boolean match(final String pathToMatch) {
 
-        final String[] partsToMatch = pathToMatch.split("/");
-        final String[] parts = path.split("/");
+        final String[] partsToMatch = split(pathToMatch, "/");
+        final String[] parts = split(path, "/");
 
         if (exactMatch(pathToMatch) && pathToMatch.contains("{")) return true;
 
@@ -426,8 +419,8 @@ public class HttpObject {
             .orElse(null);
     }
 
-    private String decodeBasicAuth(String encodedCredentials) {
-        byte[] decodedBytes = Base64.getDecoder().decode(encodedCredentials);
+    private String decodeBasicAuth(final String encodedCredentials) {
+        final byte[] decodedBytes = Base64.getDecoder().decode(encodedCredentials);
         return new String(decodedBytes);
     }
 
@@ -451,25 +444,25 @@ public class HttpObject {
             return emptyList();
         if (value.size() != 1)
             return value.stream().map(mapper).toList();
-        return Arrays.stream(value.iterator().next().split(","))
-            .map(s -> s.split(";q="))
+        return Arrays.stream(split(value.iterator().next(), ","))
+            .map(s -> split(s, ";q="))
             .sorted(Comparator.comparing(parts -> parts.length > 1 ? Double.parseDouble(parts[1]) : 1.0, Comparator.reverseOrder()))
             .map(parts -> mapper.apply(parts[0]))
             .filter(Objects::nonNull)
             .toList();
     }
 
-    public HttpObject statusCode(int statusCode) {
+    public HttpObject statusCode(final int statusCode) {
         this.statusCode = statusCode;
         return this;
     }
 
-    public HttpObject body(byte[] body) {
+    public HttpObject body(final byte[] body) {
         this.body = body;
         return this;
     }
 
-    public HttpObject headers(Map<String, String> headers) {
+    public HttpObject headers(final Map<String, String> headers) {
         this.headers = convertSimpleHeaders(headers);
         return this;
     }
@@ -505,6 +498,21 @@ public class HttpObject {
             .add("body=" + Arrays.toString(body))
             .add("headers=" + headers)
             .toString();
+    }
+
+    public static String[] split(final String input, final String delimiter) {
+        if (!input.contains(delimiter)) {
+            return new String[]{input};
+        }
+        final List<String> result = new ArrayList<>();
+        int start = 0;
+        int index;
+        while ((index = input.indexOf(delimiter, start)) != -1) {
+            result.add(input.substring(start, index));
+            start = index + delimiter.length();
+        }
+        result.add(input.substring(start));
+        return result.toArray(new String[0]);
     }
 
 }

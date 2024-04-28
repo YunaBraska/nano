@@ -6,8 +6,6 @@ import berlin.yuna.nano.core.model.Unhandled;
 import berlin.yuna.nano.services.http.model.ContentType;
 import berlin.yuna.nano.services.http.model.HttpHeaders;
 import berlin.yuna.nano.services.http.model.HttpObject;
-import berlin.yuna.typemap.model.TypeMap;
-import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 

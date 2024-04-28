@@ -28,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class HttpRequestTest {
+class HttpRequestTest {
 
     private HttpObject httpObject;
     private final int PORT = 80;
@@ -39,15 +39,15 @@ public class HttpRequestTest {
 
     @BeforeEach
     void setUp() {
-        Headers headers = new Headers();
+        final Headers headers = new Headers();
         headers.add(HttpHeaders.CONTENT_TYPE, "application/json");
         headers.add(HttpHeaders.ACCEPT, "application/json");
         headers.add(HttpHeaders.ACCEPT, "text/html");
         headers.add(HttpHeaders.ACCEPT_ENCODING, "gzip");
         headers.add(HttpHeaders.ACCEPT_ENCODING, "deflate");
         headers.add(HttpHeaders.ACCEPT_LANGUAGE, "en-US");
-        String testBody = "{\"key\": \"value\"}";
-        HttpExchange exchange = createMockHttpExchange("GET", "/test", headers, testBody);
+        final String testBody = "{\"key\": \"value\"}";
+        final HttpExchange exchange = createMockHttpExchange("GET", "/test", headers, testBody);
         httpObject = new HttpObject(exchange);
     }
 
@@ -61,12 +61,13 @@ public class HttpRequestTest {
 
     @Test
     void testConvertHeaders() {
-        Headers headers = new Headers();
+        final Headers headers = new Headers();
         headers.add("Content-Type", "application/json");
         headers.add("Accept", "application/json");
-        TypeMap typeMap = HttpObject.convertHeaders(headers);
-        assertThat(typeMap).containsEntry("content-type", Collections.singletonList("application/json"));
-        assertThat(typeMap).containsEntry("accept", Collections.singletonList("application/json"));
+        final TypeMap typeMap = HttpObject.convertHeaders(headers);
+        assertThat(typeMap)
+            .containsEntry("content-type", Collections.singletonList("application/json"))
+            .containsEntry("accept", Collections.singletonList("application/json"));
     }
 
     @Test
@@ -121,10 +122,10 @@ public class HttpRequestTest {
     }
 
     @Test
-    void testBodyMethods() throws IOException {
-        String testBody = "{\"key\": \"value\"}";
-        InputStream bodyStream = new ByteArrayInputStream(testBody.getBytes(Charset.defaultCharset()));
-        InputStream oldStream = httpObject.exchange().getRequestBody();
+    void testBodyMethods() {
+        final String testBody = "{\"key\": \"value\"}";
+        final InputStream bodyStream = new ByteArrayInputStream(testBody.getBytes(Charset.defaultCharset()));
+        final InputStream oldStream = httpObject.exchange().getRequestBody();
         httpObject.exchange().setStreams(bodyStream, null);
 
         assertThat(httpObject.bodyAsString()).isEqualTo(testBody);
@@ -139,10 +140,10 @@ public class HttpRequestTest {
 
     @Test
     void testGetRequestBody() throws IOException {
-        String testBody = "{\"key\": \"value\"}";
-        byte[] expectedStream = testBody.getBytes(Charset.defaultCharset());
+        final String testBody = "{\"key\": \"value\"}";
+        final byte[] expectedStream = testBody.getBytes(Charset.defaultCharset());
         httpObject.bodyAsString();
-        byte[] actualBody = httpObject.body();
+        final byte[] actualBody = httpObject.body();
         assertThat((actualBody)).isEqualTo(expectedStream);
     }
 
@@ -154,9 +155,9 @@ public class HttpRequestTest {
 
     @Test
     void testQueryParameters() {
-        HttpExchange exchange = createMockHttpExchange("GET", "/test?key1=value1&key2=value2", new Headers(), "");
-        HttpObject request = new HttpObject(exchange);
-        assertThat(request.queryParameters().size()).isEqualTo(2);
+        final HttpExchange exchange = createMockHttpExchange("GET", "/test?key1=value1&key2=value2", new Headers(), "");
+        final HttpObject request = new HttpObject(exchange);
+        assertThat(request.queryParameters()).hasSize(2);
         assertThat(request.containsQueryParam("key1")).isTrue();
         assertThat(request.containsQueryParam("key2")).isTrue();
         assertThat(request.containsQueryParam("key3")).isFalse();
@@ -187,11 +188,11 @@ public class HttpRequestTest {
 
     @Test
     void testPathParams() {
-        HttpExchange exchange = createMockHttpExchange("GET", "/test/param1/param2", new Headers(), "");
-        HttpObject request = new HttpObject(exchange);
+        final HttpExchange exchange = createMockHttpExchange("GET", "/test/param1/param2", new Headers(), "");
+        final HttpObject request = new HttpObject(exchange);
 
         request.match("/test/{param1}/{param2}");
-        assertThat(request.pathParams().size()).isEqualTo(2);
+        assertThat(request.pathParams()).hasSize(2);
         assertThat(request.pathParam("param1")).isEqualTo("param1");
         assertThat(request.pathParam("param2")).isEqualTo("param2");
 
@@ -220,122 +221,122 @@ public class HttpRequestTest {
 
     @Test
     void testUserAgent() {
-        Headers headers = new Headers();
+        final Headers headers = new Headers();
         headers.add("User-Agent", AGENT);
-        HttpExchange exchange = createMockHttpExchange("GET", "/test", headers, "");
-        HttpObject request = new HttpObject(exchange);
+        final HttpExchange exchange = createMockHttpExchange("GET", "/test", headers, "");
+        final HttpObject request = new HttpObject(exchange);
         assertThat(request.userAgent()).isEqualTo(AGENT);
     }
 
     @Test
     void testAuthToken() {
-        Headers headers = new Headers();
+        final Headers headers = new Headers();
         headers.add("Authorization", TOKEN);
-        HttpExchange exchange = createMockHttpExchange("GET", "/test", headers, "");
-        HttpObject request = new HttpObject(exchange);
+        final HttpExchange exchange = createMockHttpExchange("GET", "/test", headers, "");
+        final HttpObject request = new HttpObject(exchange);
         assertThat(request.authToken()).isEqualTo("123");
     }
 
     @Test
     void testAuthBasic() {
-        Headers headers = new Headers();
+        final Headers headers = new Headers();
         // todo : add basic token auth
     }
 
     @Test
-    public void testBasicAuth() {
-        Headers headers = new Headers();
+    void testBasicAuth() {
+        final Headers headers = new Headers();
         headers.add(HttpHeaders.AUTHORIZATION, "Basic QWxhZGRpbjpPcGVuU2VzYW1l");
-        HttpExchange exchange = createMockHttpExchange("GET", "/test", headers, "");
-        HttpObject request = new HttpObject(exchange);
-        String[] credentials1 = request.basicAuth();
+        final HttpExchange exchange = createMockHttpExchange("GET", "/test", headers, "");
+        final HttpObject request = new HttpObject(exchange);
+        final String[] credentials1 = request.basicAuth();
         assertThat(credentials1).containsExactly("Aladdin", "OpenSesame");
     }
 
     @Test
     void testPreferredLanguages() {
-        Headers headers = new Headers();
+        final Headers headers = new Headers();
         headers.add("Accept-Language", "en-US,en;q=0.9,de;q=0.8");
-        HttpExchange exchange = createMockHttpExchange("GET", "/test", headers, "");
-        HttpObject request = new HttpObject(exchange);
+        final HttpExchange exchange = createMockHttpExchange("GET", "/test", headers, "");
+        final HttpObject request = new HttpObject(exchange);
         assertThat(request.acceptLanguages()).containsExactly(Locale.of("en", "us"), Locale.ENGLISH, Locale.GERMAN);
     }
 
     @Test
     // todo : getList is not returning casted listed
     void testContentType() {
-        Headers headers = new Headers();
+        final Headers headers = new Headers();
         headers.add("Content-Type", "application/json");
-        HttpExchange exchange = createMockHttpExchange("GET", "/test", headers, "");
-        HttpObject request = new HttpObject(exchange);
+        final HttpExchange exchange = createMockHttpExchange("GET", "/test", headers, "");
+        final HttpObject request = new HttpObject(exchange);
         assertThat(request.contentTypes()).containsExactly(ContentType.APPLICATION_JSON);
         assertThat(httpObject.contentType()).isEqualTo(ContentType.APPLICATION_JSON);
     }
 
     @Test
-    public void testHasAccept_StringArray() {
-        boolean result = httpObject.hasAccept("application/json", "text/html");
+    void testHasAccept_StringArray() {
+        final boolean result = httpObject.hasAccept("application/json", "text/html");
         assertThat(result).isTrue();
     }
 
     @Test
-    public void testHasAccept_ContentType() {
+    void testHasAccept_ContentType() {
 
-        boolean result = httpObject.hasAccept(ContentType.APPLICATION_JSON);
+        final boolean result = httpObject.hasAccept(ContentType.APPLICATION_JSON);
         assertThat(result).isTrue();
     }
 
     @Test
-    public void testAcceptEncoding() {
+    void testAcceptEncoding() {
 
-        String result = httpObject.acceptEncoding();
+        final String result = httpObject.acceptEncoding();
         assertThat(result).isEqualTo("gzip");
     }
 
     @Test
-    public void testHasAcceptEncoding_StringArray() {
-        boolean result = httpObject.hasAcceptEncoding("gzip", "deflate");
+    void testHasAcceptEncoding_StringArray() {
+        final boolean result = httpObject.hasAcceptEncoding("gzip", "deflate");
 
         assertThat(result).isTrue();
     }
 
     @Test
-    public void testAccepts() {
+    void testAccepts() {
 
-        List<ContentType> result = httpObject.accepts();
+        final List<ContentType> result = httpObject.accepts();
         assertThat(result).containsExactly(ContentType.APPLICATION_JSON, ContentType.TEXT_HTML);
     }
 
     @Test
-    public void testAccept() {
+    void testAccept() {
 
-        ContentType result = httpObject.accept();
+        final ContentType result = httpObject.accept();
         assertThat(result).isEqualTo(ContentType.APPLICATION_JSON);
     }
 
     @Test
-    public void testAcceptLanguage() {
+    void testAcceptLanguage() {
 
-        List<Locale> result = httpObject.acceptLanguage();
+        final List<Locale> result = httpObject.acceptLanguage();
         assertThat(result).containsExactly(Locale.US);
     }
 
     @Test
-    public void testBodyAsXml() {
-        String xmlBody = "<name>John</name>";
-        HttpExchange exchange = createMockHttpExchange("GET", "/test", new Headers(), xmlBody);
+    void testBodyAsXml() {
+        final String xmlBody = "<name>John</name>";
+        final HttpExchange exchange = createMockHttpExchange("GET", "/test", new Headers(), xmlBody);
         httpObject = new HttpObject(exchange);
 
-        TypeContainer<?> result = httpObject.bodyAsXml();
+        final TypeContainer<?> result = httpObject.bodyAsXml();
 
-        TypeContainer<?> expected = XmlDecoder.xmlTypeOf(xmlBody);
+        final TypeContainer<?> expected = XmlDecoder.xmlTypeOf(xmlBody);
         assertThat(result).isEqualTo(expected);
     }
 
     @Test
-    public void testHttpObjectMethods() {
+    void testHttpObjectMethods() {
         // Create a sample HTTP response
-        HttpObject httpObject = new HttpObject();
+        final HttpObject httpObject = new HttpObject();
         httpObject.statusCode(200)
             .body("Sample body".getBytes())
             .headers(createSampleHeaders());
@@ -348,14 +349,14 @@ public class HttpRequestTest {
         httpObject.statusCode(404);
         assertEquals(404, httpObject.statusCode());
 
-        HttpObject httpObjectCopy = new HttpObject();
+        final HttpObject httpObjectCopy = new HttpObject();
         httpObjectCopy.statusCode(404)
             .body("Sample body".getBytes())
             .headers(createSampleHeaders());
         assertEquals(httpObjectCopy, httpObject);
 
 //        assertEquals(httpObjectCopy.hashCode(), httpObject.hashCode());
-        String expectedToString = "HttpObject[statusCode=404, body=[83, 97, 109, 112, 108, 101, 32, 98, 111, 100, 121], headers={Header1=Value1, Header2=Value2, NewHeader=Value}]";
+        final String expectedToString = "HttpObject[statusCode=404, body=[83, 97, 109, 112, 108, 101, 32, 98, 111, 100, 121], headers={Header1=Value1, Header2=Value2, NewHeader=Value}]";
 //        assertEquals(expectedToString, httpObject.toString());
     }
 
@@ -365,12 +366,12 @@ public class HttpRequestTest {
     }
 
     @Test
-    public void testHashCode() {
-        HttpObject httpObject1 = new HttpObject();
+    void testHashCode() {
+        final HttpObject httpObject1 = new HttpObject();
         httpObject1.statusCode(200)
             .body("Sample body".getBytes());
 
-        HttpObject httpObject2 = new HttpObject();
+        final HttpObject httpObject2 = new HttpObject();
         httpObject2.statusCode(200)
             .body("Sample body".getBytes());
 
@@ -378,17 +379,17 @@ public class HttpRequestTest {
     }
 
     @Test
-    public void testToString() {
-        HttpObject httpObject = new HttpObject();
+    void testToString() {
+        final HttpObject httpObject = new HttpObject();
         httpObject.statusCode(200)
             .body("Sample body".getBytes());
 
-        String expectedToString = "HttpObject[statusCode=200, body=[83, 97, 109, 112, 108, 101, 32, 98, 111, 100, 121], headers={}]";
+        final String expectedToString = "HttpObject[statusCode=200, body=[83, 97, 109, 112, 108, 101, 32, 98, 111, 100, 121], headers={}]";
         assertEquals(expectedToString, httpObject.toString());
     }
 
 
-    private HttpExchange createMockHttpExchange(String method, String path, Headers headers, String testBody) {
+    private HttpExchange createMockHttpExchange(final String method, final String path, final Headers headers, final String testBody) {
 
         return new HttpExchange() {
             @Override

@@ -9,7 +9,6 @@ import java.util.Map;
 
 import static berlin.yuna.nano.core.config.TestConfig.*;
 import static berlin.yuna.nano.core.model.Config.CONFIG_LOG_LEVEL;
-import static berlin.yuna.nano.helper.NanoUtils.waitForCondition;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Execution(ExecutionMode.CONCURRENT)

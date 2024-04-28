@@ -54,9 +54,7 @@ class LockedBooleanTest {
         final CountDownLatch latch = new CountDownLatch(10);
         final LockedBoolean lockedBoolean = new LockedBoolean(false);
 
-        IntStream.range(0, 10).parallel().forEach(i -> NanoThreadTest.TEST_EXECUTOR.submit(() -> {
-            lockedBoolean.run(state -> latch.countDown());
-        }));
+        IntStream.range(0, 10).parallel().forEach(i -> NanoThreadTest.TEST_EXECUTOR.submit(() -> lockedBoolean.run(state -> latch.countDown())));
 
         Assertions.assertThat(TestConfig.await(latch)).isTrue();
         assertThat(lockedBoolean.get()).isFalse();
