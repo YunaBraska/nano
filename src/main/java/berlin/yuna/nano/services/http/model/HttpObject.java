@@ -43,10 +43,6 @@ public class HttpObject {
         this.exchange = null;
     }
 
-    public static boolean isMethod(final HttpObject request, final HttpMethod method) {
-        return request.method.name().equals(method.name());
-    }
-
     public boolean isMethodGet() {
         return HttpMethod.GET.equals(method);
     }
@@ -556,6 +552,12 @@ public class HttpObject {
             .add("body=" + Arrays.toString(body))
             .add("headers=" + headers)
             .toString();
+    }
+
+    // ########## STATICS ##########
+
+    public static boolean isMethod(final HttpObject request, final HttpMethod method) {
+        return request.method.name().equals(method.name());
     }
 
     public static TypeMap convertHeaders(final Map<String, ?> headers) {
