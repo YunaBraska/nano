@@ -17,6 +17,7 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -24,8 +25,8 @@ import java.util.Map;
 
 import static berlin.yuna.nano.services.http.model.ContentType.*;
 import static berlin.yuna.nano.services.http.model.HttpHeaders.*;
+import static java.nio.charset.StandardCharsets.US_ASCII;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class HttpRequestTest {
 
@@ -184,6 +185,19 @@ class HttpRequestTest {
         assertThat(httpObject.hasAcceptGif()).isFalse();
         assertThat(httpObject.hasAcceptMpeg()).isFalse();
         assertThat(httpObject.hasAcceptMp4()).isFalse();
+    }
+
+    @Test
+    void testContentTypeEncoding() {
+        // ENUM
+        assertThat(new HttpObject().contentType(APPLICATION_JSON).encoding()).isEqualTo(Charset.defaultCharset());
+        assertThat(new HttpObject().contentType(US_ASCII, APPLICATION_PDF).header(CONTENT_TYPE)).isEqualTo(APPLICATION_PDF.value() + "; charset=" + US_ASCII);
+        assertThat(new HttpObject().contentType(US_ASCII, APPLICATION_PDF).encoding()).isEqualTo(US_ASCII);
+
+        // STRING
+        assertThat(new HttpObject().contentType(APPLICATION_JSON.value()).encoding()).isEqualTo(Charset.defaultCharset());
+        assertThat(new HttpObject().contentType(US_ASCII, APPLICATION_PDF.value()).header(CONTENT_TYPE)).isEqualTo(APPLICATION_PDF.value() + "; charset=" + US_ASCII);
+        assertThat(new HttpObject().contentType(US_ASCII, APPLICATION_PDF.value()).encoding()).isEqualTo(US_ASCII);
     }
 
     @Test

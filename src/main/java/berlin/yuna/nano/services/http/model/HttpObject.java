@@ -15,6 +15,8 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static berlin.yuna.nano.services.http.model.HttpHeaders.CONTENT_TYPE;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.emptyList;
 import static java.util.Optional.ofNullable;
 
@@ -92,16 +94,31 @@ public class HttpObject {
     }
 
     public List<ContentType> contentTypes() {
-        return contentSplitType(HttpHeaders.CONTENT_TYPE);
+        return contentSplitType(CONTENT_TYPE);
     }
 
     public HttpObject contentType(final String... contentType) {
-        headers().put(HttpHeaders.CONTENT_TYPE, Arrays.stream(contentType).map(ContentType::fromValue).filter(Objects::nonNull).map(ContentType::value).collect(Collectors.joining(", ")));
-        return this;
+        return contentType(null, contentType);
     }
 
     public HttpObject contentType(final ContentType... contentType) {
-        headers().put(HttpHeaders.CONTENT_TYPE, Arrays.stream(contentType).filter(Objects::nonNull).map(ContentType::value).collect(Collectors.joining(", ")));
+        return contentType(null, contentType);
+    }
+
+    public HttpObject contentType(final Charset charset, final String... contentType) {
+        headers().put(CONTENT_TYPE, Arrays.stream(contentType)
+            .map(ContentType::fromValue)
+            .filter(Objects::nonNull)
+            .map(ContentType::value)
+            .collect(Collectors.joining(", ")) + (charset == null ? "" : "; charset=" + charset.name()));
+        return this;
+    }
+
+    public HttpObject contentType(final Charset charset, final ContentType... contentType) {
+        headers().put(CONTENT_TYPE, Arrays.stream(contentType)
+            .filter(Objects::nonNull)
+            .map(ContentType::value)
+            .collect(Collectors.joining(", ")) + (charset == null ? "" : "; charset=" + charset.name()));
         return this;
     }
 
@@ -287,6 +304,15 @@ public class HttpObject {
         return hasContentType(ContentType.VIDEO_MP4);
     }
 
+    public Charset encoding() {
+        return Arrays.stream(ofNullable(header(CONTENT_TYPE)).map(s -> split(s, ";")).orElse(new String[0]))
+            .map(String::trim)
+            .filter(part -> part.toLowerCase().startsWith("charset="))
+            .map(charset -> charset.substring(8).trim())
+            .map(charset -> TypeConverter.convertObj(charset, Charset.class))
+            .filter(Objects::nonNull)
+            .findFirst().orElse(Charset.defaultCharset());
+    }
 
     public String path() {
         return path;
@@ -302,7 +328,7 @@ public class HttpObject {
     }
 
     public String bodyAsString() {
-        return new String(body(), Charset.defaultCharset());
+        return new String(body(), encoding());
     }
 
     public TypeContainer<?> bodyAsJson() {
@@ -325,12 +351,12 @@ public class HttpObject {
     }
 
     public HttpObject body(final TypeContainer<?> body) {
-        this.body = body.toJson().getBytes(Charset.defaultCharset());
+        this.body = body.toJson().getBytes(encoding());
         return this;
     }
 
     public HttpObject body(final String body) {
-        this.body = body.getBytes(Charset.defaultCharset());
+        this.body = body.getBytes(encoding());
         return this;
     }
 
@@ -398,16 +424,16 @@ public class HttpObject {
     }
 
     public String header(final String name) {
-        return name == null ? null : headers.get(String.class, name.toLowerCase());
+        return name == null || headers == null ? null : headers.get(String.class, name.toLowerCase());
     }
 
     public boolean containsHeader(final String name) {
-        return name != null && headers.containsKey(name.toLowerCase());
+        return name != null && headers != null && headers.containsKey(name.toLowerCase());
     }
 
     public String host() {
         return ofNullable(fromExchange(httpExchange -> httpExchange.getRemoteAddress().getHostName()))
-            .or(() -> headers.getOpt(String.class, HttpHeaders.HOST).map(s -> split(s, ":")[0])).orElse(null);
+            .or(() -> ofNullable(headers).map(header -> header.get(String.class, HttpHeaders.HOST)).map(value -> split(value, ":")[0])).orElse(null);
     }
 
     public InetAddress address() {
@@ -416,7 +442,7 @@ public class HttpObject {
 
     public int port() {
         return ofNullable(fromExchange(httpExchange -> httpExchange.getRemoteAddress().getPort()))
-            .or(() -> headers.getOpt(String.class, HttpHeaders.HOST).map(s -> split(s, ":"))
+            .or(() -> ofNullable(headers).map(header -> header.get(String.class, HttpHeaders.HOST)).map(value -> split(value, ":"))
                 .filter(a -> a.length > 1)
                 .map(a -> a[1])
                 .map(s -> TypeConverter.convertObj(s, Integer.class))
@@ -510,8 +536,8 @@ public class HttpObject {
                     Arrays.stream(split(q, "&"))
                         .map(param -> split(param, "="))
                         .forEach(keyValue -> {
-                            final String key = URLDecoder.decode(keyValue[0], Charset.defaultCharset());
-                            final String value = keyValue.length > 1 ? URLDecoder.decode(keyValue[1], Charset.defaultCharset()) : "";
+                            final String key = URLDecoder.decode(keyValue[0], UTF_8);
+                            final String value = keyValue.length > 1 ? URLDecoder.decode(keyValue[1], UTF_8) : "";
                             result.put(key, value);
                         });
                     return result;

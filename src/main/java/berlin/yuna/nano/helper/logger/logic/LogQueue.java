@@ -80,7 +80,7 @@ public class LogQueue extends Service {
     }
 
     protected void process() {
-        while (isReady() || !queue.isEmpty()) {
+        while (isReady() || (queue != null && !queue.isEmpty())) {
             try {
                 final Pair<Logger, LogRecord> pair = queue.take();
                 if (pair.left() != this.logger.logger()) {

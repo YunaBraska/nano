@@ -42,8 +42,8 @@ public class HttpService extends Service {
     public synchronized void start(final Supplier<Context> contextSub) {
         isReady.set(false, true, state -> {
             final Context context = contextSub.get().newContext(HttpService.class, null);
-            final int port = context.getOpt(Integer.class, "app_service_http_port").filter(p -> p > 0).orElseGet(() -> nextFreePort(8080));
             handleHttps(context);
+            final int port = context.getOpt(Integer.class, "app_service_http_port").filter(p -> p > 0).orElseGet(() -> nextFreePort(8080));
             try {
                 server = HttpServer.create(new InetSocketAddress(port), 0);
                 server.setExecutor(context.nano().threadPool());
@@ -140,8 +140,8 @@ public class HttpService extends Service {
     }
 
     public static int nextFreePort(final int startPort) {
-        for (int i = 1; i < 1024; i++) {
-            final int port = i + startPort;
+        for (int i = 0; i < 1024; i++) {
+            final int port = i + (Math.max(startPort, 1));
             if (!isPortInUse(port)) {
                 return port;
             }
