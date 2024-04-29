@@ -1,5 +1,6 @@
 package berlin.yuna.nano.services.http.model;
 
+import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.typemap.logic.JsonDecoder;
 import berlin.yuna.typemap.logic.TypeConverter;
 import berlin.yuna.typemap.logic.XmlDecoder;
@@ -22,20 +23,35 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.emptyList;
 import static java.util.Optional.ofNullable;
 
+/**
+ * Represents an HTTP request and response object within a server handling context.
+ * This class provides methods to manage HTTP details such as headers, body, and status code,
+ * as well as utilities to check request types and content in a fluent and chaining API.
+ */
 @SuppressWarnings("java:S2386") // Mutable fields should not be "public static"
 public class HttpObject {
 
+    // lazy loaded fields
     protected HttpMethod method;
     protected String path;
     protected byte[] body;
     protected TypeMap headers;
     protected TypeMap queryParams;
     protected TypeMap pathParams;
-    private int statusCode;
+    protected int statusCode;
     protected final HttpExchange exchange;
+
+    // common modifiable fields
     public static final String[] USER_AGENT_BROWSERS = {"chrome", "firefox", "safari", "opera", "edge", "ie", "trident", "vivaldi", "browser", "mozilla", "webkit"};
     public static final String[] USER_AGENT_MOBILE = {"mobile", "ios", "ipad", "ipod", "htc", "nokia", "wii", "psp", "windows phone", "blackberry", "webos", "opera mini", "opera mobi", "kindle", "silk", "puffin", "ucbrowser", "ucweb", "baidubrowser", "baiduboxapp", "samsungbrowser", "miuibrowser", "miuib"};
 
+    /**
+     * Constructs a new {@link HttpObject} from a specified {@link HttpExchange}.
+     * Initializes headers, method, and path.
+     * The {@link HttpExchange} is lazy loaded. Methods like {@link HttpObject#body()} will trigger the loading of the request body.
+     *
+     * @param exchange the HttpExchange containing the request details.
+     */
     public HttpObject(final HttpExchange exchange) {
         this.exchange = exchange;
         path(exchange.getRequestURI().getPath());
@@ -43,64 +59,106 @@ public class HttpObject {
         headers(exchange.getRequestHeaders());
     }
 
+    /**
+     * Constructs a {@link HttpObject}.
+     */
     public HttpObject() {
         this.exchange = null;
     }
 
+    /**
+     * Returns the current HTTP method of this object.
+     *
+     * @return the current {@link HttpMethod}.
+     */
     public HttpMethod method() {
         return method;
     }
 
+    /**
+     * Sets the HTTP method for this object.
+     *
+     * @param method the HTTP method as a string. <code>null</code> if method is not one of {@link HttpMethod}.
+     * @return this {@link HttpObject} for method chaining.
+     */
     public HttpObject method(final String method) {
         return method(HttpMethod.httpMethodOf(method));
     }
 
+    /**
+     * Sets the HTTP method for this object.
+     *
+     * @param method the HTTP method as an enum {@link HttpMethod}.
+     * @return this {@link HttpObject} for method chaining.
+     */
     public HttpObject method(final HttpMethod method) {
         this.method = method;
         return this;
     }
 
+    /**
+     * Retrieves the first content types specified in the {@link HttpHeaders#CONTENT_TYPE} header.
+     *
+     * @return the primary {@link ContentType} of the request, or {@code null} if no content type is set.
+     */
     public ContentType contentType() {
         final List<ContentType> result = contentTypes();
         return result.isEmpty() ? null : result.getFirst();
     }
 
+    /**
+     * Retrieves a list of all content types specified in the {@link HttpHeaders#CONTENT_TYPE} header.
+     *
+     * @return a list of {@link ContentType} objects representing each content type specified.
+     */
     public List<ContentType> contentTypes() {
         return splitHeaderValue(headers().getList(String.class, CONTENT_TYPE), ContentType::fromValue);
     }
 
+    /**
+     * Sets the {@link HttpHeaders#CONTENT_TYPE} header without specifying a {@link Charset}.
+     *
+     * @param contentType array of content type strings to be set in the {@link HttpHeaders#CONTENT_TYPE} header.
+     * @return this {@link HttpObject} to allow method chaining.
+     */
     public HttpObject contentType(final String... contentType) {
         return contentType(null, contentType);
     }
 
+    /**
+     * Sets the {@link HttpHeaders#CONTENT_TYPE} header without specifying a {@link Charset}.
+     *
+     * @param contentType array of content type strings to be set in the {@link HttpHeaders#CONTENT_TYPE} header.
+     * @return this {@link HttpObject} to allow method chaining.
+     */
     public HttpObject contentType(final ContentType... contentType) {
         return contentType(null, contentType);
     }
 
+    /**
+     * Sets the {@link HttpHeaders#CONTENT_TYPE} header with specifying a {@link Charset}.
+     *
+     * @param charset     the {@link Charset} to set for body encoding.
+     * @param contentType array of content type strings to be set in the {@link HttpHeaders#CONTENT_TYPE} header.
+     * @return this {@link HttpObject} to allow method chaining.
+     */
     public HttpObject contentType(final Charset charset, final String... contentType) {
         return contentType(charset, Arrays.stream(contentType).map(ContentType::fromValue).filter(Objects::nonNull).toArray(ContentType[]::new));
     }
 
+    /**
+     * Sets the {@link HttpHeaders#CONTENT_TYPE} header with specifying a {@link Charset}.
+     *
+     * @param charset     the {@link Charset} to set for body encoding.
+     * @param contentType array of content type strings to be set in the {@link HttpHeaders#CONTENT_TYPE} header.
+     * @return this {@link HttpObject} to allow method chaining.
+     */
     public HttpObject contentType(final Charset charset, final ContentType... contentType) {
         headers().put(CONTENT_TYPE, Arrays.stream(contentType)
             .filter(Objects::nonNull)
             .map(ContentType::value)
             .collect(Collectors.joining(", ")) + (charset == null ? "" : "; charset=" + charset.name()));
         return this;
-    }
-
-    public boolean hasContentType(final String... contentTypes) {
-        final List<ContentType> result = contentTypes();
-        return Arrays.stream(contentTypes).map(ContentType::fromValue).allMatch(result::contains);
-    }
-
-    public boolean hasContentType(final ContentType... contentTypes) {
-        final List<ContentType> result = contentTypes();
-        return Arrays.stream(contentTypes).allMatch(result::contains);
-    }
-
-    public boolean hasContentType(final ContentType contentType) {
-        return contentTypes().contains(contentType);
     }
 
     public ContentType accept() {
@@ -159,10 +217,22 @@ public class HttpObject {
         return splitHeaderValue(headers().getList(String.class, HttpHeaders.ACCEPT_LANGUAGE), Locale::forLanguageTag);
     }
 
+    /**
+     * Retrieves the current path of the {@link HttpObject} without last '/'.
+     *
+     * @return the request path.
+     */
     public String path() {
         return path;
     }
 
+    /**
+     * Sets the path for this {@link HttpObject}.
+     * This method also parses and sets the query parameters if they are included in the path.
+     *
+     * @param path the path to set, which may include query parameters.
+     * @return this HttpObject to allow method chaining.
+     */
     public HttpObject path(final String path) {
         final String[] parts = path == null ? new String[0] : split(path, "?");
         this.path = parts.length > 0 ? removeLast(parts[0], "/") : null;
@@ -172,18 +242,38 @@ public class HttpObject {
         return this;
     }
 
+    /**
+     * Returns a string representation of the {@link HttpObject#body()}, decoded using the {@link Charset} from {@link HttpObject#encoding()} specified in the {@link HttpHeaders#CONTENT_TYPE} header.
+     *
+     * @return the body as a string.
+     */
     public String bodyAsString() {
         return new String(body(), encoding());
     }
 
+    /**
+     * Returns a string representation of the {@link HttpObject#body()}, decoded using the {@link Charset} from {@link HttpObject#encoding()} specified in the {@link HttpHeaders#CONTENT_TYPE} header.
+     *
+     * @return the body as a json.
+     */
     @SuppressWarnings("java:S1452") // generic wildcard type
     public TypeContainer<?> bodyAsJson() {
         return JsonDecoder.jsonTypeOf(bodyAsString());
     }
 
+    /**
+     * Returns a string representation of the {@link HttpObject#body()}, decoded using the {@link Charset} from {@link HttpObject#encoding()} specified in the {@link HttpHeaders#CONTENT_TYPE} header.
+     *
+     * @return the body as a xml.
+     */
     @SuppressWarnings("java:S1452") // generic wildcard type
     public TypeContainer<?> bodyAsXml() {return XmlDecoder.xmlTypeOf(bodyAsString());}
 
+    /**
+     * Returns a string representation of the body, decoded using the {@link Charset} from {@link HttpObject#encoding()} specified in the {@link HttpHeaders#CONTENT_TYPE} header.
+     *
+     * @return the body as a xml.
+     */
     public byte[] body() {
         if (body == null && exchange != null) {
             try {
@@ -197,21 +287,42 @@ public class HttpObject {
         return body;
     }
 
+    /**
+     * Sets the {@link HttpObject#body()} from a {@link TypeContainer} object, encoding it into JSON format using the {@link Charset} from {@link HttpObject#encoding()}.
+     *
+     * @param body the {@link TypeContainer} representing the body to be set.
+     * @return this {@link HttpObject} to allow method chaining.
+     */
     public HttpObject body(final TypeContainer<?> body) {
-        this.body = body.toJson().getBytes(encoding());
-        return this;
+        return body(body.toJson().getBytes(encoding()));
     }
 
+    /**
+     * Sets the {@link HttpObject#body()} from a {@link TypeContainer} object, encoding it into bytes using the {@link Charset} from {@link HttpObject#encoding()}.
+     *
+     * @param body the String representing the body to be set.
+     * @return this {@link HttpObject} to allow method chaining.
+     */
     public HttpObject body(final String body) {
-        this.body = body.getBytes(encoding());
-        return this;
+        return body(body.getBytes(encoding()));
     }
 
+    /**
+     * Sets the {@link HttpObject#body()} from a {@link TypeContainer} object.
+     *
+     * @param body the String representing the body to be set.
+     * @return this {@link HttpObject} to allow method chaining.
+     */
     public HttpObject body(final byte[] body) {
         this.body = body;
         return this;
     }
 
+    /**
+     * Retrieves all query parameters from the current {@link HttpObject}.
+     *
+     * @return a {@link TypeMap} containing all the query parameters.
+     */
     public TypeMap queryParams() {
         if (queryParams == null && exchange != null) {
             queryParams = ofNullable(fromExchange(httpExchange -> queryParamsOf(httpExchange.getRequestURI().getQuery()))).orElseGet(TypeMap::new);
@@ -223,15 +334,33 @@ public class HttpObject {
 
     }
 
+    /**
+     * Checks if a specific query parameter exists in the {@link HttpObject}.
+     *
+     * @param key the query parameter key to check.
+     * @return {@code true} if the parameter exists, {@code false} otherwise.
+     */
     public boolean containsQueryParam(final String key) {
         return queryParams.containsKey(key);
     }
 
+    /**
+     * Retrieves the value of a specified query parameter.
+     *
+     * @param key the key of the query parameter to retrieve.
+     * @return the value of the parameter as a String, or {@code null} if the parameter does not exist.
+     */
     public String queryParam(final String key) {
         final Object value = queryParams.get(key);
         return value != null ? value.toString() : null;
     }
 
+    /**
+     * Checks if the current {@link HttpObject#path()} matches a specified expression. The expression may include path variables enclosed in curly braces ({}).
+     *
+     * @param expression the path expression to match against the current path.
+     * @return {@code true} if the current path matches the expression, {@code false} otherwise.
+     */
     public boolean pathMatch(final String expression) {
         if (this.path == null || expression == null)
             return false;
@@ -262,31 +391,73 @@ public class HttpObject {
         return true;
     }
 
+
+    /**
+     * Retrieves a map of path parameters extracted from the URL.
+     *
+     * @return a {@link TypeMap} of path parameters.
+     */
     public TypeMap pathParams() {
         return pathParams;
     }
 
+    /**
+     * Retrieves the value of a specified path parameter.
+     *
+     * @param key the key of the path parameter.
+     * @return the value of the path parameter, or {@code null} if it does not exist.
+     */
     public String pathParam(final String key) {
         return pathParams.get(String.class, key);
     }
 
+    /**
+     * Retrieves the value of a specified header.
+     *
+     * @param name the name of the header to retrieve.
+     * @return the value of the header, or {@code null} if the header is not found or {@code name} is {@code null}.
+     */
     public String header(final String name) {
         return name == null || headers == null ? null : headers.get(String.class, name.toLowerCase());
     }
 
+    /**
+     * Checks if a specified header exists in the {@link HttpObject}.
+     *
+     * @param name the name of the header to check.
+     * @return {@code true} if the header exists, {@code false} otherwise.
+     */
     public boolean containsHeader(final String name) {
         return name != null && headers != null && headers.containsKey(name.toLowerCase());
     }
 
+    /**
+     * Retrieves the {@link HttpHeaders#USER_AGENT} header from the {@link HttpObject}.
+     *
+     * @return the user agent string, or {@code null} if not set.
+     */
     public String userAgent() {
         return header(HttpHeaders.USER_AGENT);
     }
 
+    /**
+     * Sets the {@link HttpHeaders#USER_AGENT} header for the {@link HttpObject}.
+     *
+     * @param userAgent the user agent string to set.
+     * @return this {@link HttpObject} to allow method chaining.
+     */
     public HttpObject userAgent(final String userAgent) {
         headers().put(HttpHeaders.USER_AGENT, userAgent);
         return this;
     }
 
+    /**
+     * Parses and returns any authentication token found in the {@link HttpHeaders#AUTHORIZATION} header.
+     * Supports both 'Bearer' and 'Basic' authentication schemes.
+     *
+     * @return an array of strings, where the first element is the token or credentials,
+     *         or an empty array if no {@link HttpHeaders#AUTHORIZATION} header is present or the token cannot be parsed.
+     */
     public String[] authToken() {
         return ofNullable(header(HttpHeaders.AUTHORIZATION))
             .map(value -> {
@@ -302,43 +473,79 @@ public class HttpObject {
             .orElse(new String[0]);
     }
 
+    /**
+     * Returns the associated {@link HttpExchange} for this {@link HttpObject}.
+     *
+     * @return the {@link HttpExchange}, or {@code null} if not available.
+     */
     public HttpExchange exchange() {
         return exchange;
     }
 
+    /**
+     * Sets the HTTP status code for the {@link HttpObject}.
+     *
+     * @param statusCode the HTTP status code to set.
+     * @return this {@link HttpObject} to allow method chaining.
+     */
     public HttpObject statusCode(final int statusCode) {
         this.statusCode = statusCode;
         return this;
     }
 
+    /**
+     * Retrieves the current HTTP status code for the {@link HttpObject}.
+     *
+     * @return the HTTP status code.
+     */
     public int statusCode() {
         return statusCode;
     }
 
+    /**
+     * Returns the HTTP headers map.
+     *
+     * @return a {@link TypeMap} containing the headers.
+     */
     public TypeMap headers() {
         if (headers == null)
             headers = new TypeMap();
         return headers;
     }
 
+    /**
+     * Sets Http headers.
+     *
+     * @param headers the header keys and values.
+     * @return this {@link HttpObject} for method chaining.
+     */
     public HttpObject headers(final Headers headers) {
         this.headers = convertHeaders(headers);
         return this;
     }
 
+    /**
+     * Sets Http headers.
+     *
+     * @param headers the header keys and values.
+     * @return this {@link HttpObject} for method chaining.
+     */
     public HttpObject headers(final Map<String, Object> headers) {
         this.headers = convertHeaders(headers);
         return this;
     }
 
+    /**
+     * Adds or replaces a header in the HTTP headers map.
+     *
+     * @param key   the header name.
+     * @param value the header value.
+     * @return this {@link HttpObject} for method chaining.
+     */
     public HttpObject header(final String key, final Object value) {
         if (key != null && value != null)
             headers().put(key.toLowerCase(), value);
         return this;
-    }
-
-    public <T> T fromExchange(final Function<HttpExchange, T> mapper) {
-        return exchange != null ? mapper.apply(exchange) : null;
     }
 
     protected TypeMap queryParamsOf(final String query) {
@@ -360,8 +567,40 @@ public class HttpObject {
         return queryParams;
     }
 
+    // ########## NANO EVENT HELPERS ##########
+
+    /**
+     * Creates and returns a new instance of {@link HttpObject}.
+     * This method is typically used to prepare a fresh response object in the context of HTTP handling.
+     * The new instance is completely independent of the current object,
+     * meaning it has no initialized fields from the current context.
+     *
+     * @return a new, empty {@link HttpObject}.
+     */
+    public HttpObject response() {
+        return new HttpObject();
+    }
+
+    /**
+     * Sends an HTTP response using the current {@link HttpObject} as the response context.
+     * This method utilizes the provided {@link Event} to carry the response back to the event handler or processor.
+     * The {@link HttpObject} is attached to the event as its response payload, allowing further processing or handling.
+     *
+     * @param event the event to which this {@link HttpObject} should be attached as a response.
+     * @return the event after attaching this {@link HttpObject} as a response, facilitating chaining and further manipulation.
+     */
+    public Event send(final Event event) {
+        return event.response(this);
+    }
+
     // ########## NON FUNCTIONAL HELPERS ##########
 
+    /**
+     * Determines if the {@link HttpObject} originates from a standard web browser based on the {@link HttpHeaders#USER_AGENT} header.
+     * See {@link HttpObject#USER_AGENT_BROWSERS} for the list of browser identifiers.
+     *
+     * @return {@code true} if the {@link HttpHeaders#USER_AGENT} header contains identifiers typical of desktop browsers, otherwise {@code false}.
+     */
     public boolean isFrontendCall() {
         return ofNullable(headers)
             .map(header -> header.get(String.class, HttpHeaders.USER_AGENT))
@@ -370,6 +609,12 @@ public class HttpObject {
             .isPresent();
     }
 
+    /**
+     * Determines if the {@link HttpObject} originates from a mobile device based on the {@link HttpHeaders#USER_AGENT} header.
+     * See {@link HttpObject#USER_AGENT_MOBILE} for the list of mobile identifiers.
+     *
+     * @return {@code true} if the {@link HttpHeaders#USER_AGENT} header contains identifiers typical of mobile devices, otherwise {@code false}.
+     */
     public boolean isMobileCall() {
         return ofNullable(headers)
             .map(header -> header.get(String.class, HttpHeaders.USER_AGENT))
@@ -378,11 +623,21 @@ public class HttpObject {
             .isPresent();
     }
 
+    /**
+     * Retrieves the host name from the {@link HttpExchange} if available, otherwise extracts it from the {@link HttpHeaders#HOST} header.
+     *
+     * @return the host name as a string, or {@code null} if it cannot be determined.
+     */
     public String host() {
         return ofNullable(fromExchange(httpExchange -> httpExchange.getRemoteAddress().getHostName()))
             .or(() -> ofNullable(headers).map(header -> header.get(String.class, HttpHeaders.HOST)).map(value -> split(value, ":")[0])).orElse(null);
     }
 
+    /**
+     * Retrieves the host port from the {@link HttpExchange} if available, otherwise extracts it from the {@link HttpHeaders#HOST} header.
+     *
+     * @return the port number as an integer, or -1 if it cannot be determined.
+     */
     public int port() {
         return ofNullable(fromExchange(httpExchange -> httpExchange.getRemoteAddress().getPort()))
             .or(() -> ofNullable(headers).map(header -> header.get(String.class, HttpHeaders.HOST)).map(value -> split(value, ":"))
@@ -392,14 +647,31 @@ public class HttpObject {
             ).orElse(-1);
     }
 
+    /**
+     * Retrieves the {@link InetAddress} from the {@link HttpExchange}.
+     *
+     * @return an {@link InetAddress} representing the remote address, or {@code null} if it is not available.
+     */
+
     public InetAddress address() {
         return fromExchange(httpExchange -> httpExchange.getRemoteAddress().getAddress());
     }
 
+    /**
+     * Retrieves the protocol used in the {@link HttpExchange}.
+     *
+     * @return the protocol as a string, or {@code null} if the exchange is not available.
+     */
     public String protocol() {
         return fromExchange(HttpExchange::getProtocol);
     }
 
+    /**
+     * Retrieves the character set encoding from the {@link HttpHeaders#CONTENT_TYPE} header.
+     *
+     * @return a {@link Charset} object representing the encoding specified in the {@link HttpHeaders#CONTENT_TYPE} header,
+     * or the {@link Charset#defaultCharset()} if none is specified.
+     */
     public Charset encoding() {
         return Arrays.stream(ofNullable(header(CONTENT_TYPE)).map(s -> split(s, ";")).orElse(new String[0]))
             .map(String::trim)
@@ -408,6 +680,20 @@ public class HttpObject {
             .map(charset -> TypeConverter.convertObj(charset, Charset.class))
             .filter(Objects::nonNull)
             .findFirst().orElse(Charset.defaultCharset());
+    }
+
+    public boolean hasContentType(final String... contentTypes) {
+        final List<ContentType> result = contentTypes();
+        return Arrays.stream(contentTypes).map(ContentType::fromValue).allMatch(result::contains);
+    }
+
+    public boolean hasContentType(final ContentType... contentTypes) {
+        final List<ContentType> result = contentTypes();
+        return Arrays.stream(contentTypes).allMatch(result::contains);
+    }
+
+    public boolean hasContentType(final ContentType contentType) {
+        return contentTypes().contains(contentType);
     }
 
     public boolean isMethodGet() {
@@ -554,6 +840,30 @@ public class HttpObject {
         return hasContentType(ContentType.VIDEO_MP4);
     }
 
+    public boolean is1xxInformational() {
+        return statusCode >= 100 && statusCode < 200;
+    }
+
+    public boolean is2xxSuccessful() {
+        return statusCode >= 200 && statusCode < 300;
+    }
+
+    public boolean is3xxRedirection() {
+        return statusCode >= 300 && statusCode < 400;
+    }
+
+    public boolean is4xxClientError() {
+        return statusCode >= 400 && statusCode < 500;
+    }
+
+    public boolean is5xxServerError() {
+        return statusCode >= 500 && statusCode < 600;
+    }
+
+    public <T> T fromExchange(final Function<HttpExchange, T> mapper) {
+        return exchange != null ? mapper.apply(exchange) : null;
+    }
+
     @Override
     public boolean equals(final Object o) {
         if (this == o) return true;
@@ -596,6 +906,12 @@ public class HttpObject {
         return request.method.name().equals(method.name());
     }
 
+    /**
+     * Converts a map of simple header values to a {@link TypeMap} of headers.
+     *
+     * @param headers a map containing header names and values.
+     * @return a {@link TypeMap} representing the headers.
+     */
     public static TypeMap convertHeaders(final Map<String, ?> headers) {
         return headers.entrySet().stream()
             .filter(entry -> entry.getKey() != null && entry.getValue() != null)

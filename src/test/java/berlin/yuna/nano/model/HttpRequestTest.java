@@ -1,5 +1,8 @@
 package berlin.yuna.nano.model;
 
+import berlin.yuna.nano.core.model.Context;
+import berlin.yuna.nano.helper.event.model.Event;
+import berlin.yuna.nano.helper.event.model.EventType;
 import berlin.yuna.nano.services.http.model.HttpHeaders;
 import berlin.yuna.nano.services.http.model.HttpMethod;
 import berlin.yuna.nano.services.http.model.HttpObject;
@@ -54,6 +57,42 @@ class HttpRequestTest {
         assertThat(httpObject.header(REFERER)).isEqualTo("https://example.com/test");
         assertThat(httpObject.userAgent()).isEqualTo("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15");
         assertThat(httpObject.header("X-Requested-With")).isEqualTo("XMLHttpRequest");
+    }
+
+    @Test
+    void testSendResponse() {
+        final Event event = new Event(EventType.EVENT_HTTP_REQUEST, Context.createRootContext(), new HttpObject().method(HttpMethod.GET).path("/create"), null);
+
+        event.payloadOpt(HttpObject.class)
+            .filter(HttpObject::isMethodGet)
+            .filter(request -> request.pathMatch("/create"))
+            .ifPresent(request -> request.response().statusCode(201).body("success").send(event));
+
+        assertThat(event.responseOpt(HttpObject.class)).isPresent();
+        assertThat(event.response(HttpObject.class).statusCode()).isEqualTo(201);
+        assertThat(event.response(HttpObject.class).bodyAsString()).isEqualTo("success");
+    }
+
+    @Test
+    void testStatusCodeFamilies() {
+        final HttpObject httpObject = new HttpObject();
+
+        for (int statusCode = 100; statusCode < 600; statusCode++) {
+            httpObject.statusCode(statusCode);
+
+            // Check the correct status family
+            final boolean is1xx = statusCode >= 100 && statusCode < 200;
+            final boolean is2xx = statusCode >= 200 && statusCode < 300;
+            final boolean is3xx = statusCode >= 300 && statusCode < 400;
+            final boolean is4xx = statusCode >= 400 && statusCode < 500;
+            final boolean is5xx = statusCode >= 500 && statusCode < 600;
+
+            assertThat(httpObject.is1xxInformational()).as("Check 1xx for status %s", statusCode).isEqualTo(is1xx);
+            assertThat(httpObject.is2xxSuccessful()).as("Check 2xx for status %s", statusCode).isEqualTo(is2xx);
+            assertThat(httpObject.is3xxRedirection()).as("Check 3xx for status %s", statusCode).isEqualTo(is3xx);
+            assertThat(httpObject.is4xxClientError()).as("Check 4xx for status %s", statusCode).isEqualTo(is4xx);
+            assertThat(httpObject.is5xxServerError()).as("Check 5xx for status %s", statusCode).isEqualTo(is5xx);
+        }
     }
 
     @Test
