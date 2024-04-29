@@ -24,12 +24,12 @@ public class HttpObject {
 
     protected HttpMethod method;
     protected String path;
-    protected final HttpExchange exchange;
     protected byte[] body;
     protected TypeMap headers;
     protected TypeMap queryParams;
     protected TypeMap pathParams;
     private int statusCode;
+    protected final HttpExchange exchange;
 
     public HttpObject(final HttpExchange exchange) {
         this.exchange = exchange;
@@ -106,12 +106,7 @@ public class HttpObject {
     }
 
     public HttpObject contentType(final Charset charset, final String... contentType) {
-        headers().put(CONTENT_TYPE, Arrays.stream(contentType)
-            .map(ContentType::fromValue)
-            .filter(Objects::nonNull)
-            .map(ContentType::value)
-            .collect(Collectors.joining(", ")) + (charset == null ? "" : "; charset=" + charset.name()));
-        return this;
+        return contentType(charset, Arrays.stream(contentType).map(ContentType::fromValue).filter(Objects::nonNull).toArray(ContentType[]::new));
     }
 
     public HttpObject contentType(final Charset charset, final ContentType... contentType) {
