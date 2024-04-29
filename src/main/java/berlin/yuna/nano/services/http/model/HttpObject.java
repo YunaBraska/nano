@@ -14,12 +14,15 @@ import java.nio.charset.Charset;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import static berlin.yuna.nano.services.http.model.HttpHeaders.ACCEPT;
 import static berlin.yuna.nano.services.http.model.HttpHeaders.CONTENT_TYPE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.emptyList;
 import static java.util.Optional.ofNullable;
 
+@SuppressWarnings("java:S2386") // Mutable fields should not be "public static"
 public class HttpObject {
 
     protected HttpMethod method;
@@ -30,6 +33,8 @@ public class HttpObject {
     protected TypeMap pathParams;
     private int statusCode;
     protected final HttpExchange exchange;
+    public static final String[] USER_AGENT_BROWSERS = {"chrome", "firefox", "safari", "opera", "edge", "ie", "trident", "vivaldi", "browser", "mozilla", "webkit"};
+    public static final String[] USER_AGENT_MOBILE = {"mobile", "ios", "ipad", "ipod", "htc", "nokia", "wii", "psp", "windows phone", "blackberry", "webos", "opera mini", "opera mobi", "kindle", "silk", "puffin", "ucbrowser", "ucweb", "baidubrowser", "baiduboxapp", "samsungbrowser", "miuibrowser", "miuib"};
 
     public HttpObject(final HttpExchange exchange) {
         this.exchange = exchange;
@@ -42,45 +47,12 @@ public class HttpObject {
         this.exchange = null;
     }
 
-    public boolean isMethodGet() {
-        return HttpMethod.GET.equals(method);
-    }
-
-    public boolean isMethodPost() {
-        return HttpMethod.POST.equals(method);
-    }
-
-    public boolean isMethodPut() {
-        return HttpMethod.PUT.equals(method);
-    }
-
-    public boolean isMethodHead() {
-        return HttpMethod.HEAD.equals(method);
-    }
-
-    public boolean isMethodPatch() {
-        return HttpMethod.PATCH.equals(method);
-    }
-
-    public boolean isMethodDelete() {
-        return HttpMethod.DELETE.equals(method);
-    }
-
-    public boolean isMethodOptions() {
-        return HttpMethod.OPTIONS.equals(method);
-    }
-
-    public boolean isMethodTrace() {
-        return HttpMethod.TRACE.equals(method);
-    }
-
     public HttpMethod method() {
         return method;
     }
 
     public HttpObject method(final String method) {
-        this.method = HttpMethod.httpMethodOf(method);
-        return this;
+        return method(HttpMethod.httpMethodOf(method));
     }
 
     public HttpObject method(final HttpMethod method) {
@@ -94,7 +66,7 @@ public class HttpObject {
     }
 
     public List<ContentType> contentTypes() {
-        return contentSplitType(CONTENT_TYPE);
+        return splitHeaderValue(headers().getList(String.class, CONTENT_TYPE), ContentType::fromValue);
     }
 
     public HttpObject contentType(final String... contentType) {
@@ -137,7 +109,7 @@ public class HttpObject {
     }
 
     public List<ContentType> accepts() {
-        return contentSplitType(HttpHeaders.ACCEPT);
+        return splitHeaderValue(headers().getList(String.class, ACCEPT), ContentType::fromValue);
     }
 
     public HttpObject accept(final String... contentType) {
@@ -185,6 +157,289 @@ public class HttpObject {
 
     public List<Locale> acceptLanguages() {
         return splitHeaderValue(headers().getList(String.class, HttpHeaders.ACCEPT_LANGUAGE), Locale::forLanguageTag);
+    }
+
+    public String path() {
+        return path;
+    }
+
+    public HttpObject path(final String path) {
+        final String[] parts = path == null ? new String[0] : split(path, "?");
+        this.path = parts.length > 0 ? removeLast(parts[0], "/") : null;
+        if (parts.length > 1) {
+            queryParams = queryParamsOf(parts[1]);
+        }
+        return this;
+    }
+
+    public String bodyAsString() {
+        return new String(body(), encoding());
+    }
+
+    @SuppressWarnings("java:S1452") // generic wildcard type
+    public TypeContainer<?> bodyAsJson() {
+        return JsonDecoder.jsonTypeOf(bodyAsString());
+    }
+
+    @SuppressWarnings("java:S1452") // generic wildcard type
+    public TypeContainer<?> bodyAsXml() {return XmlDecoder.xmlTypeOf(bodyAsString());}
+
+    public byte[] body() {
+        if (body == null && exchange != null) {
+            try {
+                body = exchange.getRequestBody().readAllBytes();
+            } catch (final Exception ignored) {
+                // ignored
+            }
+        }
+        if (body == null)
+            body = new byte[0];
+        return body;
+    }
+
+    public HttpObject body(final TypeContainer<?> body) {
+        this.body = body.toJson().getBytes(encoding());
+        return this;
+    }
+
+    public HttpObject body(final String body) {
+        this.body = body.getBytes(encoding());
+        return this;
+    }
+
+    public HttpObject body(final byte[] body) {
+        this.body = body;
+        return this;
+    }
+
+    public TypeMap queryParams() {
+        if (queryParams == null && exchange != null) {
+            queryParams = ofNullable(fromExchange(httpExchange -> queryParamsOf(httpExchange.getRequestURI().getQuery()))).orElseGet(TypeMap::new);
+        }
+        if (queryParams == null) {
+            queryParams = new TypeMap();
+        }
+        return queryParams;
+
+    }
+
+    public boolean containsQueryParam(final String key) {
+        return queryParams.containsKey(key);
+    }
+
+    public String queryParam(final String key) {
+        final Object value = queryParams.get(key);
+        return value != null ? value.toString() : null;
+    }
+
+    public boolean pathMatch(final String expression) {
+        if (this.path == null || expression == null)
+            return false;
+
+        final String pathToMatch = removeLast(expression, "/");
+        final String[] partsToMatch = split(pathToMatch, "/");
+        final String[] parts = split(this.path, "/");
+
+        if (this.path.equals(pathToMatch) && pathToMatch.contains("{")) return true;
+
+        if (partsToMatch.length != parts.length) return false;
+
+        if (pathParams == null)
+            pathParams = new TypeMap();
+        else
+            pathParams.clear();
+        for (int i = 0; i < partsToMatch.length; i++) {
+            if (!partsToMatch[i].equals(parts[i])) {
+                if (partsToMatch[i].startsWith("{")) {
+                    final String key = partsToMatch[i].substring(1, partsToMatch[i].length() - 1);
+                    pathParams.put(key, parts[i]);
+                } else {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    public TypeMap pathParams() {
+        return pathParams;
+    }
+
+    public String pathParam(final String key) {
+        return pathParams.get(String.class, key);
+    }
+
+    public String header(final String name) {
+        return name == null || headers == null ? null : headers.get(String.class, name.toLowerCase());
+    }
+
+    public boolean containsHeader(final String name) {
+        return name != null && headers != null && headers.containsKey(name.toLowerCase());
+    }
+
+    public String userAgent() {
+        return header(HttpHeaders.USER_AGENT);
+    }
+
+    public HttpObject userAgent(final String userAgent) {
+        headers().put(HttpHeaders.USER_AGENT, userAgent);
+        return this;
+    }
+
+    public String[] authToken() {
+        return ofNullable(header(HttpHeaders.AUTHORIZATION))
+            .map(value -> {
+                if (value.startsWith("Bearer ")) {
+                    return new String[]{value.substring("Bearer ".length())};
+                }
+                if (value.startsWith("Basic ")) {
+                    final String decode = new String(Base64.getDecoder().decode(value.substring("Basic ".length())));
+                    return decode.contains(":") ? split(decode, ":") : new String[]{decode};
+                }
+                return new String[]{value};
+            })
+            .orElse(new String[0]);
+    }
+
+    public HttpExchange exchange() {
+        return exchange;
+    }
+
+    public HttpObject statusCode(final int statusCode) {
+        this.statusCode = statusCode;
+        return this;
+    }
+
+    public int statusCode() {
+        return statusCode;
+    }
+
+    public TypeMap headers() {
+        if (headers == null)
+            headers = new TypeMap();
+        return headers;
+    }
+
+    public HttpObject headers(final Headers headers) {
+        this.headers = convertHeaders(headers);
+        return this;
+    }
+
+    public HttpObject headers(final Map<String, Object> headers) {
+        this.headers = convertHeaders(headers);
+        return this;
+    }
+
+    public HttpObject header(final String key, final Object value) {
+        if (key != null && value != null)
+            headers().put(key.toLowerCase(), value);
+        return this;
+    }
+
+    public <T> T fromExchange(final Function<HttpExchange, T> mapper) {
+        return exchange != null ? mapper.apply(exchange) : null;
+    }
+
+    protected TypeMap queryParamsOf(final String query) {
+        if (queryParams == null) {
+            queryParams = ofNullable(query)
+                .map(q -> {
+                    final TypeMap result = new TypeMap();
+                    Arrays.stream(split(q, "&"))
+                        .map(param -> split(param, "="))
+                        .forEach(keyValue -> {
+                            final String key = URLDecoder.decode(keyValue[0], UTF_8);
+                            final String value = keyValue.length > 1 ? URLDecoder.decode(keyValue[1], UTF_8) : "";
+                            result.put(key, value);
+                        });
+                    return result;
+                })
+                .orElseGet(TypeMap::new);
+        }
+        return queryParams;
+    }
+
+    // ########## NON FUNCTIONAL HELPERS ##########
+
+    public boolean isFrontendCall() {
+        return ofNullable(headers)
+            .map(header -> header.get(String.class, HttpHeaders.USER_AGENT))
+            .map(String::toLowerCase)
+            .filter(agent -> (Stream.of(USER_AGENT_BROWSERS).anyMatch(agent::contains)))
+            .isPresent();
+    }
+
+    public boolean isMobileCall() {
+        return ofNullable(headers)
+            .map(header -> header.get(String.class, HttpHeaders.USER_AGENT))
+            .map(String::toLowerCase)
+            .filter(agent -> (Stream.of(USER_AGENT_MOBILE).anyMatch(agent::contains)))
+            .isPresent();
+    }
+
+    public String host() {
+        return ofNullable(fromExchange(httpExchange -> httpExchange.getRemoteAddress().getHostName()))
+            .or(() -> ofNullable(headers).map(header -> header.get(String.class, HttpHeaders.HOST)).map(value -> split(value, ":")[0])).orElse(null);
+    }
+
+    public int port() {
+        return ofNullable(fromExchange(httpExchange -> httpExchange.getRemoteAddress().getPort()))
+            .or(() -> ofNullable(headers).map(header -> header.get(String.class, HttpHeaders.HOST)).map(value -> split(value, ":"))
+                .filter(a -> a.length > 1)
+                .map(a -> a[1])
+                .map(s -> TypeConverter.convertObj(s, Integer.class))
+            ).orElse(-1);
+    }
+
+    public InetAddress address() {
+        return fromExchange(httpExchange -> httpExchange.getRemoteAddress().getAddress());
+    }
+
+    public String protocol() {
+        return fromExchange(HttpExchange::getProtocol);
+    }
+
+    public Charset encoding() {
+        return Arrays.stream(ofNullable(header(CONTENT_TYPE)).map(s -> split(s, ";")).orElse(new String[0]))
+            .map(String::trim)
+            .filter(part -> part.toLowerCase().startsWith("charset="))
+            .map(charset -> charset.substring(8).trim())
+            .map(charset -> TypeConverter.convertObj(charset, Charset.class))
+            .filter(Objects::nonNull)
+            .findFirst().orElse(Charset.defaultCharset());
+    }
+
+    public boolean isMethodGet() {
+        return HttpMethod.GET.equals(method);
+    }
+
+    public boolean isMethodPost() {
+        return HttpMethod.POST.equals(method);
+    }
+
+    public boolean isMethodPut() {
+        return HttpMethod.PUT.equals(method);
+    }
+
+    public boolean isMethodHead() {
+        return HttpMethod.HEAD.equals(method);
+    }
+
+    public boolean isMethodPatch() {
+        return HttpMethod.PATCH.equals(method);
+    }
+
+    public boolean isMethodDelete() {
+        return HttpMethod.DELETE.equals(method);
+    }
+
+    public boolean isMethodOptions() {
+        return HttpMethod.OPTIONS.equals(method);
+    }
+
+    public boolean isMethodTrace() {
+        return HttpMethod.TRACE.equals(method);
     }
 
     public boolean hasContentTypeJson() {
@@ -299,249 +554,6 @@ public class HttpObject {
         return hasContentType(ContentType.VIDEO_MP4);
     }
 
-    public Charset encoding() {
-        return Arrays.stream(ofNullable(header(CONTENT_TYPE)).map(s -> split(s, ";")).orElse(new String[0]))
-            .map(String::trim)
-            .filter(part -> part.toLowerCase().startsWith("charset="))
-            .map(charset -> charset.substring(8).trim())
-            .map(charset -> TypeConverter.convertObj(charset, Charset.class))
-            .filter(Objects::nonNull)
-            .findFirst().orElse(Charset.defaultCharset());
-    }
-
-    public String path() {
-        return path;
-    }
-
-    public HttpObject path(final String path) {
-        final String[] parts = path == null ? new String[0] : split(path, "?");
-        this.path = parts.length > 0 ? removeLast(parts[0], "/") : null;
-        if (parts.length > 1) {
-            queryParams = queryParamsOf(parts[1]);
-        }
-        return this;
-    }
-
-    public String bodyAsString() {
-        return new String(body(), encoding());
-    }
-
-    public TypeContainer<?> bodyAsJson() {
-        return JsonDecoder.jsonTypeOf(bodyAsString());
-    }
-
-    public TypeContainer<?> bodyAsXml() {return XmlDecoder.xmlTypeOf(bodyAsString());}
-
-    public byte[] body() {
-        if (body == null && exchange != null) {
-            try {
-                body = exchange.getRequestBody().readAllBytes();
-            } catch (final Exception ignored) {
-                // ignored
-            }
-        }
-        if (body == null)
-            body = new byte[0];
-        return body;
-    }
-
-    public HttpObject body(final TypeContainer<?> body) {
-        this.body = body.toJson().getBytes(encoding());
-        return this;
-    }
-
-    public HttpObject body(final String body) {
-        this.body = body.getBytes(encoding());
-        return this;
-    }
-
-    public HttpObject body(final byte[] body) {
-        this.body = body;
-        return this;
-    }
-
-    public TypeMap queryParams() {
-        if (queryParams == null && exchange != null) {
-            queryParams = ofNullable(fromExchange(httpExchange -> queryParamsOf(httpExchange.getRequestURI().getQuery()))).orElseGet(TypeMap::new);
-        }
-        if (queryParams == null) {
-            queryParams = new TypeMap();
-        }
-        return queryParams;
-
-    }
-
-    public boolean containsQueryParam(final String key) {
-        return queryParams.containsKey(key);
-    }
-
-    public String queryParam(final String key) {
-        final Object value = queryParams.get(key);
-        return value != null ? value.toString() : null;
-    }
-
-    public boolean pathMatch(final String expression) {
-        if (this.path == null || expression == null)
-            return false;
-
-        final String pathToMatch = removeLast(expression, "/");
-        final String[] partsToMatch = split(pathToMatch, "/");
-        final String[] parts = split(this.path, "/");
-
-        if (this.path.equals(pathToMatch) && pathToMatch.contains("{")) return true;
-
-        if (partsToMatch.length != parts.length) return false;
-
-        if (pathParams == null)
-            pathParams = new TypeMap();
-        else
-            pathParams.clear();
-        for (int i = 0; i < partsToMatch.length; i++) {
-            if (!partsToMatch[i].equals(parts[i])) {
-                if (partsToMatch[i].startsWith("{")) {
-                    final String key = partsToMatch[i].substring(1, partsToMatch[i].length() - 1);
-                    pathParams.put(key, parts[i]);
-                } else {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
-
-    public TypeMap pathParams() {
-        return pathParams;
-    }
-
-    public String pathParam(final String key) {
-        return pathParams.get(String.class, key);
-    }
-
-    public String header(final String name) {
-        return name == null || headers == null ? null : headers.get(String.class, name.toLowerCase());
-    }
-
-    public boolean containsHeader(final String name) {
-        return name != null && headers != null && headers.containsKey(name.toLowerCase());
-    }
-
-    public String host() {
-        return ofNullable(fromExchange(httpExchange -> httpExchange.getRemoteAddress().getHostName()))
-            .or(() -> ofNullable(headers).map(header -> header.get(String.class, HttpHeaders.HOST)).map(value -> split(value, ":")[0])).orElse(null);
-    }
-
-    public InetAddress address() {
-        return fromExchange(httpExchange -> httpExchange.getRemoteAddress().getAddress());
-    }
-
-    public int port() {
-        return ofNullable(fromExchange(httpExchange -> httpExchange.getRemoteAddress().getPort()))
-            .or(() -> ofNullable(headers).map(header -> header.get(String.class, HttpHeaders.HOST)).map(value -> split(value, ":"))
-                .filter(a -> a.length > 1)
-                .map(a -> a[1])
-                .map(s -> TypeConverter.convertObj(s, Integer.class))
-            ).orElse(-1);
-    }
-
-    public String protocol() {
-        return fromExchange(HttpExchange::getProtocol);
-    }
-
-    public String userAgent() {
-        return header(HttpHeaders.USER_AGENT);
-    }
-
-    public String[] authToken() {
-        return ofNullable(header(HttpHeaders.AUTHORIZATION))
-            .map(value -> {
-                if (value.startsWith("Bearer ")) {
-                    return new String[]{value.substring("Bearer ".length())};
-                }
-                if (value.startsWith("Basic ")) {
-                    final String decode = new String(Base64.getDecoder().decode(value.substring("Basic ".length())));
-                    return decode.contains(":") ? split(decode, ":") : new String[]{decode};
-                }
-                return new String[]{value};
-            })
-            .orElse(new String[0]);
-    }
-
-    public HttpExchange exchange() {
-        return exchange;
-    }
-
-    protected List<ContentType> contentSplitType(final String key) {
-        return splitHeaderValue(headers().getList(String.class, key), ContentType::fromValue);
-    }
-
-    protected static <R> List<R> splitHeaderValue(final Collection<String> value, final Function<String, R> mapper) {
-        if (value == null)
-            return emptyList();
-        if (value.size() != 1)
-            return value.stream().map(mapper).toList();
-        return Arrays.stream(split(value.iterator().next(), ","))
-            .map(s -> split(s, ";q="))
-            .sorted(Comparator.comparing(parts -> parts.length > 1 ? Double.parseDouble(parts[1].trim()) : 1.0, Comparator.reverseOrder()))
-            .map(parts -> mapper.apply(parts[0].trim()))
-            .filter(Objects::nonNull)
-            .toList();
-    }
-
-    public HttpObject statusCode(final int statusCode) {
-        this.statusCode = statusCode;
-        return this;
-    }
-
-    public int statusCode() {
-        return statusCode;
-    }
-
-    public TypeMap headers() {
-        if (headers == null)
-            headers = new TypeMap();
-        return headers;
-    }
-
-    public HttpObject headers(final Headers headers) {
-        this.headers = convertHeaders(headers);
-        return this;
-    }
-
-    public HttpObject headers(final Map<String, Object> headers) {
-        this.headers = convertHeaders(headers);
-        return this;
-    }
-
-    public HttpObject header(final String key, final Object value) {
-        if (key != null && value != null)
-            headers().put(key.toLowerCase(), value);
-        return this;
-    }
-
-    public <T> T fromExchange(final Function<HttpExchange, T> mapper) {
-        return exchange != null ? mapper.apply(exchange) : null;
-    }
-
-    protected TypeMap queryParamsOf(final String query) {
-        if (queryParams == null) {
-            queryParams = ofNullable(query)
-                .map(q -> {
-                    final TypeMap result = new TypeMap();
-                    Arrays.stream(split(q, "&"))
-                        .map(param -> split(param, "="))
-                        .forEach(keyValue -> {
-                            final String key = URLDecoder.decode(keyValue[0], UTF_8);
-                            final String value = keyValue.length > 1 ? URLDecoder.decode(keyValue[1], UTF_8) : "";
-                            result.put(key, value);
-                        });
-                    return result;
-                })
-                .orElseGet(TypeMap::new);
-        }
-        return queryParams;
-    }
-
     @Override
     public boolean equals(final Object o) {
         if (this == o) return true;
@@ -566,6 +578,19 @@ public class HttpObject {
     }
 
     // ########## STATICS ##########
+
+    public static <R> List<R> splitHeaderValue(final Collection<String> value, final Function<String, R> mapper) {
+        if (value == null)
+            return emptyList();
+        if (value.size() != 1)
+            return value.stream().map(mapper).toList();
+        return Arrays.stream(split(value.iterator().next(), ","))
+            .map(s -> split(s, ";q="))
+            .sorted(Comparator.comparing(parts -> parts.length > 1 ? Double.parseDouble(parts[1].trim()) : 1.0, Comparator.reverseOrder()))
+            .map(parts -> mapper.apply(parts[0].trim()))
+            .filter(Objects::nonNull)
+            .toList();
+    }
 
     public static boolean isMethod(final HttpObject request, final HttpMethod method) {
         return request.method.name().equals(method.name());

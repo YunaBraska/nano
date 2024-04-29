@@ -17,7 +17,6 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -31,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class HttpRequestTest {
 
     @Test
-    void browserRequest() {
+    void browserRequestTest() {
         final HttpObject httpObject = new HttpObject()
             .method(HttpMethod.GET)
             .path("/notifications/indicator")
@@ -399,6 +398,15 @@ class HttpRequestTest {
     void testHeaderUserAgent() {
         assertThat(new HttpObject().header(USER_AGENT, "PostmanRuntime/7.36.3").header(USER_AGENT)).isEqualTo("PostmanRuntime/7.36.3");
         assertThat(new HttpObject().header(USER_AGENT, "PostmanRuntime/7.36.3").userAgent()).isEqualTo("PostmanRuntime/7.36.3");
+
+        final String macOsBrowser = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15";
+        final String chromeMobile = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36";
+        assertThat(new HttpObject().userAgent(macOsBrowser).isFrontendCall()).isTrue();
+        assertThat(new HttpObject().userAgent(macOsBrowser).isMobileCall()).isFalse();
+        assertThat(new HttpObject().userAgent(chromeMobile).isFrontendCall()).isTrue();
+        assertThat(new HttpObject().userAgent(chromeMobile).isMobileCall()).isTrue();
+        assertThat(new HttpObject().isFrontendCall()).isFalse();
+        assertThat(new HttpObject().isMobileCall()).isFalse();
     }
 
     @Test
