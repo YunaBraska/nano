@@ -6,6 +6,7 @@ import berlin.yuna.nano.core.model.Unhandled;
 import berlin.yuna.nano.services.http.model.ContentType;
 import berlin.yuna.nano.services.http.model.HttpHeaders;
 import berlin.yuna.nano.services.http.model.HttpObject;
+import berlin.yuna.typemap.logic.TypeConverter;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
@@ -16,7 +17,6 @@ import java.net.Socket;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -42,8 +42,8 @@ public class HttpService extends Service {
     public synchronized void start(final Supplier<Context> contextSub) {
         isReady.set(false, true, state -> {
             final Context context = contextSub.get().newContext(HttpService.class, null);
-            final int port = context.getOpt(Integer.class, "app_service_http_port").filter(p -> p > 0).orElseGet(() -> nextFreePort(8080));
             handleHttps(context);
+            final int port = context.getOpt(Integer.class, "app_service_http_port").filter(p -> p > 0).orElseGet(() -> nextFreePort(8080));
             try {
                 server = HttpServer.create(new InetSocketAddress(port), 0);
                 server.setExecutor(context.nano().threadPool());
@@ -116,12 +116,20 @@ public class HttpService extends Service {
         try {
             final byte[] body = response.body() != null ? response.body() : new byte[0];
             final int statusCode = response.statusCode() > -1 && response.statusCode() < 600 ? response.statusCode() : 200;
-            final Map<String, String> headers = response.headers() == null ? new HashMap<>() : new HashMap<>(response.headers());
-            headers.computeIfAbsent(HttpHeaders.CONTENT_TYPE, value -> {
+            response.headers().computeIfAbsent(HttpHeaders.CONTENT_TYPE, value -> {
                 final String str = new String(body, Charset.defaultCharset());
                 return (str.startsWith("{") && str.endsWith("}")) || (str.startsWith("[") && str.endsWith("]")) ? ContentType.APPLICATION_JSON.value() : ContentType.TEXT_PLAIN.value();
             });
-            headers.forEach((key, value) -> exchange.getResponseHeaders().put(key, List.of(value)));
+            // Fixme: TypeMap needs working method `getMap(String.class, String.class)` to convert headers to Map<String, String>
+            response.headers().keySet().forEach(rawKey -> {
+                final String key = TypeConverter.convertObj(rawKey, String.class);
+                if (key != null) {
+                    final List<String> value = response.headers().getList(String.class, rawKey);
+                    if (value != null) {
+                        exchange.getResponseHeaders().put(key, value);
+                    }
+                }
+            });
             exchange.sendResponseHeaders(statusCode, body.length);
             try (final OutputStream os = exchange.getResponseBody()) {
                 os.write(body);
@@ -132,8 +140,8 @@ public class HttpService extends Service {
     }
 
     public static int nextFreePort(final int startPort) {
-        for (int i = 1; i < 1024; i++) {
-            final int port = i + startPort;
+        for (int i = 0; i < 1024; i++) {
+            final int port = i + (Math.max(startPort, 1));
             if (!isPortInUse(port)) {
                 return port;
             }

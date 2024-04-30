@@ -40,7 +40,7 @@ public enum ContentType {
 
     public static ContentType fromValue(final String value) {
         for (final ContentType type : values()) {
-            if (type.value().equals(value) || type.name().equals(value)) {
+            if (type.value().equalsIgnoreCase(value) || type.name().equalsIgnoreCase(value)) {
                 return type;
             }
         }
