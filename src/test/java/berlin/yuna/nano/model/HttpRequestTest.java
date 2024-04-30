@@ -166,8 +166,6 @@ class HttpRequestTest {
 
     @Test
     void testHeaderContentType() {
-        //TODO: test use case "Content-Type: application/json; charset=utf-8"
-
         // ENUM
         assertThat(new HttpObject().contentType(APPLICATION_JSON).contentType()).isEqualTo(APPLICATION_JSON);
         assertThat(new HttpObject().contentType(APPLICATION_JSON).contentTypes()).containsExactly(APPLICATION_JSON);

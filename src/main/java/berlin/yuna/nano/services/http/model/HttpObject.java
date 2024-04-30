@@ -171,12 +171,19 @@ public class HttpObject {
     }
 
     public HttpObject accept(final String... contentType) {
-        headers().put(HttpHeaders.ACCEPT, Arrays.stream(contentType).map(ContentType::fromValue).filter(Objects::nonNull).map(ContentType::value).collect(Collectors.joining(", ")));
+        headers().put(HttpHeaders.ACCEPT, Arrays.stream(contentType)
+            .map(ContentType::fromValue)
+            .filter(Objects::nonNull)
+            .map(ContentType::value)
+            .collect(Collectors.joining(", ")));
         return this;
     }
 
     public HttpObject accept(final ContentType... contentType) {
-        headers().put(HttpHeaders.ACCEPT, Arrays.stream(contentType).filter(Objects::nonNull).map(ContentType::value).collect(Collectors.joining(", ")));
+        headers().put(HttpHeaders.ACCEPT, Arrays.stream(contentType)
+            .filter(Objects::nonNull)
+            .map(ContentType::value)
+            .collect(Collectors.joining(", ")));
         return this;
     }
 
@@ -190,10 +197,6 @@ public class HttpObject {
         return Arrays.stream(contentTypes).allMatch(result::contains);
     }
 
-    public boolean hasAccept(final ContentType contentType) {
-        return accepts().contains(contentType);
-    }
-
     public String acceptEncoding() {
         final List<String> result = acceptEncodings();
         return result.isEmpty() ? null : result.getFirst();
@@ -203,9 +206,9 @@ public class HttpObject {
         return splitHeaderValue(headers().getList(String.class, HttpHeaders.ACCEPT_ENCODING), v -> v);
     }
 
-    public boolean hasAcceptEncoding(final String... contentTypes) {
+    public boolean hasAcceptEncoding(final String... encodings) {
         final List<String> result = splitHeaderValue(headers().getList(String.class, HttpHeaders.ACCEPT_ENCODING), v -> v);
-        return Arrays.stream(contentTypes).allMatch(result::contains);
+        return Arrays.stream(encodings).allMatch(result::contains);
     }
 
     public Locale acceptLanguage() {
@@ -341,7 +344,7 @@ public class HttpObject {
      * @return {@code true} if the parameter exists, {@code false} otherwise.
      */
     public boolean containsQueryParam(final String key) {
-        return queryParams.containsKey(key);
+        return queryParams().containsKey(key);
     }
 
     /**
@@ -351,8 +354,7 @@ public class HttpObject {
      * @return the value of the parameter as a String, or {@code null} if the parameter does not exist.
      */
     public String queryParam(final String key) {
-        final Object value = queryParams.get(key);
-        return value != null ? value.toString() : null;
+        return queryParams().get(String.class, key);
     }
 
     /**
@@ -373,10 +375,7 @@ public class HttpObject {
 
         if (partsToMatch.length != parts.length) return false;
 
-        if (pathParams == null)
-            pathParams = new TypeMap();
-        else
-            pathParams.clear();
+        pathParams().clear();
         for (int i = 0; i < partsToMatch.length; i++) {
             if (!partsToMatch[i].equals(parts[i])) {
                 if (partsToMatch[i].startsWith("{")) {
@@ -398,6 +397,8 @@ public class HttpObject {
      * @return a {@link TypeMap} of path parameters.
      */
     public TypeMap pathParams() {
+        if (pathParams == null)
+            pathParams = new TypeMap();
         return pathParams;
     }
 
@@ -408,27 +409,27 @@ public class HttpObject {
      * @return the value of the path parameter, or {@code null} if it does not exist.
      */
     public String pathParam(final String key) {
-        return pathParams.get(String.class, key);
+        return pathParams().get(String.class, key);
     }
 
     /**
      * Retrieves the value of a specified header.
      *
-     * @param name the name of the header to retrieve.
-     * @return the value of the header, or {@code null} if the header is not found or {@code name} is {@code null}.
+     * @param key the key of the header to retrieve.
+     * @return the value of the header, or {@code null} if the header is not found or {@code key} is {@code null}.
      */
-    public String header(final String name) {
-        return name == null || headers == null ? null : headers.get(String.class, name.toLowerCase());
+    public String header(final String key) {
+        return key == null || headers == null ? null : headers.get(String.class, key.toLowerCase());
     }
 
     /**
      * Checks if a specified header exists in the {@link HttpObject}.
      *
-     * @param name the name of the header to check.
+     * @param key the key of the header to check.
      * @return {@code true} if the header exists, {@code false} otherwise.
      */
-    public boolean containsHeader(final String name) {
-        return name != null && headers != null && headers.containsKey(name.toLowerCase());
+    public boolean containsHeader(final String key) {
+        return key != null && headers != null && headers.containsKey(key.toLowerCase());
     }
 
     /**
