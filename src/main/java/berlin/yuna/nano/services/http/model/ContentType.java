@@ -7,6 +7,7 @@ public enum ContentType {
     APPLICATION_ATOM_XML("application/atom+xml"),
     APPLICATION_FORM_URLENCODED("application/x-www-form-urlencoded"),
     APPLICATION_JSON("application/json"),
+    APPLICATION_PDF("application/pdf"),
     APPLICATION_OCTET_STREAM("application/octet-stream"),
     APPLICATION_SOAP_XML("application/soap+xml"),
     APPLICATION_SVG_XML("application/svg+xml"),
@@ -24,7 +25,8 @@ public enum ContentType {
     TEXT_PLAIN("text/plain"),
     TEXT_XML("text/xml"),
     WILDCARD("*/*"),
-    ;
+    AUDIO_MPEG("audio/mpeg"),
+    VIDEO_MP4("video/mp4");
 
     private final String value;
 
@@ -34,5 +36,14 @@ public enum ContentType {
 
     public String value() {
         return value;
+    }
+
+    public static ContentType fromValue(final String value) {
+        for (final ContentType type : values()) {
+            if (type.value().equalsIgnoreCase(value) || type.name().equalsIgnoreCase(value)) {
+                return type;
+            }
+        }
+        return null;
     }
 }
