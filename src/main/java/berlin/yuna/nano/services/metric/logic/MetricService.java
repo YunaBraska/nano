@@ -7,6 +7,8 @@ import berlin.yuna.nano.core.model.Unhandled;
 import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.helper.logger.logic.LogQueue;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
+import berlin.yuna.nano.services.http.HttpService;
+import berlin.yuna.nano.services.http.model.HttpObject;
 import berlin.yuna.nano.services.metric.model.MetricCache;
 import berlin.yuna.nano.services.metric.model.MetricUpdate;
 import berlin.yuna.nano.core.Nano;
@@ -24,6 +26,7 @@ import static berlin.yuna.nano.helper.event.model.EventType.*;
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class MetricService extends Service {
     private final MetricCache metrics = new MetricCache();
+    private static final String BASE_URL = "/metrics";
 
     public MetricService() {
         super(null, false);
@@ -33,7 +36,8 @@ public class MetricService extends Service {
     public void start(final Supplier<Context> contextSupplier) {
         isReady.set(false, true, run -> updateSystemMetrics());
         //addlistener for event
-        // metrics.prometheus() this will the response body
+
+        // metrics.prometheus(); this will the response body
         // GET call
         // http://localhost:8080/metrics thinks of good word
         // status code 200
@@ -66,6 +70,56 @@ public class MetricService extends Service {
                 metrics.gaugeSet("logger", 1, Map.of("level", level.name()));
             })
             .ifPresent(EVENT_APP_LOG_QUEUE, LogQueue.class, logger::logQueue);
+        addMetricsEndpoint(event);
+
+    }
+
+    private void addMetricsEndpoint(Event event) {
+        event
+            .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
+            {
+                request.pathMatch(BASE_URL + "/prometheus");
+                request.isMethodGet();
+                    final String response = metrics.prometheus();
+                    event.response(request.response()
+                        .statusCode(200)
+                        .body(metrics.prometheus())
+                        .headers(Map.of("Content-Type", "text/plain")));
+
+            })
+            .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
+            {
+                request.pathMatch(BASE_URL + "/influx");
+                request.isMethodGet();
+                final String response = metrics.prometheus();
+                event.response(request.response()
+                    .statusCode(200)
+                    .body(metrics.influx())
+                    .headers(Map.of("Content-Type", "text/plain")));
+
+            })
+            .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
+            {
+                request.pathMatch(BASE_URL + "/dynatrace");
+                request.isMethodGet();
+                final String response = metrics.prometheus();
+                event.response(request.response()
+                    .statusCode(200)
+                    .body(metrics.dynatrace())
+                    .headers(Map.of("Content-Type", "text/plain")));
+
+            })
+            .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
+            {
+                request.pathMatch(BASE_URL + "/wavefront");
+                request.isMethodGet();
+                final String response = metrics.prometheus();
+                event.response(request.response()
+                    .statusCode(200)
+                    .body(metrics.wavefront())
+                    .headers(Map.of("Content-Type", "text/plain")));
+
+            });
     }
 
     public void updateMetric(final MetricUpdate metric) {
