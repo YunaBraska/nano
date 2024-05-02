@@ -1,16 +1,25 @@
 package berlin.yuna.nano.helper;
 
-import berlin.yuna.nano.core.NanoThreads;
 import berlin.yuna.nano.core.NanoBase;
 import berlin.yuna.nano.core.NanoServices;
+import berlin.yuna.nano.core.NanoThreads;
+import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.core.model.Scheduler;
 import berlin.yuna.nano.core.model.Service;
 
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
+
+import static berlin.yuna.nano.core.NanoBase.standardiseKey;
+import static berlin.yuna.nano.core.model.Config.CONFIG_PROFILES;
+import static java.util.Arrays.stream;
 
 @SuppressWarnings({"UnusedReturnValue", "java:S6548"})
 public class NanoUtils {
@@ -91,6 +100,21 @@ public class NanoUtils {
         return false;
     }
 
+    public static String[] split(final String input, final String delimiter) {
+        if (!input.contains(delimiter)) {
+            return new String[]{input};
+        }
+        final List<String> result = new ArrayList<>();
+        int start = 0;
+        int index;
+        while ((index = input.indexOf(delimiter, start)) != -1) {
+            result.add(input.substring(start, index));
+            start = index + delimiter.length();
+        }
+        result.add(input.substring(start));
+        return result.toArray(new String[0]);
+    }
+
     public static String callerInfoStr(final Class<?> source) {
         final StackTraceElement element = callerInfo(source);
         return element == null ? "Unknown" : String.format("%s:%d_at_%s", element.getClassName(), element.getLineNumber(), element.getMethodName());
@@ -98,12 +122,12 @@ public class NanoUtils {
 
     public static StackTraceElement callerInfo(final Class<?> source) {
         final List<String> sourceNames = List.of(
-                source.getName(),
-                Service.class.getName(),
-                NanoBase.class.getName(),
-                NanoUtils.class.getName(),
-                NanoThreads.class.getName(),
-                NanoServices.class.getName()
+            source.getName(),
+            Service.class.getName(),
+            NanoBase.class.getName(),
+            NanoUtils.class.getName(),
+            NanoThreads.class.getName(),
+            NanoServices.class.getName()
         );
         final StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
 
@@ -122,6 +146,71 @@ public class NanoUtils {
             return "Scheduler";
         }
         return executorService.getClass().getSimpleName();
+    }
+
+    // ########## NANO CONFIGS ##########
+    public static Context readConfigFiles(final Context context, final String profile) {
+        final Context result = context != null ? context : Context.createRootContext();
+        final List<String> scannedProfiles = result.getList(ArrayList::new, String.class, "_scanned_profiles");
+        if (scannedProfiles.contains(profile))
+            return result;
+        if (!"".equals(profile))
+            scannedProfiles.add(profile);
+        result.put("_scanned_profiles", scannedProfiles);
+        for (final String directory : new String[]{"", ".", "config/", ".config/", "resources/", ".resources/", "resources/config/", ".resources/config/"}) {
+            readConfigFile(result, directory + "application" + (profile.isEmpty() ? profile : "-" + profile) + ".properties");
+        }
+
+        return readProfiles(result);
+    }
+
+    public static Context readProfiles(final Context result) {
+        for (final String pConfig : new String[]{
+            CONFIG_PROFILES.id(),
+            "app_profile",
+            "spring_profiles_active",
+            "spring_profile_active",
+            "profiles_active",
+            "micronaut_profiles",
+            "micronaut_environments"
+        }) {
+            result.getOpt(String.class, pConfig).ifPresent(profiles -> stream(split(profiles, ",")).map(String::trim).forEach(name -> readConfigFiles(result, name)));
+        }
+        return result;
+    }
+
+    public static Context readConfigFile(final Context context, final String path) {
+        try (final InputStream input = path.startsWith(".") ? new FileInputStream(path.substring(1)) : NanoUtils.class.getClassLoader().getResourceAsStream(path)) {
+            if (input != null) {
+                final Properties properties = new Properties();
+                properties.load(input);
+                properties.forEach((key, value) -> addConfig(context, key, value));
+            }
+        } catch (final Exception ignored) {
+            // ignored
+        }
+        return context;
+    }
+
+    public static Context addConfig(final Context context, final Object key, final Object value) {
+        if (value == null || "null".equals(value) || "".equals(value)) {
+            context.remove(standardiseKey(key));
+        } else if (value instanceof final String valueStr && hasText(valueStr)) {
+            context.put(standardiseKey(key), valueStr.trim());
+        } else {
+            context.put(standardiseKey(key), value);
+        }
+        return context;
+    }
+
+    public static Context resolvePlaceHolders(final Context context) {
+        context.forEach((key, value) -> {
+            if (value instanceof final String valueStr && valueStr.startsWith("${") && valueStr.endsWith("}")) {
+                final String[] placeholder = split(valueStr.substring(2, valueStr.length() - 1), ":");
+                addConfig(context, key, context.getOpt(Object.class, standardiseKey(placeholder[0])).orElseGet(() -> placeholder.length > 1 ? placeholder[1].trim() : null));
+            }
+        });
+        return context;
     }
 
     private NanoUtils() {

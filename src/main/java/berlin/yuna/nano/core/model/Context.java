@@ -177,7 +177,7 @@ public class Context extends ConcurrentTypeMap {
      * @return Self for chaining
      */
     public Context subscribeEvent(final int eventType, final Consumer<Event> listener) {
-        nano.addEventListener(eventType, listener);
+        nano.subscribeEvent(eventType, listener);
         return this;
     }
 
@@ -189,7 +189,7 @@ public class Context extends ConcurrentTypeMap {
      * @return Self for chaining
      */
     public Context unsubscribeEvent(final int eventType, final Consumer<Event> listener) {
-        nano.removeEventListener(eventType, listener);
+        nano.unsubscribeEvent(eventType, listener);
         return this;
     }
 

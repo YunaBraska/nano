@@ -37,8 +37,8 @@ public abstract class NanoThreads<T extends NanoThreads<T>> extends NanoBase<T> 
     protected NanoThreads(final Map<Object, Object> config, final String... args) {
         super(config, args);
         this.schedulers = ConcurrentHashMap.newKeySet();
-        addEventListener(EVENT_APP_SCHEDULER_REGISTER, event -> event.payloadOpt(ScheduledExecutorService.class).map(schedulers::add).ifPresent(nano -> event.acknowledge()));
-        addEventListener(EVENT_APP_SCHEDULER_UNREGISTER, event -> event.payloadOpt(ScheduledExecutorService.class).map(scheduler -> {
+        subscribeEvent(EVENT_APP_SCHEDULER_REGISTER, event -> event.payloadOpt(ScheduledExecutorService.class).map(schedulers::add).ifPresent(nano -> event.acknowledge()));
+        subscribeEvent(EVENT_APP_SCHEDULER_UNREGISTER, event -> event.payloadOpt(ScheduledExecutorService.class).map(scheduler -> {
             scheduler.shutdown();
             schedulers.remove(scheduler);
             return this;

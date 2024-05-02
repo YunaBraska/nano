@@ -17,6 +17,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static berlin.yuna.nano.helper.NanoUtils.split;
 import static berlin.yuna.nano.services.http.model.HttpHeaders.ACCEPT;
 import static berlin.yuna.nano.services.http.model.HttpHeaders.CONTENT_TYPE;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -457,7 +458,7 @@ public class HttpObject {
      * Supports both 'Bearer' and 'Basic' authentication schemes.
      *
      * @return an array of strings, where the first element is the token or credentials,
-     *         or an empty array if no {@link HttpHeaders#AUTHORIZATION} header is present or the token cannot be parsed.
+     * or an empty array if no {@link HttpHeaders#AUTHORIZATION} header is present or the token cannot be parsed.
      */
     public String[] authToken() {
         return ofNullable(header(HttpHeaders.AUTHORIZATION))
@@ -927,20 +928,4 @@ public class HttpObject {
     public static String removeLast(final String input, final String removable) {
         return input.length() > removable.length() && input.endsWith(removable) ? input.substring(0, input.length() - removable.length()) : input;
     }
-
-    public static String[] split(final String input, final String delimiter) {
-        if (!input.contains(delimiter)) {
-            return new String[]{input};
-        }
-        final List<String> result = new ArrayList<>();
-        int start = 0;
-        int index;
-        while ((index = input.indexOf(delimiter, start)) != -1) {
-            result.add(input.substring(start, index));
-            start = index + delimiter.length();
-        }
-        result.add(input.substring(start));
-        return result.toArray(new String[0]);
-    }
-
 }

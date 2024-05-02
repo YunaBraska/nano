@@ -16,6 +16,7 @@ public enum Config {
     APP_HELP("help", "Lists available config keys (see " + Config.class.getSimpleName() + ")"),
     APP_PARAMS("app_params_print", "Pints all config values"),
     CONFIG_APP_NAME("app_name", "Changes the name in the log output"), // TODO: implement this
+    CONFIG_PROFILES("app_profiles", "Active config profiles for the application"),
     CONFIG_LOG_LEVEL("app_log_level", "Log level for the application (see " + LogLevel.class.getSimpleName() + ")"),
     CONFIG_LOG_FORMATTER("app_log_formatter", "Log formatter (see " + LogFormatRegister.class.getSimpleName() + ")"),
     CONFIG_LOG_QUEUE_SIZE("app_log_queue_size", "Log queue size. A full queue means that log messages will start to wait to be executed (see " + LogQueue.class.getSimpleName() + ")"),

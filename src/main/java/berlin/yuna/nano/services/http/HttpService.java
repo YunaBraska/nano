@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import static berlin.yuna.nano.core.model.Config.CONFIG_SERVICE_HTTP_PORT;
 import static berlin.yuna.nano.helper.event.model.EventType.*;
 
 public class HttpService extends Service {
@@ -42,8 +43,9 @@ public class HttpService extends Service {
     public synchronized void start(final Supplier<Context> contextSub) {
         isReady.set(false, true, state -> {
             final Context context = contextSub.get().newContext(HttpService.class, null);
+            final int port = context.getOpt(Integer.class, CONFIG_SERVICE_HTTP_PORT.id()).filter(p -> p > 0).orElseGet(() -> nextFreePort(8080));
+            context.put(CONFIG_SERVICE_HTTP_PORT, port);
             handleHttps(context);
-            final int port = context.getOpt(Integer.class, "app_service_http_port").filter(p -> p > 0).orElseGet(() -> nextFreePort(8080));
             try {
                 server = HttpServer.create(new InetSocketAddress(port), 0);
                 server.setExecutor(context.nano().threadPool());

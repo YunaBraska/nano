@@ -84,15 +84,21 @@ public class Nano extends NanoServices<Nano> {
             }
         }
         run(() -> sendEvent(EventType.EVENT_APP_HEARTBEAT, context, this, result -> {}, true), 256, 256, TimeUnit.MILLISECONDS, () -> false);
-        logger.info(() -> "Running Services [{}]", services().stream().collect(Collectors.groupingBy(Service::name, Collectors.counting())).entrySet().stream().map(entry -> entry.getValue() > 1 ? "(" + entry.getValue() + ") " + entry.getKey() : entry.getKey()).collect(joining(", ")));
         final long readyTime = System.currentTimeMillis() - service_startUpTime;
+        final List<String> list = context.getList(String.class, "_scanned_profiles");
+        if (!list.isEmpty()) {
+            logger.info(() -> "Profiles [{}] Services [{}]",
+                list.stream().sorted().collect(joining(", ")),
+                services().stream().collect(Collectors.groupingBy(Service::name, Collectors.counting())).entrySet().stream().map(entry -> entry.getValue() > 1 ? "(" + entry.getValue() + ") " + entry.getKey() : entry.getKey()).collect(joining(", "))
+            );
+        }
         logger.info(() -> "Started [{}] in [{}]", this.getClass().getSimpleName(), NanoUtils.formatDuration(readyTime));
         printSystemInfo();
         sendEvent(EventType.EVENT_METRIC_UPDATE, context, new MetricUpdate(MetricType.GAUGE, "application.started.time", initTime, null), result -> {}, false);
         sendEvent(EventType.EVENT_METRIC_UPDATE, context, new MetricUpdate(MetricType.GAUGE, "application.ready.time", readyTime, null), result -> {}, false);
-        addEventListener(EventType.EVENT_APP_SHUTDOWN, event -> event.acknowledge(() -> CompletableFuture.runAsync(() -> shutdown(newContext(this.getClass())))));
+        subscribeEvent(EventType.EVENT_APP_SHUTDOWN, event -> event.acknowledge(() -> CompletableFuture.runAsync(() -> shutdown(newContext(this.getClass())))));
         // INIT CLEANUP TASK - just for safety
-        addEventListener(EventType.EVENT_APP_HEARTBEAT, event -> new HashSet<>(schedulers).stream().filter(scheduler -> scheduler.isShutdown() || scheduler.isTerminated()).forEach(schedulers::remove));
+        subscribeEvent(EventType.EVENT_APP_HEARTBEAT, event -> new HashSet<>(schedulers).stream().filter(scheduler -> scheduler.isShutdown() || scheduler.isTerminated()).forEach(schedulers::remove));
     }
 
     /**

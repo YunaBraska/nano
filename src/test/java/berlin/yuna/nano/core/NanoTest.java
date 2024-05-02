@@ -6,6 +6,7 @@ import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
 import berlin.yuna.nano.model.TestService;
 import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
@@ -31,6 +32,20 @@ class NanoTest {
     //TODO: Logger: change format on runtime
     //TODO: Logger exclude package pattern config
     //TODO: extract logger as a service
+
+    @Test
+    void configFilesTest() {
+        final Nano nano = new Nano();
+        assertThat(nano.rootContext.get(String.class, CONFIG_PROFILES.id())).isEqualTo("default, local, dev, prod");
+        assertThat(nano.rootContext.getList(String.class, "_scanned_profiles")).containsExactly("local", "default", "dev", "prod");
+        assertThat(nano.rootContext.get(String.class, "test_placeholder_fallback")).isEqualTo("fallback should be used 1");
+        assertThat(nano.rootContext.get(String.class, "test_placeholder_key_empty")).isEqualTo("fallback should be used 2");
+        assertThat(nano.rootContext.get(String.class, "test_placeholder_value")).isEqualTo("used placeholder value");
+        assertThat(nano.rootContext.get(String.class, "resource_key1")).isEqualTo("AA");
+        assertThat(nano.rootContext.get(String.class, "resource_key2")).isEqualTo("CC");
+        assertThat(nano.rootContext).doesNotContainKey("test_placeholder_fallback_empty");
+        nano.stop(this.getClass());
+    }
 
     @RepeatedTest(TEST_REPEAT)
     void stopViaMethod() {
@@ -174,7 +189,7 @@ class NanoTest {
         // send to first listener (listeners have priority)
         eventResults.clear();
         service.resetEvents();
-        nano.addEventListener(TEST_EVENT, Event::acknowledge);
+        nano.subscribeEvent(TEST_EVENT, Event::acknowledge);
         nano.sendEvent(TEST_EVENT, nano.newContext(this.getClass()), 22222222, eventResults::add, false);
         assertThat(service.getEvent(TEST_EVENT, 256)).isNull();
         assertThat(eventResults).hasSize(1);
@@ -222,9 +237,9 @@ class NanoTest {
         final Consumer<Event> listener = event -> {};
 
         assertThat(nano.listeners().get(TEST_EVENT)).isNull();
-        nano.addEventListener(TEST_EVENT, listener);
+        nano.subscribeEvent(TEST_EVENT, listener);
         assertThat(nano.listeners().get(TEST_EVENT)).hasSize(1);
-        nano.removeEventListener(TEST_EVENT, listener);
+        nano.unsubscribeEvent(TEST_EVENT, listener);
         assertThat(nano.listeners().get(TEST_EVENT)).isEmpty();
 
         assertThat(nano.stop(this.getClass()).waitForStop().isReady()).isFalse();
