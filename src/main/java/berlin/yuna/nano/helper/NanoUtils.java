@@ -157,10 +157,19 @@ public class NanoUtils {
         if (!"".equals(profile))
             scannedProfiles.add(profile);
         result.put("_scanned_profiles", scannedProfiles);
-        for (final String directory : new String[]{"", ".", "config/", ".config/", "resources/", ".resources/", "resources/config/", ".resources/config/"}) {
+
+        for (final String directory : new String[]{
+            "",
+            ".",
+            "config/",
+            ".config/",
+            "resources/",
+            ".resources/",
+            "resources/config/",
+            ".resources/config/"
+        }) {
             readConfigFile(result, directory + "application" + (profile.isEmpty() ? profile : "-" + profile) + ".properties");
         }
-
         return readProfiles(result);
     }
 
