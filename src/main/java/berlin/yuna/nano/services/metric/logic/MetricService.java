@@ -7,7 +7,8 @@ import berlin.yuna.nano.core.model.Unhandled;
 import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.helper.logger.logic.LogQueue;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
-import berlin.yuna.nano.services.http.HttpService;
+import berlin.yuna.nano.services.http.model.ContentType;
+import berlin.yuna.nano.services.http.model.HttpHeaders;
 import berlin.yuna.nano.services.http.model.HttpObject;
 import berlin.yuna.nano.services.metric.model.MetricCache;
 import berlin.yuna.nano.services.metric.model.MetricUpdate;
@@ -81,10 +82,10 @@ public class MetricService extends Service {
                 request.pathMatch(BASE_URL + "/prometheus");
                 request.isMethodGet();
                     final String response = metrics.prometheus();
-                    event.response(request.response()
+                    request.response()
                         .statusCode(200)
                         .body(metrics.prometheus())
-                        .headers(Map.of("Content-Type", "text/plain")));
+                        .headers(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event);
 
             })
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
@@ -92,10 +93,10 @@ public class MetricService extends Service {
                 request.pathMatch(BASE_URL + "/influx");
                 request.isMethodGet();
                 final String response = metrics.prometheus();
-                event.response(request.response()
+                request.response()
                     .statusCode(200)
                     .body(metrics.influx())
-                    .headers(Map.of("Content-Type", "text/plain")));
+                    .headers(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event);
 
             })
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
@@ -103,10 +104,10 @@ public class MetricService extends Service {
                 request.pathMatch(BASE_URL + "/dynatrace");
                 request.isMethodGet();
                 final String response = metrics.prometheus();
-                event.response(request.response()
+                request.response()
                     .statusCode(200)
                     .body(metrics.dynatrace())
-                    .headers(Map.of("Content-Type", "text/plain")));
+                    .headers(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event);
 
             })
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
@@ -114,10 +115,10 @@ public class MetricService extends Service {
                 request.pathMatch(BASE_URL + "/wavefront");
                 request.isMethodGet();
                 final String response = metrics.prometheus();
-                event.response(request.response()
+                request.response()
                     .statusCode(200)
                     .body(metrics.wavefront())
-                    .headers(Map.of("Content-Type", "text/plain")));
+                    .headers(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event);
 
             });
     }
