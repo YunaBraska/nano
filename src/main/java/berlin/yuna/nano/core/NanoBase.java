@@ -2,21 +2,21 @@ package berlin.yuna.nano.core;
 
 import berlin.yuna.nano.core.model.Config;
 import berlin.yuna.nano.core.model.Context;
+import berlin.yuna.nano.helper.LockedBoolean;
 import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.helper.logger.LogFormatRegister;
 import berlin.yuna.nano.helper.logger.logic.LogQueue;
+import berlin.yuna.nano.helper.logger.logic.NanoLogger;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
 import berlin.yuna.nano.services.http.model.ContentType;
 import berlin.yuna.nano.services.http.model.HttpMethod;
 import berlin.yuna.typemap.logic.ArgsDecoder;
-import berlin.yuna.nano.helper.LockedBoolean;
-import berlin.yuna.nano.helper.logger.logic.NanoLogger;
 
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -24,10 +24,12 @@ import java.util.logging.Formatter;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
-import static berlin.yuna.typemap.config.TypeConversionRegister.registerTypeConvert;
-import static berlin.yuna.typemap.logic.TypeConverter.convertObj;
+import static berlin.yuna.nano.core.model.Config.CONFIG_PROFILES;
+import static berlin.yuna.nano.helper.NanoUtils.*;
 import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_LOG_LEVEL;
 import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_LOG_QUEUE;
+import static berlin.yuna.typemap.config.TypeConversionRegister.registerTypeConvert;
+import static berlin.yuna.typemap.logic.TypeConverter.convertObj;
 import static java.lang.System.lineSeparator;
 import static java.util.Arrays.stream;
 import static java.util.Optional.ofNullable;
@@ -76,8 +78,8 @@ public abstract class NanoBase<T extends NanoBase<T>> {
             .level(rootContext.getOpt(LogLevel.class, Config.CONFIG_LOG_LEVEL.id()).orElse(LogLevel.DEBUG))
             .formatter(rootContext.getOpt(Formatter.class, Config.CONFIG_LOG_FORMATTER.id()).orElseGet(() -> LogFormatRegister.getLogFormatter("console")));
         displayHelpMenu();
-        addEventListener(EVENT_APP_LOG_LEVEL, event -> event.payloadOpt(LogLevel.class).or(() -> event.payloadOpt(Level.class).map(LogLevel::nanoLogLevelOf)).map(this::setLogLevel).ifPresent(nano -> event.acknowledge()));
-        addEventListener(EVENT_APP_LOG_QUEUE, event -> event.payloadOpt(LogQueue.class).map(logger::logQueue).ifPresent(nano -> event.acknowledge()));
+        subscribeEvent(EVENT_APP_LOG_LEVEL, event -> event.payloadOpt(LogLevel.class).or(() -> event.payloadOpt(Level.class).map(LogLevel::nanoLogLevelOf)).map(this::setLogLevel).ifPresent(nano -> event.acknowledge()));
+        subscribeEvent(EVENT_APP_LOG_QUEUE, event -> event.payloadOpt(LogQueue.class).map(logger::logQueue).ifPresent(nano -> event.acknowledge()));
     }
 
     /**
@@ -156,8 +158,8 @@ public abstract class NanoBase<T extends NanoBase<T>> {
      * @return Self for chaining
      */
     @SuppressWarnings({"unchecked"})
-    public T addEventListener(final int eventType, final Consumer<Event> listener) {
-        listeners.computeIfAbsent(eventType, value -> new HashSet<>()).add(listener);
+    public T subscribeEvent(final int eventType, final Consumer<Event> listener) {
+        listeners.computeIfAbsent(eventType, value -> new LinkedHashSet<>()).add(listener);
         return (T) this;
     }
 
@@ -169,8 +171,8 @@ public abstract class NanoBase<T extends NanoBase<T>> {
      * @return Self for chaining
      */
     @SuppressWarnings({"unchecked"})
-    public T removeEventListener(final int eventType, final Consumer<Event> listener) {
-        listeners.computeIfAbsent(eventType, value -> new HashSet<>()).remove(listener);
+    public T unsubscribeEvent(final int eventType, final Consumer<Event> listener) {
+        listeners.computeIfAbsent(eventType, value -> new LinkedHashSet<>()).remove(listener);
         return (T) this;
     }
 
@@ -232,22 +234,11 @@ public abstract class NanoBase<T extends NanoBase<T>> {
      * @return The {@link Context} initialized with the configurations.
      */
     protected Context readConfigs(final String... args) {
-        final Context result = Context.createRootContext();
-        System.getenv().forEach((key, value) -> addStandardisedKey(key, value, result));
-        System.getProperties().forEach((key, value) -> addStandardisedKey(String.valueOf(key), value, result));
-        ArgsDecoder.argsOf(String.join(" ", args)).forEach((key, value) -> addStandardisedKey(key, value, result));
-        return result;
-    }
-
-    /**
-     * Standardizes and adds a key-value pair to the {@link Context}.
-     *
-     * @param key    The key to be standardized and added.
-     * @param value  The value associated with the key.
-     * @param result The {@link Context} to which the key-value pair is added.
-     */
-    protected void addStandardisedKey(final String key, final Object value, final Context result) {
-        result.put(key.replace('.', '_').replace('-', '_').toLowerCase(), value);
+        final Context result = readConfigFiles(null, "");
+        System.getenv().forEach((key, value) -> addConfig(result, key, value));
+        System.getProperties().forEach((key, value) -> addConfig(result, key, value));
+        ArgsDecoder.argsOf(String.join(" ", args)).forEach((key, value) -> addConfig(result, key, value));
+        return resolvePlaceHolders(result);
     }
 
     /**
@@ -263,4 +254,15 @@ public abstract class NanoBase<T extends NanoBase<T>> {
         logger.trace(() -> "New {} [{}]", LogLevel.class.getSimpleName(), level);
         return (T) this;
     }
+
+    /**
+     * Standardizes a config key.
+     *
+     * @param key The config key to be standardized.
+     */
+    @SuppressWarnings("java:S3358") // Ternary operator should not be nested
+    public static String standardiseKey(final Object key) {
+        return key == null ? null : convertObj(key, String.class).replace('.', '_').replace('-', '_').trim().toLowerCase();
+    }
+
 }

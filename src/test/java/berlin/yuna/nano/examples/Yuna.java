@@ -15,7 +15,7 @@ import static berlin.yuna.nano.core.model.Config.CONFIG_LOG_FORMATTER;
 import static berlin.yuna.nano.core.model.Config.CONFIG_LOG_LEVEL;
 import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_SHUTDOWN;
 
-public class App {
+public class Yuna {
 
     public static void main(final String[] args) {
         //TODO: Dynamic Queues to Services
@@ -32,7 +32,7 @@ public class App {
         final Service serviceC = new ServiceC();
         final Service serviceD = new ServiceD();
 
-        final Context ctx = application.newContext(App.class);
+        final Context ctx = application.newContext(Yuna.class);
         ctx.run(serviceA)
             .run(serviceA)
             .runAwait(serviceB, serviceC)
@@ -56,7 +56,7 @@ public class App {
         ;
 
         application.run(() -> {
-            final Context context = application.newContext(App.class);
+            final Context context = application.newContext(Yuna.class);
             context.sendEvent(EVENT_APP_SHUTDOWN, null);
             context.sendEvent(99, null);
         }, 5, 5, TimeUnit.SECONDS, () -> false);
