@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static berlin.yuna.nano.helper.NanoUtils.generateNanoName;
 import static java.lang.System.lineSeparator;
 import static java.util.stream.Collectors.joining;
 
@@ -87,12 +88,12 @@ public class Nano extends NanoServices<Nano> {
         final long readyTime = System.currentTimeMillis() - service_startUpTime;
         final List<String> list = context.getList(String.class, "_scanned_profiles");
         if (!list.isEmpty()) {
-            logger.info(() -> "Profiles [{}] Services [{}]",
+            logger.debug(() -> "Profiles [{}] Services [{}]",
                 list.stream().sorted().collect(joining(", ")),
                 services().stream().collect(Collectors.groupingBy(Service::name, Collectors.counting())).entrySet().stream().map(entry -> entry.getValue() > 1 ? "(" + entry.getValue() + ") " + entry.getKey() : entry.getKey()).collect(joining(", "))
             );
         }
-        logger.info(() -> "Started [{}] in [{}]", this.getClass().getSimpleName(), NanoUtils.formatDuration(readyTime));
+        logger.info(() -> "Started [{}] in [{}]", generateNanoName("%s%.0s%.0s%.0s"), NanoUtils.formatDuration(readyTime));
         printSystemInfo();
         sendEvent(EventType.EVENT_METRIC_UPDATE, context, new MetricUpdate(MetricType.GAUGE, "application.started.time", initTime, null), result -> {}, false);
         sendEvent(EventType.EVENT_METRIC_UPDATE, context, new MetricUpdate(MetricType.GAUGE, "application.ready.time", readyTime, null), result -> {}, false);
@@ -265,7 +266,7 @@ public class Nano extends NanoServices<Nano> {
             this.shutdownThreads();
             listeners.clear();
             printSystemInfo();
-            logger.info(() -> "Stopped {} in [{}] with uptime [{}]", this.getClass().getSimpleName(), NanoUtils.formatDuration(System.currentTimeMillis() - startTimeMs), NanoUtils.formatDuration(System.currentTimeMillis() - createdAtMs));
+            logger.info(() -> "Stopped [{}] in [{}] with uptime [{}]", generateNanoName("%s%.0s%.0s%.0s"), NanoUtils.formatDuration(System.currentTimeMillis() - startTimeMs), NanoUtils.formatDuration(System.currentTimeMillis() - createdAtMs));
             threadPool.shutdown();
             schedulers.clear();
         }), Nano.class.getSimpleName() + " Shutdown-Thread");

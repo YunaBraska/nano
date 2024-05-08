@@ -7,15 +7,19 @@ import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.core.model.Scheduler;
 import berlin.yuna.nano.core.model.Service;
 
+import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
+import java.util.zip.DeflaterInputStream;
+import java.util.zip.GZIPInputStream;
 
 import static berlin.yuna.nano.core.NanoBase.standardiseKey;
 import static berlin.yuna.nano.core.model.Config.CONFIG_PROFILES;
@@ -25,6 +29,11 @@ import static java.util.Arrays.stream;
 public class NanoUtils {
 
     public static final String LINE_SEPARATOR = System.lineSeparator();
+    protected static Random random;
+    public static final String[][] NANO_NAMES = {
+        {"NanoNinja", "NanoNoodle", "GraalGuru", "JavaJester", "MicroMaverick", "ByteBender", "NanoNaut", "GraalGoblin", "JavaJuggernaut", "CodeComedian", "NanoNomad", "GraalGazelle", "JavaJinx", "MicroMagician", "ByteBandit", "NanoNimbus", "GraalGambler", "JavaJester", "MicroMaestro", "ByteBarracuda", "NanoNebula"},
+        {"Swift Swiper", "Master", "Joker", "Rebel", "Twister", "Navigator", "Mischievous", "Unstoppable", "Laughs", "Wanderer", "Graceful", "Bringer", "Wizard", "Stealer", "Cloud Surfer", "Betting", "Prankster", "Conductor", "Feisty Fish", "Galactic Guardian"},
+        {"of Requests", "of Native Magic", "in the Microservice Deck", "in the Server Space", "of Bytes", "of the Nano Cosmos", "Microservice Minion", "Force of the JVM", "in Lambda Expressions", "in the Backend Wilderness", "GraalVM Gazelle", "Bringer of Backend Blessings", "of the Microservice Realm", "of Server Secrets", "of the Nanoverse", "on Backend Brilliance", "in the Programming Playground", "of the Microservice Orchestra", "in the Server Sea", "of Microservices", "of Nano Power", "in Nano Land", "near Nano Destiny"}};
 
     public static boolean hasText(final String str) {
         return (str != null && !str.isEmpty() && containsText(str));
@@ -220,6 +229,36 @@ public class NanoUtils {
             }
         });
         return context;
+    }
+
+    public static byte[] decodeGzip(final byte[] data) {
+        try (final ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
+             final GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
+            return gzipInputStream.readAllBytes();
+        } catch (final Exception ignored) {
+            return data;
+        }
+    }
+
+    public static byte[] decoderDeflate(final byte[] data) {
+        try (final ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
+             final DeflaterInputStream deflaterInputStream = new DeflaterInputStream(inputStream)) {
+            return deflaterInputStream.readAllBytes();
+        } catch (final Exception ignored) {
+            return data;
+        }
+    }
+
+    public static String generateNanoName(final String format) {
+        if (random == null) {
+            random = new Random();
+        }
+        return String.format(format,
+            NANO_NAMES[0][random.nextInt(NANO_NAMES[0].length)],
+            random.nextInt(0, 99) + "." + random.nextInt(0, 9),
+            NANO_NAMES[1][random.nextInt(NANO_NAMES[1].length)],
+            NANO_NAMES[2][random.nextInt(NANO_NAMES[2].length)]
+        );
     }
 
     private NanoUtils() {

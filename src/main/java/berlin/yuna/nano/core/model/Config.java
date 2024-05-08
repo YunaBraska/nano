@@ -6,6 +6,7 @@ import berlin.yuna.nano.helper.logger.LogFormatRegister;
 import berlin.yuna.nano.helper.logger.logic.LogQueue;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
 import berlin.yuna.nano.services.http.HttpService;
+import berlin.yuna.nano.services.http.logic.HttpClient;
 
 /**
  * Configuration keys enumeration to control various aspects of the NanoThreads framework.
@@ -25,6 +26,11 @@ public enum Config {
 
     // ########## DEFAULT SERVICES ##########
     CONFIG_SERVICE_HTTP_PORT("app_service_http_port", "Default port for the HTTP service (see " + HttpService.class.getSimpleName() + ")"),
+    CONFIG_HTTP_CLIENT_VERSION("app_service_http_version", "HTTP client version 1 or 2 (see " + HttpClient.class.getSimpleName() + ")"),
+    CONFIG_HTTP_CLIENT_MAX_RETRIES("app_service_http_max_retries", "Maximum number of retries for the HTTP client (see " + HttpClient.class.getSimpleName() + ")"),
+    CONFIG_HTTP_CLIENT_CON_TIMEOUT_MS("app_service_http_con_timeoutMs", "Connection timeout in milliseconds for the HTTP client (see " + HttpClient.class.getSimpleName() + ")"),
+    CONFIG_HTTP_CLIENT_READ_TIMEOUT_MS("app_service_http_read_timeoutMs", "Read timeout in milliseconds for the HTTP client (see " + HttpClient.class.getSimpleName() + ")"),
+    CONFIG_HTTP_CLIENT_FOLLOW_REDIRECTS("app_service_http_follow_redirects", "Follow redirects for the HTTP client (see " + HttpClient.class.getSimpleName() + ")");
     ;
 
     private final String id;

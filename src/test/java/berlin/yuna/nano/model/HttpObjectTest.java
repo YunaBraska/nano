@@ -1,8 +1,11 @@
 package berlin.yuna.nano.model;
 
+import berlin.yuna.nano.core.Nano;
 import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.helper.event.model.Event;
-import berlin.yuna.nano.helper.event.model.EventType;
+import berlin.yuna.nano.services.http.HttpService;
+import berlin.yuna.nano.services.http.logic.HttpClient;
+import berlin.yuna.nano.services.http.logic.HttpClientTest;
 import berlin.yuna.nano.services.http.model.HttpHeaders;
 import berlin.yuna.nano.services.http.model.HttpMethod;
 import berlin.yuna.nano.services.http.model.HttpObject;
@@ -25,20 +28,23 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import static berlin.yuna.nano.core.config.TestConfig.TEST_LOG_LEVEL;
+import static berlin.yuna.nano.core.model.Config.CONFIG_LOG_LEVEL;
+import static berlin.yuna.nano.helper.event.model.EventType.EVENT_HTTP_REQUEST;
 import static berlin.yuna.nano.services.http.model.ContentType.*;
 import static berlin.yuna.nano.services.http.model.HttpHeaders.*;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static org.assertj.core.api.Assertions.assertThat;
 
-class HttpRequestTest {
+class HttpObjectTest {
 
     @Test
     void browserRequestTest() {
         final HttpObject httpObject = new HttpObject()
-            .method(HttpMethod.GET)
+            .methodType(HttpMethod.GET)
             .path("/notifications/indicator")
             .header("Accept", "application/json")
-            .header("Accept-Encoding", "gzip, deflate, br")
+            .header("Accept-Encoding", "gzip, deflate")
             .header("Accept-Language", "en-GB,en;q=0.9")
             .header("Connection", "keep-alive")
             .header("Host", "example.com")
@@ -48,10 +54,10 @@ class HttpRequestTest {
             .header("Sec-Fetch-Site", "same-origin")
             .header("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15")
             .header("X-Requested-With", "XMLHttpRequest");
-        assertThat(httpObject.method()).isEqualTo(HttpMethod.GET);
+        assertThat(httpObject.methodType()).isEqualTo(HttpMethod.GET);
         assertThat(httpObject.path()).isEqualTo("/notifications/indicator");
         assertThat(httpObject.accepts()).containsExactly(APPLICATION_JSON);
-        assertThat(httpObject.acceptEncodings()).containsExactly("gzip", "deflate", "br");
+        assertThat(httpObject.acceptEncodings()).containsExactly("gzip", "deflate");
         assertThat(httpObject.acceptLanguages()).containsExactly(Locale.UK, Locale.ENGLISH);
         assertThat(httpObject.header(HOST)).isEqualTo("example.com");
         assertThat(httpObject.header(REFERER)).isEqualTo("https://example.com/test");
@@ -61,7 +67,7 @@ class HttpRequestTest {
 
     @Test
     void testSendResponse() {
-        final Event event = new Event(EventType.EVENT_HTTP_REQUEST, Context.createRootContext(), new HttpObject().method(HttpMethod.GET).path("/create"), null);
+        final Event event = new Event(EVENT_HTTP_REQUEST, Context.createRootContext(), new HttpObject().methodType(HttpMethod.GET).path("/create"), null);
 
         event.payloadOpt(HttpObject.class)
             .filter(HttpObject::isMethodGet)
@@ -101,23 +107,23 @@ class HttpRequestTest {
         headers.add(CONTENT_TYPE, APPLICATION_JSON.value());
         final HttpObject httpObject = new HttpObject(createMockHttpExchange("GET", "/test", headers, "{\"key\": \"value\"}"));
 
-        assertThat(httpObject.method()).isEqualTo(HttpMethod.GET);
+        assertThat(httpObject.methodType()).isEqualTo(HttpMethod.GET);
         assertThat(httpObject.path()).isEqualTo("/test");
-        assertThat(httpObject.headers()).containsEntry(CONTENT_TYPE, Collections.singletonList(APPLICATION_JSON.value()));
+        assertThat(httpObject.headerMap()).containsEntry(CONTENT_TYPE, Collections.singletonList(APPLICATION_JSON.value()));
         assertThat(httpObject.exchange()).isNotNull();
     }
 
     @Test
     void testBuilder() {
         final HttpObject httpObject = new HttpObject()
-            .method(HttpMethod.GET)
+            .methodType(HttpMethod.GET)
             .path("/test")
             .statusCode(-99)
             .contentType(APPLICATION_JSON);
 
-        assertThat(httpObject.method()).isEqualTo(HttpMethod.GET);
+        assertThat(httpObject.methodType()).isEqualTo(HttpMethod.GET);
         assertThat(httpObject.path()).isEqualTo("/test");
-        assertThat(httpObject.headers()).containsEntry(CONTENT_TYPE, APPLICATION_JSON.value());
+        assertThat(httpObject.headerMap()).containsEntry(CONTENT_TYPE, APPLICATION_JSON.value());
         assertThat(httpObject.statusCode()).isEqualTo(-99);
         assertThat(httpObject.exchange()).isNull();
     }
@@ -136,7 +142,7 @@ class HttpRequestTest {
     @Test
     void testIsMethod() {
         for (final HttpMethod testMethod : HttpMethod.values()) {
-            final HttpObject httpObject = new HttpObject().method(testMethod);
+            final HttpObject httpObject = new HttpObject().methodType(testMethod);
             for (final HttpMethod otherMethod : HttpMethod.values()) {
                 assertThat(HttpObject.isMethod(httpObject, otherMethod)).isEqualTo(otherMethod == testMethod);
             }
@@ -145,7 +151,7 @@ class HttpRequestTest {
 
     @Test
     void testIsMethodGet() {
-        final HttpObject httpObject = new HttpObject().method(HttpMethod.GET);
+        final HttpObject httpObject = new HttpObject().methodType(HttpMethod.GET);
         assertThat(httpObject.isMethodGet()).isTrue();
         assertThat(httpObject.isMethodPost()).isFalse();
         assertThat(httpObject.isMethodPut()).isFalse();
@@ -158,10 +164,10 @@ class HttpRequestTest {
 
     @Test
     void testSetMethod() {
-        assertThat(new HttpObject().method(HttpMethod.GET).method()).isEqualTo(HttpMethod.GET);
-        assertThat(new HttpObject().method("PUT").method()).isEqualTo(HttpMethod.PUT);
-        assertThat(new HttpObject().method("pAtCh").method()).isEqualTo(HttpMethod.PATCH);
-        assertThat(new HttpObject().method("unknown").method()).isNull();
+        assertThat(new HttpObject().methodType(HttpMethod.GET).methodType()).isEqualTo(HttpMethod.GET);
+        assertThat(new HttpObject().methodType("PUT").methodType()).isEqualTo(HttpMethod.PUT);
+        assertThat(new HttpObject().methodType("pAtCh").methodType()).isEqualTo(HttpMethod.PATCH);
+        assertThat(new HttpObject().methodType("unknown").methodType()).isNull();
     }
 
     @Test
@@ -185,8 +191,8 @@ class HttpRequestTest {
         assertThat(new HttpObject().contentType("application/json", "TexT/Plain").hasContentType(APPLICATION_JSON.value(), TEXT_PLAIN.value(), APPLICATION_PDF.value())).isFalse();
 
         // General
-        assertThat(new HttpObject().contentTypes()).isEmpty();
-        assertThat(new HttpObject().contentType()).isNull();
+        assertThat(new HttpObject().contentTypes()).containsExactly(APPLICATION_OCTET_STREAM);
+        assertThat(new HttpObject().contentType()).isEqualTo(APPLICATION_OCTET_STREAM);
     }
 
     @Test
@@ -370,10 +376,10 @@ class HttpRequestTest {
         headers.add("Content-Type", "Application/Json, TexT/Plain");
         headers.put("Accept", List.of(APPLICATION_PDF.value(), APPLICATION_JSON.value()));
         headers.add("myNumber", "123");
-        final HttpObject httpObject1 = new HttpObject().headers(headers);
+        final HttpObject httpObject1 = new HttpObject().headerMap(headers);
 
         // set headers map
-        final HttpObject httpObject2 = new HttpObject().headers(Map.of(
+        final HttpObject httpObject2 = new HttpObject().headerMap(Map.of(
             "Content-Type", "Application/Json, TexT/Plain",
             "Accept", List.of(APPLICATION_PDF, APPLICATION_JSON.value()),
             "myNumber", "123"
@@ -388,7 +394,7 @@ class HttpRequestTest {
             .header("bb", null);
 
         for (final HttpObject httpObject : List.of(httpObject1, httpObject2, httpObject3)) {
-            assertThat(httpObject.headers()).hasSize(3);
+            assertThat(httpObject.headerMap()).hasSize(3);
             assertThat(httpObject.containsHeader("mynumber")).isTrue();
             assertThat(httpObject.containsHeader("myNumber")).isTrue();
             assertThat(httpObject.containsHeader("invalid")).isFalse();
@@ -397,12 +403,47 @@ class HttpRequestTest {
             assertThat(httpObject.header("mynumber")).isEqualTo("123");
             assertThat(httpObject.header("invalid")).isNull();
             assertThat(httpObject.header(null)).isNull();
-            assertThat(httpObject.headers().get(Integer.class, "mynumber")).isEqualTo(123);
+            assertThat(httpObject.headerMap().get(Integer.class, "mynumber")).isEqualTo(123);
             assertThat(httpObject.contentTypes()).containsExactly(APPLICATION_JSON, TEXT_PLAIN);
             assertThat(httpObject.accepts()).containsExactly(APPLICATION_PDF, APPLICATION_JSON);
         }
 
-        assertThat(new HttpObject().headers()).isEmpty();
+        assertThat(new HttpObject().headerMap()).isEmpty();
+    }
+
+    @Test
+    void testComputeHeaders() {
+        final Map<String, List<String>> request = new HttpObject().computedHeaders(true);
+        assertThat(request)
+            .containsEntry(ACCEPT_ENCODING, List.of("gzip, deflate"))
+            .containsEntry(ACCEPT, List.of(WILDCARD.value()))
+            .containsEntry(CONTENT_ENCODING, List.of("gzip"))
+            .containsEntry(CACHE_CONTROL, List.of("no-cache"))
+            .containsEntry(CONTENT_TYPE, List.of(APPLICATION_OCTET_STREAM.value()))
+            .containsEntry(CONTENT_LENGTH, List.of("0"))
+        ;
+
+        final Map<String, List<String>> response = new HttpObject().computedHeaders(false);
+        assertThat(response)
+            .doesNotContainKey(ACCEPT_ENCODING)
+            .doesNotContainKey(ACCEPT)
+            .containsEntry(CONTENT_ENCODING, List.of("gzip"))
+            .containsEntry(CACHE_CONTROL, List.of("no-cache"))
+            .containsEntry(CONTENT_TYPE, List.of(APPLICATION_OCTET_STREAM.value()))
+            .containsEntry(CONTENT_LENGTH, List.of("0"))
+        ;
+    }
+
+    @Test
+    void sizeRequestTest() {
+        final String body = "Hello World";
+        assertThat(new HttpObject().sizeRequest()).isFalse();
+        assertThat(new HttpObject().sizeRequest(true).sizeRequest()).isTrue();
+        assertThat(new HttpObject().sizeRequest(false).sizeRequest()).isFalse();
+        assertThat(new HttpObject().size()).isZero();
+        assertThat(new HttpObject().body(body).size()).isEqualTo(body.getBytes().length);
+        assertThat(new HttpObject().body(body).header(CONTENT_LENGTH, 999).size()).isEqualTo(999);
+        assertThat(new HttpObject().body(body).header(CONTENT_RANGE, "bytes 0-0/666").size()).isEqualTo(666);
     }
 
     @Test
@@ -462,6 +503,9 @@ class HttpRequestTest {
         // General
         assertThat(new HttpObject().acceptLanguages()).isEmpty();
         assertThat(new HttpObject().acceptLanguage()).isNull();
+        assertThat(new HttpObject().acceptLanguages(Locale.UK, Locale.ENGLISH, Locale.GERMAN).acceptLanguages()).containsExactly(Locale.UK, Locale.ENGLISH, Locale.GERMAN);
+        assertThat(new HttpObject().acceptLanguages(null).acceptLanguages()).isEmpty();
+        assertThat(new HttpObject().acceptLanguages(new Locale[0]).acceptLanguages()).isEmpty();
     }
 
     @Test
@@ -478,6 +522,33 @@ class HttpRequestTest {
     }
 
     @Test
+    void testSend() throws InterruptedException {
+        final HttpService server = new HttpService();
+        final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL), server);
+        final String serverUrl = "http://localhost:" + server.port();
+        final Context context = nano.newContext(this.getClass());
+//        final HttpClientOld client = context.httpClient().connectionTimeoutMs(512).readTimeoutMs(512).retries(1);
+        final HttpClient client = new HttpClient(context);
+        context.subscribeEvent(EVENT_HTTP_REQUEST, HttpClientTest::mimicRequest);
+
+//        assertThatThrownBy(() -> new HttpObject().send(client)).isInstanceOf(IllegalArgumentException.class).hasMessage("Invalid URL [null]");
+//        assertThatThrownBy(() -> client.send(new HttpObject())).isInstanceOf(IllegalArgumentException.class).hasMessage("Invalid URL [null]");
+//
+//        System.out.println("!!!!" + client.send(new HttpObject().method(HttpMethod.GET).header(CONTENT_ENCODING, "gzip").body("{Hällo Wörld?!}").path("https://webhook.site/2fe67ece-0c65-4eb8-931a-b4d3edeab850?AA=BB")).bodyAsString());
+//        System.out.println("!!!!" + client.send(new HttpObject().method(HttpMethod.GET).path("https://google.com")).bodyAsString());
+        final HttpObject response = client.send(new HttpObject().methodType(HttpMethod.GET).path(serverUrl));
+        System.out.println("body [" + response.bodyAsString() + "] failure [" + response.failure() + "] statusCode [" + response.statusCode() + "]");
+//
+//        assertThat(client.send(new HttpObject().path("http://example.com:80")).failure()).isNull();
+//        assertThat(client.send(new HttpObject().path(serverUrl))).isNotNull();
+//        assertThat(client.send(new HttpObject().path(serverUrl)).failure()).isNull();
+//        assertThat(client.send(new HttpObject().path(serverUrl)).statusCode()).isEqualTo(200);
+
+//        Thread.sleep(120000);
+//        assertThat(nano.stop(this.getClass()).waitForStop().isReady()).isFalse();
+    }
+
+    @Test
     void testHashCode() {
         final HttpObject httpObject1 = new HttpObject();
         httpObject1.statusCode(200)
@@ -487,8 +558,8 @@ class HttpRequestTest {
         httpObject2.statusCode(200)
             .body("Sample body".getBytes());
 
-        assertThat(httpObject1.hashCode()).hasSameHashCodeAs(httpObject2.hashCode());
-        assertThat(httpObject1.equals(httpObject2)).isTrue();
+        assertThat(httpObject1.hashCode()).doesNotHaveSameHashCodeAs(httpObject2.hashCode());
+        assertThat(httpObject1.equals(httpObject2)).isFalse();
         assertThat(httpObject1.equals(new HttpObject())).isFalse();
         assertThat(httpObject1.equals("invalid")).isFalse();
     }
@@ -498,7 +569,7 @@ class HttpRequestTest {
         final HttpObject httpObject = new HttpObject();
         httpObject
             .statusCode(200)
-            .method(HttpMethod.GET)
+            .methodType(HttpMethod.GET)
             .path("/test")
             .body("Sample body");
 
