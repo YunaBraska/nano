@@ -7,8 +7,7 @@ import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.services.http.HttpService;
 import berlin.yuna.nano.services.http.model.HttpObject;
 import berlin.yuna.typemap.model.LinkedTypeMap;
-import org.junit.jupiter.api.RepeatedTest;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
@@ -38,6 +37,21 @@ import static org.assertj.core.api.Assertions.entry;
 
 @Execution(ExecutionMode.CONCURRENT)
 public class HttpClientTest {
+
+    protected static String serverUrl;
+    protected static Nano nano;
+
+    @BeforeAll
+    static void beforeAll() {
+        final HttpService server = new HttpService();
+        nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL), server).subscribeEvent(EVENT_HTTP_REQUEST, HttpClientTest::mimicRequest);
+        serverUrl = "http://localhost:" + server.port();
+    }
+
+    @AfterAll
+    static void afterAll() {
+        assertThat(nano.stop(HttpClientTest.class).waitForStop().isReady()).isFalse();
+    }
 
     @RepeatedTest(TEST_REPEAT)
     void constructor_with_defaults() throws InterruptedException {
@@ -120,19 +134,14 @@ public class HttpClientTest {
 
     @RepeatedTest(TEST_REPEAT)
     void sendRequestViaEvent() {
-        final HttpService server = new HttpService();
-        final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL), server);
-        final Context context = nano.newContext(this.getClass());
-        context.subscribeEvent(EVENT_HTTP_REQUEST, HttpClientTest::mimicRequest);
-
-        final HttpObject response = context.sendEventReturn(EVENT_HTTP_REQUEST, new HttpObject().path("http://localhost:" + server.port()).body("{Hällo Wörld?!}")).response(HttpObject.class);
+        final HttpObject response = nano.newContext(HttpClientTest.class)
+            .sendEventReturn(EVENT_HTTP_REQUEST, new HttpObject().path(serverUrl).body("{Hällo Wörld?!}"))
+            .response(HttpObject.class);
         assertThat(response.failure()).isNull();
         assertThat(response.bodyAsString()).isEqualTo("{Hällo Wörld?!}");
         assertThat(response.header(CONTENT_LENGTH)).isEqualTo("17");
         assertThat(response.header(CONTENT_TYPE)).isEqualTo(APPLICATION_JSON.value());
         assertThat(response.header(CONTENT_RANGE)).isNull();
-
-        assertThat(nano.stop(this.getClass()).waitForStop().isReady()).isFalse();
     }
 
     @Test
@@ -156,11 +165,6 @@ public class HttpClientTest {
     }
 
     public static void assertWorkingHttpClient(final HttpClient client) throws InterruptedException {
-        final HttpService server = new HttpService();
-        final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL), server);
-        final String serverUrl = "http://localhost:" + server.port();
-        final Context context = nano.newContext(HttpClientTest.class);
-        context.subscribeEvent(EVENT_HTTP_REQUEST, HttpClientTest::mimicRequest);
         HttpObject response;
 
         // verify header request
@@ -229,9 +233,6 @@ public class HttpClientTest {
             entry("title", "Invalid request [null]"),
             entry("type", "https://github.com/YunaBraska/nano")
         ).containsKey("id").containsKey("detail").containsKey("timestamp");
-
-        // Stop nano
-        assertThat(nano.stop(HttpClientTest.class).waitForStop().isReady()).isFalse();
     }
 
     public static void mimicRequest(final Event event) {
