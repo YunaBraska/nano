@@ -45,11 +45,6 @@ public class HttpService extends Service {
         return server;
     }
 
-    public HttpService server(final HttpServer server) {
-        this.server = server;
-        return this;
-    }
-
     // important for port finding when using multiple HttpServers
     protected static final Lock STARTUP_LOCK = new ReentrantLock();
 

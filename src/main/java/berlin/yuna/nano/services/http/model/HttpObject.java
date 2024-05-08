@@ -804,7 +804,7 @@ public class HttpObject extends HttpRequest {
      * @return the response as an {@link HttpObject}
      */
     public HttpObject send(final Context context, final Consumer<HttpObject> callback) {
-        if(context == null) {
+        if (context == null) {
             return null;
         }
         return ((HttpClient) context.computeIfAbsent(CONTEXT_HTTP_CLIENT_KEY, value -> new HttpClient())).send(this, callback);
@@ -842,7 +842,7 @@ public class HttpObject extends HttpRequest {
     }
 
     /**
-     * Stores a failure exception within the HTTP headers.
+     * Stores a failure exception within the HTTP headers. RFC 7807 To The Rescue!
      * This method allows an exception to be attached to the HTTP object,
      * potentially for logging purposes or for transmitting error information back to a client or server.
      *
@@ -863,24 +863,6 @@ public class HttpObject extends HttpRequest {
             .putReturn("timestamp", Instant.now().toEpochMilli())
         );
         return this;
-    }
-
-    /**
-     * Creates a deep copy of this HttpObject, including deep copies of all mutable fields.
-     *
-     * @return a deep copy of this HttpObject
-     */
-    public HttpObject copy() {
-        final HttpObject copy = new HttpObject();
-        copy.exchange = exchange;
-        copy.method = method;
-        copy.path = path;
-        copy.body = body == null ? null : this.body.clone();
-        copy.headers = headers == null ? null : new TypeMap(headers);
-        copy.queryParams = queryParams == null ? null : new TypeMap(queryParams);
-        copy.pathParams = pathParams == null ? null : new TypeMap(pathParams);
-        copy.statusCode = statusCode;
-        return copy;
     }
 
     // ########## NON FUNCTIONAL HELPERS ##########
