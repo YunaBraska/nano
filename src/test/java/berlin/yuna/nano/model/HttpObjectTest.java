@@ -522,33 +522,6 @@ class HttpObjectTest {
     }
 
     @Test
-    void testSend() throws InterruptedException {
-        final HttpService server = new HttpService();
-        final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL), server);
-        final String serverUrl = "http://localhost:" + server.port();
-        final Context context = nano.newContext(this.getClass());
-//        final HttpClientOld client = context.httpClient().connectionTimeoutMs(512).readTimeoutMs(512).retries(1);
-        final HttpClient client = new HttpClient(context);
-        context.subscribeEvent(EVENT_HTTP_REQUEST, HttpClientTest::mimicRequest);
-
-//        assertThatThrownBy(() -> new HttpObject().send(client)).isInstanceOf(IllegalArgumentException.class).hasMessage("Invalid URL [null]");
-//        assertThatThrownBy(() -> client.send(new HttpObject())).isInstanceOf(IllegalArgumentException.class).hasMessage("Invalid URL [null]");
-//
-//        System.out.println("!!!!" + client.send(new HttpObject().method(HttpMethod.GET).header(CONTENT_ENCODING, "gzip").body("{Hällo Wörld?!}").path("https://webhook.site/2fe67ece-0c65-4eb8-931a-b4d3edeab850?AA=BB")).bodyAsString());
-//        System.out.println("!!!!" + client.send(new HttpObject().method(HttpMethod.GET).path("https://google.com")).bodyAsString());
-        final HttpObject response = client.send(new HttpObject().methodType(HttpMethod.GET).path(serverUrl));
-        System.out.println("body [" + response.bodyAsString() + "] failure [" + response.failure() + "] statusCode [" + response.statusCode() + "]");
-//
-//        assertThat(client.send(new HttpObject().path("http://example.com:80")).failure()).isNull();
-//        assertThat(client.send(new HttpObject().path(serverUrl))).isNotNull();
-//        assertThat(client.send(new HttpObject().path(serverUrl)).failure()).isNull();
-//        assertThat(client.send(new HttpObject().path(serverUrl)).statusCode()).isEqualTo(200);
-
-//        Thread.sleep(120000);
-//        assertThat(nano.stop(this.getClass()).waitForStop().isReady()).isFalse();
-    }
-
-    @Test
     void testHashCode() {
         final HttpObject httpObject1 = new HttpObject();
         httpObject1.statusCode(200)
