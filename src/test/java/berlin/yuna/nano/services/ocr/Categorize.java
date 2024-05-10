@@ -49,10 +49,6 @@ public class Categorize {
                         // POOR SCORING, can be improved a lot :D e.g. finding most matching keywords and better algorithm
                         final int distance = damerauLevenshteinDistance(block.text.toLowerCase(), keyword.toLowerCase());
                         final double score = 100.0 - ((double) distance / Math.max(block.text.length(), keyword.length()) * 100);
-                        if("PERSONALAUSWEIS".equalsIgnoreCase(block.text.trim()) && "PERSONALAUSWEIS".equalsIgnoreCase(keyword.trim())){
-                            System.out.println("distance = " + distance);
-                            System.out.println("score = " + score);
-                        }
                         if (score > 50)
                             result.merge(category, score, Double::max);
                     });
@@ -65,17 +61,12 @@ public class Categorize {
 
     public static void executeTasks(final List<Callable<Object>> tasks) {
         try {
-            List<Future<Object>> futures = VIRTUAL_THREAD_POOL.invokeAll(tasks);
-
-            for (Future<Object> future : futures) {
-                try {
-                    future.get(); // This will throw an exception if an error occurred during the task.
-                } catch (ExecutionException e) {
-                    e.printStackTrace();
-                }
-            }
+            for (final Future<Object> future : VIRTUAL_THREAD_POOL.invokeAll(tasks))
+                future.get();
         } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
+        } catch (final ExecutionException e) {
+            throw new RuntimeException(e);
         }
     }
 
