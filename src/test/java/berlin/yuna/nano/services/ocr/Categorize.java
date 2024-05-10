@@ -20,6 +20,9 @@ public class Categorize {
         System.out.println("VERSION [" + OCRProcessor.TESSERACT_VERSION + "]");
         System.out.println("LANGUAGES [" + OCRProcessor.TESSERACT_LANGUAGES + "]");
 
+        System.out.println(lineSeparator() + "########## INPUT_FILE ###########");
+        System.out.println("File [" + INPUT_FILE + "]");
+
         System.out.println(lineSeparator() + "########## OCR ###########");
         long start = System.currentTimeMillis();
         final OCRProcessor.OCRMetadata metadata = OCRProcessor.parseText(Path.of(INPUT_FILE));
