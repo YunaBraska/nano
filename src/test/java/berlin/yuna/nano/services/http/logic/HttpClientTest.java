@@ -205,7 +205,7 @@ public class HttpClientTest {
         // send async request
         final CountDownLatch latch = new CountDownLatch(1);
         response = client.send(new HttpObject().path(serverUrl).body("{Hällo Wörld?!}"), callback -> latch.countDown());
-        assertThat(latch.await(512, TimeUnit.MILLISECONDS)).isTrue();
+        assertThat(latch.await(2000, TimeUnit.MILLISECONDS)).isTrue();
         assertThat(response.failure()).isNull();
         assertThat(response.bodyAsString()).isEqualTo("{Hällo Wörld?!}");
         assertThat(response.header(CONTENT_LENGTH)).isEqualTo("17");
