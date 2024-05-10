@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Execution(ExecutionMode.CONCURRENT)
 class NanoThreadTest {
 
-    public static final ExecutorService TEST_EXECUTOR = fallbackExecutor;
+    public static final ExecutorService TEST_EXECUTOR = VIRTUAL_THREAD_POOL;
 
     @RepeatedTest(TestConfig.TEST_REPEAT)
     void waitForAll_shouldBlockAndWait() {

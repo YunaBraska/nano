@@ -13,6 +13,8 @@ public enum ContentType {
     APPLICATION_SVG_XML("application/svg+xml"),
     APPLICATION_XHTML_XML("application/xhtml+xml"),
     APPLICATION_XML("application/xml"),
+    APPLICATION_PROBLEM_JSON("application/problem+json"),
+    APPLICATION_PROBLEM_XML("application/problem+xml"),
     IMAGE_BMP("image/bmp"),
     IMAGE_GIF("image/gif"),
     IMAGE_JPEG("image/jpeg"),

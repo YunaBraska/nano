@@ -22,7 +22,7 @@ public class NanoThread {
     protected final Context context;
     protected final LockedBoolean isComplete = new LockedBoolean();
 
-    protected static final ExecutorService fallbackExecutor = Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("nano-thread-", 0).factory());
+    public static final ExecutorService VIRTUAL_THREAD_POOL = Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("nano-thread-", 0).factory());
     protected static final AtomicLong activeNanoThreadCount = new AtomicLong(0);
 
     public NanoThread() {
@@ -64,7 +64,7 @@ public class NanoThread {
 
     @SuppressWarnings("java:S1181") // Throwable is caught
     public NanoThread run(final ExecutorService executor, final Supplier<Context> context, final ExRunnable task) {
-        (executor != null ? executor : fallbackExecutor).submit(() -> {
+        (executor != null ? executor : VIRTUAL_THREAD_POOL).submit(() -> {
             try {
                 activeNanoThreadCount.incrementAndGet();
                 task.run();

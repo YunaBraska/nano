@@ -1,28 +1,43 @@
 package berlin.yuna.nano.services.http.model;
 
+import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.helper.event.model.Event;
+import berlin.yuna.nano.services.http.logic.HttpClient;
 import berlin.yuna.typemap.logic.JsonDecoder;
-import berlin.yuna.typemap.logic.TypeConverter;
 import berlin.yuna.typemap.logic.XmlDecoder;
 import berlin.yuna.typemap.model.TypeContainer;
 import berlin.yuna.typemap.model.TypeMap;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 
+import java.io.InputStream;
 import java.net.InetAddress;
+import java.net.URI;
 import java.net.URLDecoder;
+import java.net.http.HttpRequest;
 import java.nio.charset.Charset;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import java.util.zip.Inflater;
 
-import static berlin.yuna.nano.helper.NanoUtils.split;
-import static berlin.yuna.nano.services.http.model.HttpHeaders.ACCEPT;
-import static berlin.yuna.nano.services.http.model.HttpHeaders.CONTENT_TYPE;
+import static berlin.yuna.nano.helper.NanoUtils.*;
+import static berlin.yuna.nano.services.http.model.ContentType.*;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.*;
+import static berlin.yuna.nano.services.http.model.HttpMethod.GET;
+import static berlin.yuna.typemap.logic.TypeConverter.collectionOf;
+import static berlin.yuna.typemap.logic.TypeConverter.convertObj;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.emptyList;
 import static java.util.Optional.ofNullable;
+import static java.util.zip.GZIPInputStream.GZIP_MAGIC;
 
 /**
  * Represents an HTTP request and response object within a server handling context.
@@ -30,7 +45,7 @@ import static java.util.Optional.ofNullable;
  * as well as utilities to check request types and content in a fluent and chaining API.
  */
 @SuppressWarnings("java:S2386") // Mutable fields should not be "public static"
-public class HttpObject {
+public class HttpObject extends HttpRequest {
 
     // lazy loaded fields
     protected HttpMethod method;
@@ -39,12 +54,17 @@ public class HttpObject {
     protected TypeMap headers;
     protected TypeMap queryParams;
     protected TypeMap pathParams;
-    protected int statusCode;
-    protected final HttpExchange exchange;
+    protected int statusCode = -1;
+    protected Long timeoutMs;
+    protected HttpExchange exchange;
 
     // common modifiable fields
+    public static final String HTTP_EXCEPTION_HEADER = "#throwable#";
+    public static final DateTimeFormatter HTTP_DATE_FORMATTER = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss 'GMT'", Locale.ENGLISH);
     public static final String[] USER_AGENT_BROWSERS = {"chrome", "firefox", "safari", "opera", "edge", "ie", "trident", "vivaldi", "browser", "mozilla", "webkit"};
     public static final String[] USER_AGENT_MOBILE = {"mobile", "ios", "ipad", "ipod", "htc", "nokia", "wii", "psp", "windows phone", "blackberry", "webos", "opera mini", "opera mobi", "kindle", "silk", "puffin", "ucbrowser", "ucweb", "baidubrowser", "baiduboxapp", "samsungbrowser", "miuibrowser", "miuib"};
+    public static final String CONTEXT_HTTP_CLIENT_KEY = "app_core_context_http_client";
+    public static final List<String> JAVA_MANAGED_HEADERS = List.of(CONTENT_LENGTH, CONNECTION, HOST, TRANSFER_ENCODING);
 
     /**
      * Constructs a new {@link HttpObject} from a specified {@link HttpExchange}.
@@ -55,9 +75,11 @@ public class HttpObject {
      */
     public HttpObject(final HttpExchange exchange) {
         this.exchange = exchange;
-        path(exchange.getRequestURI().getPath());
-        method(exchange.getRequestMethod());
-        headers(exchange.getRequestHeaders());
+        if (exchange != null) {
+            path(exchange.getRequestURI().getPath());
+            methodType(exchange.getRequestMethod());
+            headerMap(exchange.getRequestHeaders());
+        }
     }
 
     /**
@@ -72,7 +94,7 @@ public class HttpObject {
      *
      * @return the current {@link HttpMethod}.
      */
-    public HttpMethod method() {
+    public HttpMethod methodType() {
         return method;
     }
 
@@ -82,8 +104,8 @@ public class HttpObject {
      * @param method the HTTP method as a string. <code>null</code> if method is not one of {@link HttpMethod}.
      * @return this {@link HttpObject} for method chaining.
      */
-    public HttpObject method(final String method) {
-        return method(HttpMethod.httpMethodOf(method));
+    public HttpObject methodType(final String method) {
+        return methodType(HttpMethod.httpMethodOf(method));
     }
 
     /**
@@ -92,7 +114,7 @@ public class HttpObject {
      * @param method the HTTP method as an enum {@link HttpMethod}.
      * @return this {@link HttpObject} for method chaining.
      */
-    public HttpObject method(final HttpMethod method) {
+    public HttpObject methodType(final HttpMethod method) {
         this.method = method;
         return this;
     }
@@ -103,8 +125,7 @@ public class HttpObject {
      * @return the primary {@link ContentType} of the request, or {@code null} if no content type is set.
      */
     public ContentType contentType() {
-        final List<ContentType> result = contentTypes();
-        return result.isEmpty() ? null : result.getFirst();
+        return contentTypes().getFirst();
     }
 
     /**
@@ -113,7 +134,8 @@ public class HttpObject {
      * @return a list of {@link ContentType} objects representing each content type specified.
      */
     public List<ContentType> contentTypes() {
-        return splitHeaderValue(headers().getList(String.class, CONTENT_TYPE), ContentType::fromValue);
+        final List<ContentType> contentTypes = splitHeaderValue(headerMap().getList(String.class, CONTENT_TYPE), ContentType::fromValue);
+        return contentTypes.isEmpty() ? List.of(guessContentType(this, body())) : contentTypes;
     }
 
     /**
@@ -155,7 +177,7 @@ public class HttpObject {
      * @return this {@link HttpObject} to allow method chaining.
      */
     public HttpObject contentType(final Charset charset, final ContentType... contentType) {
-        headers().put(CONTENT_TYPE, Arrays.stream(contentType)
+        headerMap().put(CONTENT_TYPE, Arrays.stream(contentType)
             .filter(Objects::nonNull)
             .map(ContentType::value)
             .collect(Collectors.joining(", ")) + (charset == null ? "" : "; charset=" + charset.name()));
@@ -168,11 +190,11 @@ public class HttpObject {
     }
 
     public List<ContentType> accepts() {
-        return splitHeaderValue(headers().getList(String.class, ACCEPT), ContentType::fromValue);
+        return splitHeaderValue(headerMap().getList(String.class, ACCEPT), ContentType::fromValue);
     }
 
     public HttpObject accept(final String... contentType) {
-        headers().put(HttpHeaders.ACCEPT, Arrays.stream(contentType)
+        headerMap().put(HttpHeaders.ACCEPT, Arrays.stream(contentType)
             .map(ContentType::fromValue)
             .filter(Objects::nonNull)
             .map(ContentType::value)
@@ -181,7 +203,7 @@ public class HttpObject {
     }
 
     public HttpObject accept(final ContentType... contentType) {
-        headers().put(HttpHeaders.ACCEPT, Arrays.stream(contentType)
+        headerMap().put(HttpHeaders.ACCEPT, Arrays.stream(contentType)
             .filter(Objects::nonNull)
             .map(ContentType::value)
             .collect(Collectors.joining(", ")));
@@ -204,11 +226,11 @@ public class HttpObject {
     }
 
     public List<String> acceptEncodings() {
-        return splitHeaderValue(headers().getList(String.class, HttpHeaders.ACCEPT_ENCODING), v -> v);
+        return splitHeaderValue(headerMap().getList(String.class, ACCEPT_ENCODING), v -> v);
     }
 
     public boolean hasAcceptEncoding(final String... encodings) {
-        final List<String> result = splitHeaderValue(headers().getList(String.class, HttpHeaders.ACCEPT_ENCODING), v -> v);
+        final List<String> result = splitHeaderValue(headerMap().getList(String.class, ACCEPT_ENCODING), v -> v);
         return Arrays.stream(encodings).allMatch(result::contains);
     }
 
@@ -218,7 +240,26 @@ public class HttpObject {
     }
 
     public List<Locale> acceptLanguages() {
-        return splitHeaderValue(headers().getList(String.class, HttpHeaders.ACCEPT_LANGUAGE), Locale::forLanguageTag);
+        return splitHeaderValue(headerMap().getList(String.class, HttpHeaders.ACCEPT_LANGUAGE), Locale::forLanguageTag);
+    }
+
+    /**
+     * Sets the accepted languages based on a list where the order indicates priority.
+     * The first language in the list has the highest priority, automatically assigning descending priorities.
+     *
+     * @param locales Ordered array of {@link Locale} representing the preferred languages, from most to least preferred.
+     * @return this {@link HttpObject} to allow method chaining.
+     */
+    public HttpObject acceptLanguages(final Locale... locales) {
+        if (locales == null || locales.length == 0) {
+            headerMap().remove(HttpHeaders.ACCEPT_LANGUAGE);
+        } else {
+            final String acceptLanguageValue = IntStream.range(0, locales.length)
+                .mapToObj(i -> locales[i].toLanguageTag() + ";q=" + Math.max(0.1, 1.1 - ((i + 1d) / 10)))
+                .collect(Collectors.joining(", "));
+            headerMap().put(HttpHeaders.ACCEPT_LANGUAGE, acceptLanguageValue);
+        }
+        return this;
     }
 
     /**
@@ -280,14 +321,14 @@ public class HttpObject {
      */
     public byte[] body() {
         if (body == null && exchange != null) {
-            try {
-                body = exchange.getRequestBody().readAllBytes();
+            try (final InputStream bodyStream = exchange.getRequestBody()) {
+                body = bodyStream.readAllBytes();
             } catch (final Exception ignored) {
                 // ignored
             }
         }
         if (body == null)
-            body = new byte[0];
+            body(new byte[0]);
         return body;
     }
 
@@ -318,7 +359,17 @@ public class HttpObject {
      * @return this {@link HttpObject} to allow method chaining.
      */
     public HttpObject body(final byte[] body) {
-        this.body = body;
+        if (body.length > 2) {
+            if ((body[0] & 0xFF) == (GZIP_MAGIC & 0xFF) && (body[1] & 0xFF) == ((GZIP_MAGIC >> 8) & 0xFF)) {
+                this.body = decodeGzip(body);
+            } else if (isDeflateCompressed()) {
+                this.body = decoderDeflate(body);
+            } else {
+                this.body = body;
+            }
+        } else {
+            this.body = body;
+        }
         return this;
     }
 
@@ -449,7 +500,7 @@ public class HttpObject {
      * @return this {@link HttpObject} to allow method chaining.
      */
     public HttpObject userAgent(final String userAgent) {
-        headers().put(HttpHeaders.USER_AGENT, userAgent);
+        headerMap().put(HttpHeaders.USER_AGENT, userAgent);
         return this;
     }
 
@@ -509,10 +560,102 @@ public class HttpObject {
      *
      * @return a {@link TypeMap} containing the headers.
      */
-    public TypeMap headers() {
+    public TypeMap headerMap() {
         if (headers == null)
             headers = new TypeMap();
         return headers;
+    }
+
+    /**
+     * <p>
+     * Constructs and returns a map of HTTP headers to be included in an HTTP response.
+     * This method ensures that essential headers are set, providing a sensible default for headers
+     * like Content-Encoding, Connection, Cache-Control, Accept-Encoding, Content-Type, Content-Length, and Date.
+     * </p><p>
+     * The method sets defaults for managing caching, connection persistence, and content encoding to optimize
+     * performance and compliance with HTTP standards. It also dynamically calculates content length and sets the
+     * current date and time in GMT format.
+     * </p><p>
+     *
+     * @return A map where keys are header names and values are lists of string representing the header values.
+     * This structure supports headers having multiple values.
+     * </p><p>
+     * Header Details:
+     * - {@link HttpHeaders#ACCEPT}: Default "*\/*".
+     * - {@link HttpHeaders#CONTENT_ENCODING}: Default "gzip". Specifies the type of compression used.
+     * - {@link HttpHeaders#CACHE_CONTROL}: Ensures fresh content by specifying "no-cache" and overrides with "max-age=0, private, must-revalidate" for more specific caching rules.
+     * - {@link HttpHeaders#ACCEPT_ENCODING}: Lists the acceptable encodings the server can handle, defaults to "gzip, deflate".
+     * - {@link HttpHeaders#CONTENT_TYPE}: Determined by {@code contentTypes()} method to set the correct media type of the response.
+     * - {@link HttpHeaders#CONTENT_LENGTH}: Calculates the length of the response body to inform the client of the size of the response.
+     * - {@link HttpHeaders#DATE}: Sets the current date and time formatted according to RFC 7231.
+     * </p>
+     */
+    public Map<String, List<String>> computedHeaders(final boolean isRequest) {
+        final TypeMap result = headerMap();
+        if (isRequest) {
+            result.putIfAbsent(ACCEPT_ENCODING, "gzip, deflate");
+            result.computeIfAbsent(ACCEPT, fallback -> WILDCARD.value());
+            result.computeIfAbsent(USER_AGENT, fallback -> generateNanoName("%s/%s (%s %s)"));
+        }
+        result.putIfAbsent(CONTENT_ENCODING, "gzip");
+        result.putIfAbsent(CACHE_CONTROL, "no-cache");
+        result.computeIfAbsent(CONTENT_TYPE, value -> contentTypes().stream().map(ContentType::value).toList());
+        result.computeIfAbsent(CONTENT_LENGTH, value -> this.body().length);
+        result.computeIfAbsent(DATE, value -> HTTP_DATE_FORMATTER.format(ZonedDateTime.now().withZoneSameInstant(java.time.ZoneOffset.UTC)));
+        return result.getMap(String.class, value -> collectionOf(value, String.class));
+    }
+
+    /**
+     * Sets the HTTP Range header to request only the first byte of the content.
+     * This method is typically used to determine the size of the content without downloading it entirely.
+     * The server should respond with the Content-Range header which includes the total size of the requested resource.
+     *
+     * @return this {@link HttpObject} to allow method chaining.
+     */
+    public HttpObject sizeRequest(final boolean sizeRequest) {
+        if (sizeRequest)
+            headerMap().put(RANGE, "bytes=0-0");
+        if (!sizeRequest)
+            headerMap().remove(RANGE);
+        return this;
+    }
+
+    /**
+     * Checks if the Range header has been set to request only the first byte of the content.
+     * This method is used to determine if the current request is a size request, which is typically
+     * used to fetch the size of the content without fully downloading it.
+     *
+     * @return true if the Range header is set to "bytes=0-0", indicating a size request; false otherwise.
+     */
+
+    public boolean sizeRequest() {
+        return "bytes=0-0".equals(headerMap().get(RANGE));
+    }
+
+    /**
+     * <p>
+     * Calculates the size of the HTTP content.
+     * This method first attempts to retrieve the content size from the HTTP headers.
+     * It checks the {@code Content-Length} header for a direct size declaration.
+     * If not present, it tries to extract the size from the {@code Content-Range} header,
+     * which is used in responses to range requests.
+     * </p><p>
+     * If neither header is present or they don't contain valid size information,
+     * the method falls back to the length of the body, which is loaded into memory.
+     * </p>
+     *
+     * @return the size of the content as a long. If the size cannot be determined from the headers,
+     * it returns the length of the body. If the headers are not set or are invalid, and the body is not loaded,
+     * it returns -1.
+     */
+    public long size() {
+        final long headerLength = headers == null ? -1L : Math.max(
+            headers.getOpt(String.class, CONTENT_RANGE).map(s -> s.replace("bytes 0-0/", "")).map(s -> convertObj(s, Long.class)).orElse(-1L),
+            headers.getOpt(Long.class, CONTENT_LENGTH).orElse(-1L)
+        );
+        if (headerLength > -1)
+            return headerLength;
+        return body().length;
     }
 
     /**
@@ -521,7 +664,7 @@ public class HttpObject {
      * @param headers the header keys and values.
      * @return this {@link HttpObject} for method chaining.
      */
-    public HttpObject headers(final Headers headers) {
+    public HttpObject headerMap(final Headers headers) {
         this.headers = convertHeaders(headers);
         return this;
     }
@@ -532,7 +675,7 @@ public class HttpObject {
      * @param headers the header keys and values.
      * @return this {@link HttpObject} for method chaining.
      */
-    public HttpObject headers(final Map<String, Object> headers) {
+    public HttpObject headerMap(final Map<String, ?> headers) {
         this.headers = convertHeaders(headers);
         return this;
     }
@@ -546,7 +689,7 @@ public class HttpObject {
      */
     public HttpObject header(final String key, final Object value) {
         if (key != null && value != null)
-            headers().put(key.toLowerCase(), value);
+            headerMap().put(key.toLowerCase(), value);
         return this;
     }
 
@@ -569,6 +712,52 @@ public class HttpObject {
         return queryParams;
     }
 
+    // ########## HTTP REQUEST HELPERS ##########
+
+    @Override
+    public Optional<BodyPublisher> bodyPublisher() {
+        return Optional.of(HttpRequest.BodyPublishers.ofByteArray(body()));
+    }
+
+    @Override
+    public String method() {
+        return method == null ? GET.name() : method.name();
+    }
+
+    @Override
+    public Optional<Duration> timeout() {
+        return timeoutMs == null ? Optional.empty() : Optional.of(Duration.ofMillis(timeoutMs));
+    }
+
+    public HttpObject timeout(final long timeoutMs) {
+        this.timeoutMs = timeoutMs;
+        return this;
+    }
+
+    @Override
+    public boolean expectContinue() {
+        return false;
+    }
+
+    @Override
+    public URI uri() {
+        // TODO: with query params?
+        return URI.create(path() == null ? "" : path());
+    }
+
+    @Override
+    public Optional<java.net.http.HttpClient.Version> version() {
+        // overwritten by HttpClient
+        return Optional.empty();
+    }
+
+    @Override
+    public java.net.http.HttpHeaders headers() {
+        final Map<String, List<String>> map = computedHeaders(true);
+        JAVA_MANAGED_HEADERS.forEach(map::remove);
+        return java.net.http.HttpHeaders.of(map, (k, v) -> true);
+    }
+
     // ########## NANO EVENT HELPERS ##########
 
     /**
@@ -583,6 +772,8 @@ public class HttpObject {
         return new HttpObject();
     }
 
+    // ########## REQUEST / RESPONSE HELPERS ##########
+
     /**
      * Sends an HTTP response using the current {@link HttpObject} as the response context.
      * This method utilizes the provided {@link Event} to carry the response back to the event handler or processor.
@@ -593,6 +784,85 @@ public class HttpObject {
      */
     public Event send(final Event event) {
         return event.response(this);
+    }
+
+    /**
+     * Sends an HTTP request using the provided {@link HttpObject}.
+     * For async processing, use the {@link HttpObject#send(Context, Consumer)} method.
+     *
+     * @return the response as an {@link HttpObject}
+     */
+    public HttpObject send(final Context context) {
+        return send(context, null);
+    }
+
+    /**
+     * Sends an HTTP request using the provided {@link HttpObject}.
+     * <b>If a response listener is provided, it processes the response asynchronously.</b>
+     *
+     * @param callback an optional consumer to process the response asynchronously
+     * @return the response as an {@link HttpObject}
+     */
+    public HttpObject send(final Context context, final Consumer<HttpObject> callback) {
+        if (context == null) {
+            return null;
+        }
+        return ((HttpClient) context.computeIfAbsent(CONTEXT_HTTP_CLIENT_KEY, value -> new HttpClient())).send(this, callback);
+    }
+
+    /**
+     * Checks if the HTTP response headers contain an entry indicating an exception or failure.
+     * This is typically used to determine if the HTTP operation encountered any errors
+     * that were captured and stored in the headers.
+     *
+     * @return true if an exception or failure is indicated in the headers, false otherwise.
+     */
+    public boolean hasFailed() {
+        return !is2xxSuccessful() || (headers != null && (headers.containsValue(APPLICATION_PROBLEM_JSON.value()) || headers.containsValue(APPLICATION_PROBLEM_XML.value()) || headers.containsValue(HTTP_EXCEPTION_HEADER)));
+    }
+
+    /**
+     * Retrieves the failure exception from the HTTP headers, if present.
+     * This method directly accesses the headers to pull out a {@link Throwable} object
+     * which represents the exception that was encountered during the HTTP transaction.
+     *
+     * @return the {@link Throwable} that represents the failure, or null if no failure was recorded.
+     */
+    public Throwable failure() {
+        return headers == null ? null : headers.get(Throwable.class, HTTP_EXCEPTION_HEADER);
+    }
+
+    public HttpObject successOrElse(final Consumer<HttpObject> onSuccess, final Consumer<HttpObject> onFailure) {
+        if (hasFailed()) {
+            onFailure.accept(this);
+        } else {
+            onSuccess.accept(this);
+        }
+        return this;
+    }
+
+    /**
+     * Stores a failure exception within the HTTP headers. RFC 7807 To The Rescue!
+     * This method allows an exception to be attached to the HTTP object,
+     * potentially for logging purposes or for transmitting error information back to a client or server.
+     *
+     * @param throwable the {@link Throwable} exception to store in the headers.
+     * @return this {@link HttpObject} to allow for method chaining.
+     */
+    public HttpObject failure(final int statusCode, final Throwable throwable) {
+        header(HTTP_EXCEPTION_HEADER, throwable);
+        header(CONTENT_TYPE, ContentType.APPLICATION_PROBLEM_JSON.value());
+        statusCode(statusCode);
+        body(new TypeMap()
+            .putReturn("id", generateNanoName("%s_%s_%s_%s").toLowerCase().replace(".", "").replace(" ", "_"))
+            .putReturn("type", "https://github.com/YunaBraska/nano")
+            .putReturn("title", ofNullable(throwable.getMessage()).orElse(throwable.getClass().getSimpleName()))
+            .putReturn("status", statusCode)
+            .putReturn("instance", path())
+            .putReturn("detail", convertObj(throwable, String.class))
+            .putReturn("timestamp", Instant.now().toEpochMilli())
+        );
+        return this;
     }
 
     // ########## NON FUNCTIONAL HELPERS ##########
@@ -645,7 +915,7 @@ public class HttpObject {
             .or(() -> ofNullable(headers).map(header -> header.get(String.class, HttpHeaders.HOST)).map(value -> split(value, ":"))
                 .filter(a -> a.length > 1)
                 .map(a -> a[1])
-                .map(s -> TypeConverter.convertObj(s, Integer.class))
+                .map(s -> convertObj(s, Integer.class))
             ).orElse(-1);
     }
 
@@ -679,7 +949,7 @@ public class HttpObject {
             .map(String::trim)
             .filter(part -> part.toLowerCase().startsWith("charset="))
             .map(charset -> charset.substring(8).trim())
-            .map(charset -> TypeConverter.convertObj(charset, Charset.class))
+            .map(charset -> convertObj(charset, Charset.class))
             .filter(Objects::nonNull)
             .findFirst().orElse(Charset.defaultCharset());
     }
@@ -699,7 +969,7 @@ public class HttpObject {
     }
 
     public boolean isMethodGet() {
-        return HttpMethod.GET.equals(method);
+        return GET.equals(method);
     }
 
     public boolean isMethodPost() {
@@ -867,29 +1137,32 @@ public class HttpObject {
     }
 
     @Override
-    public boolean equals(final Object o) {
-        if (this == o) return true;
-        if (!(o instanceof final HttpObject that)) return false;
-        return statusCode == that.statusCode && method == that.method && Objects.equals(path, that.path) && Objects.deepEquals(body, that.body) && Objects.equals(headers, that.headers);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(method, path, Arrays.hashCode(body), headers, statusCode);
-    }
-
-    @Override
     public String toString() {
         return new StringJoiner(", ", HttpObject.class.getSimpleName() + "[", "]")
             .add("statusCode=" + statusCode)
             .add("path=" + path)
-            .add("method=" + method)
+            .add("method=" + method())
             .add("headers=" + headers)
             .add("body=" + bodyAsString())
             .toString();
     }
 
     // ########## STATICS ##########
+
+    public static ContentType guessContentType(final HttpObject response, final byte[] body) {
+        if (body.length > 0) {
+            if ((body[0] == '{' && body[body.length - 1] == '}') || (body[0] == '[' && body[body.length - 1] == ']')) {
+                return ContentType.APPLICATION_JSON;
+            } else if (body[0] == '<' && body[body.length - 1] == '>') {
+                if (new String(body, 0, Math.min(body.length, 14), response.encoding()).contains("<!DOCTYPE html")) {
+                    return ContentType.TEXT_HTML;
+                } else {
+                    return ContentType.APPLICATION_XML;
+                }
+            }
+        }
+        return ContentType.APPLICATION_OCTET_STREAM;
+    }
 
     public static <R> List<R> splitHeaderValue(final Collection<String> value, final Function<String, R> mapper) {
         if (value == null)
@@ -927,5 +1200,18 @@ public class HttpObject {
 
     public static String removeLast(final String input, final String removable) {
         return input.length() > removable.length() && input.endsWith(removable) ? input.substring(0, input.length() - removable.length()) : input;
+    }
+
+    public boolean isDeflateCompressed() {
+        final Inflater inflater = new Inflater();
+        try {
+            inflater.setInput(body);
+            final byte[] result = new byte[100];
+            final int resultLength = inflater.inflate(result);
+            inflater.end();
+            return resultLength > 0; // If decompression works, it's likely a DEFLATE compressed data
+        } catch (final Exception e) {
+            return false; // If an error occurs, it likely wasn't compressed data
+        }
     }
 }

@@ -8,15 +8,13 @@ import berlin.yuna.nano.helper.logger.LogFormatRegister;
 import berlin.yuna.nano.helper.logger.logic.LogQueue;
 import berlin.yuna.nano.helper.logger.logic.NanoLogger;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
-import berlin.yuna.nano.services.http.model.ContentType;
-import berlin.yuna.nano.services.http.model.HttpMethod;
 import berlin.yuna.typemap.logic.ArgsDecoder;
 
-import java.io.FileInputStream;
-import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.*;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -24,11 +22,9 @@ import java.util.logging.Formatter;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
-import static berlin.yuna.nano.core.model.Config.CONFIG_PROFILES;
 import static berlin.yuna.nano.helper.NanoUtils.*;
 import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_LOG_LEVEL;
 import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_LOG_QUEUE;
-import static berlin.yuna.typemap.config.TypeConversionRegister.registerTypeConvert;
 import static berlin.yuna.typemap.logic.TypeConverter.convertObj;
 import static java.lang.System.lineSeparator;
 import static java.util.Arrays.stream;
@@ -51,17 +47,6 @@ public abstract class NanoBase<T extends NanoBase<T>> {
     @SuppressWarnings("java:S2386")
     public static final Map<Integer, String> EVENT_TYPES = new ConcurrentHashMap<>();
     public static final AtomicInteger EVENT_ID_COUNTER = new AtomicInteger(0);
-
-    static {
-        registerTypeConvert(String.class, Formatter.class, LogFormatRegister::getLogFormatter);
-        registerTypeConvert(String.class, LogLevel.class, LogLevel::nanoLogLevelOf);
-        registerTypeConvert(LogLevel.class, String.class, Enum::name);
-        registerTypeConvert(Config.class, String.class, Config::id);
-        registerTypeConvert(ContentType.class, String.class, ContentType::name);
-        registerTypeConvert(String.class, ContentType.class, ContentType::fromValue);
-        registerTypeConvert(HttpMethod.class, String.class, HttpMethod::name);
-        registerTypeConvert(String.class, HttpMethod.class, HttpMethod::valueOf);
-    }
 
     /**
      * Initializes the NanoBase with provided configurations and arguments.

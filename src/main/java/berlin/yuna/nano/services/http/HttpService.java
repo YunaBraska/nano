@@ -3,10 +3,9 @@ package berlin.yuna.nano.services.http;
 import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.core.model.Service;
 import berlin.yuna.nano.core.model.Unhandled;
-import berlin.yuna.nano.services.http.model.ContentType;
-import berlin.yuna.nano.services.http.model.HttpHeaders;
+import berlin.yuna.nano.helper.event.model.Event;
+import berlin.yuna.nano.services.http.logic.HttpClient;
 import berlin.yuna.nano.services.http.model.HttpObject;
-import berlin.yuna.typemap.logic.TypeConverter;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
@@ -14,21 +13,40 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.nio.charset.Charset;
+import java.net.http.HttpRequest;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
 import static berlin.yuna.nano.core.model.Config.CONFIG_SERVICE_HTTP_PORT;
 import static berlin.yuna.nano.helper.event.model.EventType.*;
+import static berlin.yuna.nano.services.http.model.HttpObject.CONTEXT_HTTP_CLIENT_KEY;
+import static berlin.yuna.typemap.logic.TypeConverter.collectionOf;
 
 public class HttpService extends Service {
-    private HttpServer server;
+    protected HttpServer server;
+    protected Context context;
 
     public HttpService() {
         super(null, false);
     }
+
+    public InetSocketAddress address() {
+        return server == null ? null : server.getAddress();
+    }
+
+    public int port() {
+        return server == null ? -1 : server.getAddress().getPort();
+    }
+
+    public HttpServer server() {
+        return server;
+    }
+
+    // important for port finding when using multiple HttpServers
+    protected static final Lock STARTUP_LOCK = new ReentrantLock();
 
     @Override
     public void stop(final Supplier<Context> contextSub) {
@@ -40,9 +58,10 @@ public class HttpService extends Service {
     }
 
     @Override
-    public synchronized void start(final Supplier<Context> contextSub) {
+    public void start(final Supplier<Context> contextSub) {
         isReady.set(false, true, state -> {
-            final Context context = contextSub.get().newContext(HttpService.class, null);
+            context = contextSub.get().newContext(HttpService.class, null);
+            STARTUP_LOCK.lock();
             final int port = context.getOpt(Integer.class, CONFIG_SERVICE_HTTP_PORT.id()).filter(p -> p > 0).orElseGet(() -> nextFreePort(8080));
             context.put(CONFIG_SERVICE_HTTP_PORT, port);
             handleHttps(context);
@@ -56,13 +75,13 @@ public class HttpService extends Service {
                             response -> sendResponse(exchange, response),
                             () -> context.sendEventReturn(EVENT_HTTP_REQUEST_UNHANDLED, httpRequest).responseOpt(HttpObject.class).ifPresentOrElse(
                                 response -> sendResponse(exchange, response),
-                                () -> sendResponse(exchange, new HttpObject().statusCode(404).body("Page not found".getBytes()).headers(new HashMap<>()))
+                                () -> sendResponse(exchange, new HttpObject().statusCode(404).body("Page not found".getBytes()).headerMap(new HashMap<>()))
                             )
                         );
                     } catch (final Exception e) {
                         context.sendEventReturn(EVENT_APP_UNHANDLED, new Unhandled(context, httpRequest, e)).responseOpt(HttpObject.class).ifPresentOrElse(
                             response -> sendResponse(exchange, response),
-                            () -> new HttpObject().statusCode(500).body("Internal Server Error".getBytes()).headers(new HashMap<>())
+                            () -> new HttpObject().statusCode(500).body("Internal Server Error".getBytes()).headerMap(new HashMap<>())
                         );
                     }
                 });
@@ -70,8 +89,21 @@ public class HttpService extends Service {
                 logger.info(() -> "[{}] starting on port [{}]", name(), port);
             } catch (final IOException e) {
                 logger.error(e, () -> "[{}] failed to start with port [{}]", name(), port);
+            } finally {
+                STARTUP_LOCK.unlock();
             }
         });
+    }
+
+    @Override
+    public void onEvent(final Event event) {
+        event.ifPresent(EVENT_HTTP_REQUEST, HttpRequest.class, request -> {
+            // Ignore incoming requests
+            if (request instanceof final HttpObject httpObject && httpObject.exchange() != null)
+                return;
+            event.response(((HttpClient) context.computeIfAbsent(CONTEXT_HTTP_CLIENT_KEY, value -> new HttpClient())).send(request));
+        });
+        super.onEvent(event);
     }
 
     private static void handleHttps(final Context context) {
@@ -116,22 +148,10 @@ public class HttpService extends Service {
 
     protected void sendResponse(final HttpExchange exchange, final HttpObject response) {
         try {
-            final byte[] body = response.body() != null ? response.body() : new byte[0];
+            final byte[] body = response.body();
             final int statusCode = response.statusCode() > -1 && response.statusCode() < 600 ? response.statusCode() : 200;
-            response.headers().computeIfAbsent(HttpHeaders.CONTENT_TYPE, value -> {
-                final String str = new String(body, Charset.defaultCharset());
-                return (str.startsWith("{") && str.endsWith("}")) || (str.startsWith("[") && str.endsWith("]")) ? ContentType.APPLICATION_JSON.value() : ContentType.TEXT_PLAIN.value();
-            });
-            // Fixme: TypeMap needs working method `getMap(String.class, String.class)` to convert headers to Map<String, String>
-            response.headers().keySet().forEach(rawKey -> {
-                final String key = TypeConverter.convertObj(rawKey, String.class);
-                if (key != null) {
-                    final List<String> value = response.headers().getList(String.class, rawKey);
-                    if (value != null) {
-                        exchange.getResponseHeaders().put(key, value);
-                    }
-                }
-            });
+            response.headerMap().getMap(String.class, value -> collectionOf(value, String.class)).forEach((key, value) -> exchange.getResponseHeaders().put(key, value));
+            response.computedHeaders(false).forEach((key, value) -> exchange.getResponseHeaders().put(key, value));
             exchange.sendResponseHeaders(statusCode, body.length);
             try (final OutputStream os = exchange.getResponseBody()) {
                 os.write(body);

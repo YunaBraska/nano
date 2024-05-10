@@ -1,13 +1,16 @@
 package berlin.yuna.nano.core.model;
 
-import berlin.yuna.nano.helper.event.EventTypeRegister;
-import berlin.yuna.nano.helper.event.model.Event;
-import berlin.yuna.nano.helper.logger.model.LogLevel;
-import berlin.yuna.typemap.model.ConcurrentTypeMap;
-import berlin.yuna.typemap.model.TypeList;
 import berlin.yuna.nano.core.Nano;
 import berlin.yuna.nano.helper.ExRunnable;
+import berlin.yuna.nano.helper.event.EventTypeRegister;
+import berlin.yuna.nano.helper.event.model.Event;
+import berlin.yuna.nano.helper.logger.LogFormatRegister;
 import berlin.yuna.nano.helper.logger.logic.NanoLogger;
+import berlin.yuna.nano.helper.logger.model.LogLevel;
+import berlin.yuna.nano.services.http.model.ContentType;
+import berlin.yuna.nano.services.http.model.HttpMethod;
+import berlin.yuna.typemap.model.ConcurrentTypeMap;
+import berlin.yuna.typemap.model.TypeList;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -15,10 +18,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.logging.Formatter;
 import java.util.stream.Collectors;
 
 import static berlin.yuna.nano.core.model.Service.threadsOf;
 import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_UNHANDLED;
+import static berlin.yuna.typemap.config.TypeConversionRegister.registerTypeConvert;
+import static java.net.http.HttpClient.Version.HTTP_1_1;
+import static java.net.http.HttpClient.Version.HTTP_2;
 import static java.util.Arrays.stream;
 import static java.util.Optional.ofNullable;
 
@@ -27,6 +34,25 @@ public class Context extends ConcurrentTypeMap {
 
     public static final String CONTEXT_TRACE_ID_KEY = "app_core_context_trace_id";
     public static final String CONTEXT_LOGGER_KEY = "app_core_context_logger";
+
+    static {
+        registerTypeConvert(String.class, Formatter.class, LogFormatRegister::getLogFormatter);
+        registerTypeConvert(String.class, LogLevel.class, LogLevel::nanoLogLevelOf);
+        registerTypeConvert(LogLevel.class, String.class, Enum::name);
+        registerTypeConvert(Config.class, String.class, Config::id);
+        registerTypeConvert(ContentType.class, String.class, ContentType::name);
+        registerTypeConvert(String.class, ContentType.class, ContentType::fromValue);
+        registerTypeConvert(HttpMethod.class, String.class, HttpMethod::name);
+        registerTypeConvert(String.class, HttpMethod.class, HttpMethod::valueOf);
+        registerTypeConvert(String.class, java.net.http.HttpClient.Version.class, string -> {
+            if ("1".equals(string) || HTTP_1_1.toString().equals(string)) {
+                return HTTP_1_1;
+            } else if ("2".equals(string) || HTTP_2.toString().equals(string)) {
+                return HTTP_2;
+            }
+            return null;
+        });
+    }
 
     private final transient Nano nano;
 
@@ -66,8 +92,7 @@ public class Context extends ConcurrentTypeMap {
      * @return The last created trace ID of the context.
      */
     public String traceId() {
-        final List<String> list = getList(CONTEXT_TRACE_ID_KEY, String.class);
-        return list.getLast();
+        return getList(String.class, CONTEXT_TRACE_ID_KEY).getLast();
     }
 
     /**
@@ -77,7 +102,7 @@ public class Context extends ConcurrentTypeMap {
      * @return The trace ID at the specified index, or the last trace ID if the index is out of bounds.
      */
     public String traceId(final int index) {
-        final List<String> list = getList(CONTEXT_TRACE_ID_KEY, String.class);
+        final List<String> list = getList(String.class, CONTEXT_TRACE_ID_KEY);
         return index > -1 && index < list.size() ? list.get(index) : list.getLast();
     }
 
@@ -87,7 +112,7 @@ public class Context extends ConcurrentTypeMap {
      * @return A list of all trace IDs associated with this context.
      */
     public List<String> traceIds() {
-        return getList(CONTEXT_TRACE_ID_KEY, String.class);
+        return getList(String.class, CONTEXT_TRACE_ID_KEY);
     }
 
     /**
@@ -220,7 +245,6 @@ public class Context extends ConcurrentTypeMap {
         nano.run(task, delay, period, unit, until);
         return this;
     }
-
 
     //########## LOGGING HELPERS ##########
 
@@ -412,9 +436,9 @@ public class Context extends ConcurrentTypeMap {
     /**
      * Sends an unhandled event with the provided, nullable payload and exception. If the event is not acknowledged, the error message is logged.
      *
-     * @param payload   The payload of the unhandled event, containing data relevant to the event's context and purpose.
-     * @param error The exception that occurred during the event processing.
-     * @param message   The error message to log in case the event is not acknowledged.
+     * @param payload The payload of the unhandled event, containing data relevant to the event's context and purpose.
+     * @param error   The exception that occurred during the event processing.
+     * @param message The error message to log in case the event is not acknowledged.
      * @return self for chaining
      */
     public Context sendEventError(final Object payload, final Throwable error, final Supplier<String> message, final Object... params) {
@@ -603,7 +627,7 @@ public class Context extends ConcurrentTypeMap {
 
     protected Context(final Map<?, ?> map, final Nano nano, final Class<?> clazz) {
         super(map);
-        this.put(CONTEXT_TRACE_ID_KEY, newTraceId(getList(CONTEXT_TRACE_ID_KEY, Object.class), clazz));
+        this.put(CONTEXT_TRACE_ID_KEY, newTraceId(getList(Object.class, CONTEXT_TRACE_ID_KEY), clazz));
         this.nano = nano;
     }
 
