@@ -15,6 +15,8 @@ public class Categorize {
     public static final String INPUT_FILE = "/Users/yuna/Downloads/ausweis.png";
 
     public static void main(final String[] args) {
+        // PREPROCESSING MISSING
+
         System.out.println(lineSeparator() + "########## TESSERACT ###########");
         System.out.println("PATH [" + OCRProcessor.TESSERACT_PATH + "]");
         System.out.println("VERSION [" + OCRProcessor.TESSERACT_VERSION + "]");
