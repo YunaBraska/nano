@@ -35,8 +35,8 @@ public abstract class NanoServices<T extends NanoServices<T>> extends NanoThread
     protected NanoServices(final Map<Object, Object> config, final String... args) {
         super(config, args);
         this.services = new CopyOnWriteArrayList<>();
-        addEventListener(EVENT_APP_SERVICE_REGISTER, event -> event.payloadOpt(Service.class).map(this::registerService).ifPresent(nano -> event.acknowledge()));
-        addEventListener(EVENT_APP_SERVICE_UNREGISTER, event -> event.payloadOpt(Service.class).map(service -> unregisterService(event.context(), service)).ifPresent(nano -> event.acknowledge()));
+        subscribeEvent(EVENT_APP_SERVICE_REGISTER, event -> event.payloadOpt(Service.class).map(this::registerService).ifPresent(nano -> event.acknowledge()));
+        subscribeEvent(EVENT_APP_SERVICE_UNREGISTER, event -> event.payloadOpt(Service.class).map(service -> unregisterService(event.context(), service)).ifPresent(nano -> event.acknowledge()));
     }
 
     /**
