@@ -23,10 +23,10 @@ public class Kazim {
             CONFIG_LOG_FORMATTER, "console"
         ), new LogQueue(), new MetricService(), new HttpService());
 
-        application.run(() -> {
-            final Context context = application.newContext(App.class);
-            context.sendEvent(EVENT_APP_SHUTDOWN, null);
-            context.sendEvent(99, null);
-        }, 5, 5, TimeUnit.SECONDS, () -> false);
+//        application.run(() -> {
+//            final Context context = application.newContext(Kazim.class);
+//            context.sendEvent(EVENT_APP_SHUTDOWN, null);
+//            context.sendEvent(99, null);
+//        }, 5, 5, TimeUnit.SECONDS, () -> false);
     }
 }

@@ -85,40 +85,40 @@ public class MetricService extends Service {
                     request.response()
                         .statusCode(200)
                         .body(metrics.prometheus())
-                        .headers(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event);
+                        .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event);
 
             })
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
             {
                 request.pathMatch(BASE_URL + "/influx");
                 request.isMethodGet();
-                final String response = metrics.prometheus();
+                final String response = metrics.influx();
                 request.response()
                     .statusCode(200)
                     .body(metrics.influx())
-                    .headers(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event);
+                    .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event);
 
             })
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
             {
-                request.pathMatch(BASE_URL + "/dynatrace");
+                request.pathMatch(BASE_URL + "/dynamo");
                 request.isMethodGet();
-                final String response = metrics.prometheus();
+                final String response = metrics.dynatrace();
                 request.response()
                     .statusCode(200)
                     .body(metrics.dynatrace())
-                    .headers(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event);
+                    .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event);
 
             })
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
             {
                 request.pathMatch(BASE_URL + "/wavefront");
                 request.isMethodGet();
-                final String response = metrics.prometheus();
+                final String response = metrics.wavefront();
                 request.response()
                     .statusCode(200)
                     .body(metrics.wavefront())
-                    .headers(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event);
+                    .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event);
 
             });
     }
