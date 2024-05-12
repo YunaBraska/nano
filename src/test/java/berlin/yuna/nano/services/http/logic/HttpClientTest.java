@@ -139,7 +139,7 @@ public class HttpClientTest {
             .response(HttpObject.class);
         assertThat(response.failure()).isNull();
         assertThat(response.bodyAsString()).isEqualTo("{Hällo Wörld?!}");
-        assertThat(response.header(CONTENT_LENGTH)).isEqualTo("17");
+        assertThat(response.header(CONTENT_LENGTH)).isEqualTo("37");
         assertThat(response.header(CONTENT_TYPE)).isEqualTo(APPLICATION_JSON.value());
         assertThat(response.header(CONTENT_RANGE)).isNull();
     }
@@ -170,7 +170,7 @@ public class HttpClientTest {
         // verify header request
         response = client.send(new HttpObject().path(serverUrl + "/status/200/Content-Range/bytes.0-0_1234"));
         assertThat(response.failure()).isNull();
-        assertThat(response.header(CONTENT_LENGTH)).isEqualTo("0");
+        assertThat(response.header(CONTENT_LENGTH)).isEqualTo("20");
         assertThat(response.header(CONTENT_RANGE)).isEqualTo("bytes 0-0/1234");
         assertThat(response.header(CONTENT_TYPE)).isEqualTo(APPLICATION_OCTET_STREAM.value());
         assertThat(response.size()).isEqualTo(1234L);
@@ -178,16 +178,16 @@ public class HttpClientTest {
         // verify invalid header range response
         response = client.send(new HttpObject().path(serverUrl + "/status/200/content-range/aa"));
         assertThat(response.failure()).isNull();
-        assertThat(response.header(CONTENT_LENGTH)).isEqualTo("0");
+        assertThat(response.header(CONTENT_LENGTH)).isEqualTo("20");
         assertThat(response.header(CONTENT_RANGE)).isEqualTo("aa");
         assertThat(response.header(CONTENT_TYPE)).isEqualTo(APPLICATION_OCTET_STREAM.value());
-        assertThat(response.size()).isZero();
+        assertThat(response.size()).isEqualTo(20L);
 
         // verify body request
         response = client.send(new HttpObject().path(serverUrl).body("{Hällo Wörld?!}"));
         assertThat(response.failure()).isNull();
         assertThat(response.bodyAsString()).isEqualTo("{Hällo Wörld?!}");
-        assertThat(response.header(CONTENT_LENGTH)).isEqualTo("17");
+        assertThat(response.header(CONTENT_LENGTH)).isEqualTo("37");
         assertThat(response.header(CONTENT_TYPE)).isEqualTo(APPLICATION_JSON.value());
         assertThat(response.header(CONTENT_RANGE)).isNull();
 
@@ -208,7 +208,7 @@ public class HttpClientTest {
         assertThat(latch.await(2000, TimeUnit.MILLISECONDS)).isTrue();
         assertThat(response.failure()).isNull();
         assertThat(response.bodyAsString()).isEqualTo("{Hällo Wörld?!}");
-        assertThat(response.header(CONTENT_LENGTH)).isEqualTo("17");
+        assertThat(response.header(CONTENT_LENGTH)).isEqualTo("37");
         assertThat(response.header(CONTENT_TYPE)).isEqualTo(APPLICATION_JSON.value());
         assertThat(response.header(CONTENT_RANGE)).isNull();
 
