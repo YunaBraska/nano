@@ -9,21 +9,30 @@ import berlin.yuna.nano.services.http.model.HttpObject;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
+import java.io.ByteArrayOutputStream;
+import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.http.HttpRequest;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
+import java.util.zip.DeflaterOutputStream;
+import java.util.zip.GZIPOutputStream;
 
 import static berlin.yuna.nano.core.model.Config.CONFIG_SERVICE_HTTP_PORT;
 import static berlin.yuna.nano.helper.event.model.EventType.*;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.ACCEPT_ENCODING;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.CONTENT_ENCODING;
 import static berlin.yuna.nano.services.http.model.HttpObject.CONTEXT_HTTP_CLIENT_KEY;
 import static berlin.yuna.typemap.logic.TypeConverter.collectionOf;
+import static java.util.Optional.ofNullable;
 
 public class HttpService extends Service {
     protected HttpServer server;
@@ -148,10 +157,11 @@ public class HttpService extends Service {
 
     protected void sendResponse(final HttpExchange exchange, final HttpObject response) {
         try {
-            final byte[] body = response.body();
+            final Map<String, List<String>> headers = response.computedHeaders(false);
             final int statusCode = response.statusCode() > -1 && response.statusCode() < 600 ? response.statusCode() : 200;
             response.headerMap().getMap(String.class, value -> collectionOf(value, String.class)).forEach((key, value) -> exchange.getResponseHeaders().put(key, value));
-            response.computedHeaders(false).forEach((key, value) -> exchange.getResponseHeaders().put(key, value));
+            headers.forEach((key, value) -> exchange.getResponseHeaders().put(key, value));
+            final byte[] body = encodeBody(exchange, response.body());
             exchange.sendResponseHeaders(statusCode, body.length);
             try (final OutputStream os = exchange.getResponseBody()) {
                 os.write(body);
@@ -159,6 +169,23 @@ public class HttpService extends Service {
         } catch (final IOException ignored) {
             // Response was already sent
         }
+    }
+
+    protected byte[] encodeBody(final HttpExchange exchange, byte[] body) throws IOException {
+        final String acceptEncoding = ofNullable(exchange.getRequestHeaders()
+            .getFirst(ACCEPT_ENCODING))
+            .map(String::toLowerCase)
+            .map(encoding -> encoding.contains("gzip") ? "gzip" : encoding.contains("deflate") ? "deflate" : null)
+            .orElse("identity");
+        if (!"identity".equals(acceptEncoding)) {
+            final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            try (final FilterOutputStream gzipOutputStream = acceptEncoding.contains("gzip") ? new GZIPOutputStream(byteArrayOutputStream) : new DeflaterOutputStream(byteArrayOutputStream)) {
+                gzipOutputStream.write(body);
+            }
+            body = byteArrayOutputStream.toByteArray();
+        }
+        exchange.getResponseHeaders().set(CONTENT_ENCODING, acceptEncoding);
+        return body;
     }
 
     public static int nextFreePort(final int startPort) {

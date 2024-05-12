@@ -597,7 +597,6 @@ public class HttpObject extends HttpRequest {
             result.computeIfAbsent(ACCEPT, fallback -> WILDCARD.value());
             result.computeIfAbsent(USER_AGENT, fallback -> generateNanoName("%s/%s (%s %s)"));
         }
-        result.putIfAbsent(CONTENT_ENCODING, "gzip");
         result.putIfAbsent(CACHE_CONTROL, "no-cache");
         result.computeIfAbsent(CONTENT_TYPE, value -> contentTypes().stream().map(ContentType::value).toList());
         result.computeIfAbsent(CONTENT_LENGTH, value -> this.body().length);
