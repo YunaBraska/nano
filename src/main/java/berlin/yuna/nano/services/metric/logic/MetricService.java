@@ -75,7 +75,7 @@ public class MetricService extends Service {
 
     }
 
-    private void addMetricsEndpoint(Event event) {
+    protected void addMetricsEndpoint(Event event) {
         event
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
             {

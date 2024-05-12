@@ -5,7 +5,7 @@ import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.services.http.logic.HttpClient;
 import berlin.yuna.typemap.logic.JsonDecoder;
 import berlin.yuna.typemap.logic.XmlDecoder;
-import berlin.yuna.typemap.model.TypeContainer;
+import berlin.yuna.typemap.model.TypeInfo;
 import berlin.yuna.typemap.model.TypeMap;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
@@ -302,7 +302,7 @@ public class HttpObject extends HttpRequest {
      * @return the body as a json.
      */
     @SuppressWarnings("java:S1452") // generic wildcard type
-    public TypeContainer<?> bodyAsJson() {
+    public TypeInfo<?> bodyAsJson() {
         return JsonDecoder.jsonTypeOf(bodyAsString());
     }
 
@@ -312,7 +312,7 @@ public class HttpObject extends HttpRequest {
      * @return the body as a xml.
      */
     @SuppressWarnings("java:S1452") // generic wildcard type
-    public TypeContainer<?> bodyAsXml() {return XmlDecoder.xmlTypeOf(bodyAsString());}
+    public TypeInfo<?> bodyAsXml() {return XmlDecoder.xmlTypeOf(bodyAsString());}
 
     /**
      * Returns a string representation of the body, decoded using the {@link Charset} from {@link HttpObject#encoding()} specified in the {@link HttpHeaders#CONTENT_TYPE} header.
@@ -333,17 +333,17 @@ public class HttpObject extends HttpRequest {
     }
 
     /**
-     * Sets the {@link HttpObject#body()} from a {@link TypeContainer} object, encoding it into JSON format using the {@link Charset} from {@link HttpObject#encoding()}.
+     * Sets the {@link HttpObject#body()} from a {@link TypeInfo} object, encoding it into JSON format using the {@link Charset} from {@link HttpObject#encoding()}.
      *
-     * @param body the {@link TypeContainer} representing the body to be set.
+     * @param body the {@link TypeInfo} representing the body to be set.
      * @return this {@link HttpObject} to allow method chaining.
      */
-    public HttpObject body(final TypeContainer<?> body) {
+    public HttpObject body(final TypeInfo<?> body) {
         return body(body.toJson().getBytes(encoding()));
     }
 
     /**
-     * Sets the {@link HttpObject#body()} from a {@link TypeContainer} object, encoding it into bytes using the {@link Charset} from {@link HttpObject#encoding()}.
+     * Sets the {@link HttpObject#body()} from a {@link TypeInfo} object, encoding it into bytes using the {@link Charset} from {@link HttpObject#encoding()}.
      *
      * @param body the String representing the body to be set.
      * @return this {@link HttpObject} to allow method chaining.
@@ -353,7 +353,7 @@ public class HttpObject extends HttpRequest {
     }
 
     /**
-     * Sets the {@link HttpObject#body()} from a {@link TypeContainer} object.
+     * Sets the {@link HttpObject#body()} from a {@link TypeInfo} object.
      *
      * @param body the String representing the body to be set.
      * @return this {@link HttpObject} to allow method chaining.
