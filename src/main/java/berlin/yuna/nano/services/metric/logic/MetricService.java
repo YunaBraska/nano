@@ -1,5 +1,6 @@
 package berlin.yuna.nano.services.metric.logic;
 
+import berlin.yuna.nano.core.Config;
 import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.core.model.NanoThread;
 import berlin.yuna.nano.core.model.Service;
@@ -27,7 +28,6 @@ import static berlin.yuna.nano.helper.event.model.EventType.*;
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class MetricService extends Service {
     private final MetricCache metrics = new MetricCache();
-    private static final String BASE_URL = "/metrics";
 
     public MetricService() {
         super(null, false);
@@ -79,7 +79,7 @@ public class MetricService extends Service {
         event
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
             {
-                request.pathMatch(BASE_URL + "/prometheus");
+                request.pathMatch(Config.getMetricsBaseUrl() + Config.getPrometheusBaseUrl());
                 request.isMethodGet();
                     final String response = metrics.prometheus();
                     request.response()
@@ -90,7 +90,7 @@ public class MetricService extends Service {
             })
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
             {
-                request.pathMatch(BASE_URL + "/influx");
+                request.pathMatch(Config.getMetricsBaseUrl() + Config.getInfluxBaseUrl());
                 request.isMethodGet();
                 final String response = metrics.influx();
                 request.response()
@@ -101,7 +101,7 @@ public class MetricService extends Service {
             })
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
             {
-                request.pathMatch(BASE_URL + "/dynamo");
+                request.pathMatch(Config.getMetricsBaseUrl() + Config.getDynamoBaseUrl());
                 request.isMethodGet();
                 final String response = metrics.dynatrace();
                 request.response()
@@ -112,7 +112,7 @@ public class MetricService extends Service {
             })
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
             {
-                request.pathMatch(BASE_URL + "/wavefront");
+                request.pathMatch(Config.getMetricsBaseUrl() + Config.getWavefrontBaseUrl());
                 request.isMethodGet();
                 final String response = metrics.wavefront();
                 request.response()
