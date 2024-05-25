@@ -35,7 +35,7 @@ Nano is also designed to be fully compilable with [GraalVM](https://www.graalvm.
 
 Nano handles threads for you and provides a basic construct for event driven architecture.
 It's providing a simple way to write microservices in a functional fluent and chaining style, so that **objects are less
-needed**. Nano gives the full control to the user, therefore there are not many private methods or fields.
+needed**. Nano provides full access to all internal components, resulting in very few private methods or fields.
 
 ## 📚 Components
 
