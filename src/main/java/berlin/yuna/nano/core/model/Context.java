@@ -2,7 +2,7 @@ package berlin.yuna.nano.core.model;
 
 import berlin.yuna.nano.core.Nano;
 import berlin.yuna.nano.helper.ExRunnable;
-import berlin.yuna.nano.helper.event.EventTypeRegister;
+import berlin.yuna.nano.helper.event.EventChannelRegister;
 import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.helper.logger.LogFormatRegister;
 import berlin.yuna.nano.helper.logger.logic.NanoLogger;
@@ -22,7 +22,7 @@ import java.util.logging.Formatter;
 import java.util.stream.Collectors;
 
 import static berlin.yuna.nano.core.model.Service.threadsOf;
-import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_UNHANDLED;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_UNHANDLED;
 import static berlin.yuna.typemap.config.TypeConversionRegister.registerTypeConvert;
 import static java.net.http.HttpClient.Version.HTTP_1_1;
 import static java.net.http.HttpClient.Version.HTTP_2;
@@ -197,24 +197,24 @@ public class Context extends ConcurrentTypeMap {
     /**
      * Registers an event listener for a specific event type.
      *
-     * @param eventType The integer identifier of the event type.
+     * @param channelId The integer identifier of the event type.
      * @param listener  The consumer function that processes the {@link Event}.
      * @return Self for chaining
      */
-    public Context subscribeEvent(final int eventType, final Consumer<Event> listener) {
-        nano.subscribeEvent(eventType, listener);
+    public Context subscribeEvent(final int channelId, final Consumer<Event> listener) {
+        nano.subscribeEvent(channelId, listener);
         return this;
     }
 
     /**
      * Removes a registered event listener for a specific event type.
      *
-     * @param eventType The integer identifier of the event type.
+     * @param channelId The integer identifier of the event type.
      * @param listener  The consumer function to be removed.
      * @return Self for chaining
      */
-    public Context unsubscribeEvent(final int eventType, final Consumer<Event> listener) {
-        nano.unsubscribeEvent(eventType, listener);
+    public Context unsubscribeEvent(final int channelId, final Consumer<Event> listener) {
+        nano.unsubscribeEvent(channelId, listener);
         return this;
     }
 
@@ -452,12 +452,12 @@ public class Context extends ConcurrentTypeMap {
      * Sends an event of the specified type with the provided payload within this context without expecting a response.
      * This method is used for sending targeted events that do not require asynchronous processing or response handling.
      *
-     * @param eventType The integer representing the type of the event, identifying the nature or action of the event.
+     * @param channelId The integer representing the type of the event, identifying the nature or action of the event.
      * @param payload   The payload of the event, containing data relevant to the event's context and purpose.
      * @return The current {@link Context} instance, allowing for method chaining and further configuration.
      */
-    public Context sendEvent(final int eventType, final Object payload) {
-        nano.sendEvent(eventType, this, payload, null, false);
+    public Context sendEvent(final int channelId, final Object payload) {
+        nano.sendEvent(channelId, this, payload, null, false);
         return this;
     }
 
@@ -465,13 +465,13 @@ public class Context extends ConcurrentTypeMap {
      * Sends an event of the specified type with the provided payload within this context, expecting a response that is handled by the provided responseListener.
      * This method allows for asynchronous event processing and response handling through the specified consumer.
      *
-     * @param eventType        The integer representing the type of the event.
+     * @param channelId        The integer representing the type of the event.
      * @param payload          The payload of the event, containing the data to be communicated.
      * @param responseListener A consumer that processes the response of the event. This allows for asynchronous event handling and response processing.
      * @return The current {@link Context} instance, facilitating method chaining and further actions.
      */
-    public Context sendEvent(final int eventType, final Object payload, final Consumer<Object> responseListener) {
-        nano.sendEvent(eventType, this, payload, responseListener, false);
+    public Context sendEvent(final int channelId, final Object payload, final Consumer<Object> responseListener) {
+        nano.sendEvent(channelId, this, payload, responseListener, false);
         return this;
     }
 
@@ -479,12 +479,12 @@ public class Context extends ConcurrentTypeMap {
      * Broadcasts an event of the specified type with the provided payload to all listeners within this context without expecting a response.
      * This method is ideal for notifying all interested parties of a particular event where no direct response is required.
      *
-     * @param eventType The integer representing the type of the event, used to notify all listeners interested in this type of event.
+     * @param channelId The integer representing the type of the event, used to notify all listeners interested in this type of event.
      * @param payload   The payload of the event, containing information relevant to the broadcast.
      * @return The current {@link Context} instance, enabling method chaining and additional configurations.
      */
-    public Context broadcastEvent(final int eventType, final Object payload) {
-        broadcastEvent(eventType, payload, null);
+    public Context broadcastEvent(final int channelId, final Object payload) {
+        broadcastEvent(channelId, payload, null);
         return this;
     }
 
@@ -492,13 +492,13 @@ public class Context extends ConcurrentTypeMap {
      * Broadcasts an event of the specified type with the provided payload to all listeners within this context, expecting a response that is handled by the provided responseListener.
      * This method allows for the broad dissemination of an event while also facilitating asynchronous response processing.
      *
-     * @param eventType        The integer representing the type of the event.
+     * @param channelId        The integer representing the type of the event.
      * @param payload          The payload associated with the event, intended for widespread distribution.
      * @param responseListener A consumer that handles the response of the event, enabling asynchronous processing and response handling across multiple listeners.
      * @return The current {@link Context} instance, allowing for method chaining and further actions.
      */
-    public Context broadcastEvent(final int eventType, final Object payload, final Consumer<Object> responseListener) {
-        nano.sendEvent(eventType, this, payload, responseListener, true);
+    public Context broadcastEvent(final int channelId, final Object payload, final Consumer<Object> responseListener) {
+        nano.sendEvent(channelId, this, payload, responseListener, true);
         return this;
     }
 
@@ -508,84 +508,84 @@ public class Context extends ConcurrentTypeMap {
      * Sends an event of the specified type with the provided payload within this context without expecting a response.
      * This method is used for sending targeted events that do not require asynchronous processing or response handling.
      *
-     * @param eventType The integer representing the type of the event, identifying the nature or action of the event.
+     * @param channelId The integer representing the type of the event, identifying the nature or action of the event.
      * @param payload   The payload of the event, containing data relevant to the event's context and purpose.
      * @return An instance of {@link Event} that represents the event being processed. This object can be used for further operations or tracking.
      */
-    public Event sendEventReturn(final int eventType, final Object payload) {
-        return sendEventReturn(eventType, payload, null);
+    public Event sendEventReturn(final int channelId, final Object payload) {
+        return sendEventReturn(channelId, payload, null);
     }
 
     /**
      * Sends an event of the specified type with the provided payload within this context, expecting a response that is handled by the provided responseListener.
      * This method allows for asynchronous event processing and response handling through the specified consumer.
      *
-     * @param eventType        The integer representing the type of the event.
+     * @param channelId        The integer representing the type of the event.
      * @param payload          The payload of the event, containing the data to be communicated.
      * @param responseListener A consumer that processes the response of the event. This allows for asynchronous event handling and response processing.
      * @return An instance of {@link Event} that represents the event being processed. This object can be used for further operations or tracking.
      */
-    public Event sendEventReturn(final int eventType, final Object payload, final Consumer<Object> responseListener) {
-        return nano.sendEventReturn(eventType, this, payload, responseListener, false);
+    public Event sendEventReturn(final int channelId, final Object payload, final Consumer<Object> responseListener) {
+        return nano.sendEventReturn(channelId, this, payload, responseListener, false);
     }
 
     /**
      * Broadcasts an event of the specified type with the provided payload to all listeners within this context without expecting a response.
      * This method is ideal for notifying all interested parties of a particular event where no direct response is required.
      *
-     * @param eventType The integer representing the type of the event, used to notify all listeners interested in this type of event.
+     * @param channelId The integer representing the type of the event, used to notify all listeners interested in this type of event.
      * @param payload   The payload of the event, containing information relevant to the broadcast.
      * @return An instance of {@link Event} that represents the event being processed. This object can be used for further operations or tracking.
      */
-    public Event broadcastEventReturn(final int eventType, final Object payload) {
-        return broadcastEventReturn(eventType, payload, null);
+    public Event broadcastEventReturn(final int channelId, final Object payload) {
+        return broadcastEventReturn(channelId, payload, null);
     }
 
     /**
      * Broadcasts an event of the specified type with the provided payload to all listeners within this context, expecting a response that is handled by the provided responseListener.
      * This method allows for the broad dissemination of an event while also facilitating asynchronous response processing.
      *
-     * @param eventType        The integer representing the type of the event.
+     * @param channelId        The integer representing the type of the event.
      * @param payload          The payload associated with the event, intended for widespread distribution.
      * @param responseListener A consumer that handles the response of the event, enabling asynchronous processing and response handling across multiple listeners.
      * @return An instance of {@link Event} that represents the event being processed. This object can be used for further operations or tracking.
      */
-    public Event broadcastEventReturn(final int eventType, final Object payload, final Consumer<Object> responseListener) {
-        return nano.sendEventReturn(eventType, this, payload, responseListener, true);
+    public Event broadcastEventReturn(final int channelId, final Object payload, final Consumer<Object> responseListener) {
+        return nano.sendEventReturn(channelId, this, payload, responseListener, true);
     }
 
     /**
      * Registers a new event type with a given name if it does not already exist.
      * If the event type already exists, it returns the existing event type's ID.
      *
-     * @param typeName The name of the event type to register.
+     * @param channelName The name of the event type to register.
      * @return The ID of the newly registered event type, or the ID of the existing event type
      * if it already exists. Returns -1 if the input is null or empty.
      */
-    public int registerEventType(final String typeName) {
-        return EventTypeRegister.registerEventType(typeName);
+    public int registerChannelId(final String channelName) {
+        return EventChannelRegister.registerChannelId(channelName);
     }
 
     /**
      * Retrieves the name of an event type given its ID.
      *
-     * @param typeId The ID of the event type.
+     * @param channelId The ID of the event type.
      * @return The name of the event type associated with the given ID, or null if not found.
      */
-    public String eventNameOf(final int typeId) {
-        return EventTypeRegister.eventNameOf(typeId);
+    public String eventNameOf(final int channelId) {
+        return EventChannelRegister.eventNameOf(channelId);
     }
 
     /**
      * Attempts to find the ID of an event type based on its name.
      * This method is primarily used for debugging purposes or startup and is not optimized for performance.
      *
-     * @param typeName The name of the event type.
+     * @param channelName The name of the event type.
      * @return An {@link Optional} containing the ID of the event type if found, or empty if not found
      * or if the input is null or empty.
      */
-    public Optional<Integer> eventIdOf(final String typeName) {
-        return EventTypeRegister.evenIdOf(typeName);
+    public Optional<Integer> channelIdOf(final String channelName) {
+        return EventChannelRegister.evenIdOf(channelName);
     }
 
     /**

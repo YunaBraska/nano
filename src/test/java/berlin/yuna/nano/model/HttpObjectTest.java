@@ -1,11 +1,7 @@
 package berlin.yuna.nano.model;
 
-import berlin.yuna.nano.core.Nano;
 import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.helper.event.model.Event;
-import berlin.yuna.nano.services.http.HttpService;
-import berlin.yuna.nano.services.http.logic.HttpClient;
-import berlin.yuna.nano.services.http.logic.HttpClientTest;
 import berlin.yuna.nano.services.http.model.HttpHeaders;
 import berlin.yuna.nano.services.http.model.HttpMethod;
 import berlin.yuna.nano.services.http.model.HttpObject;
@@ -28,9 +24,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import static berlin.yuna.nano.core.config.TestConfig.TEST_LOG_LEVEL;
-import static berlin.yuna.nano.core.model.Config.CONFIG_LOG_LEVEL;
-import static berlin.yuna.nano.helper.event.model.EventType.EVENT_HTTP_REQUEST;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_HTTP_REQUEST;
 import static berlin.yuna.nano.services.http.model.ContentType.*;
 import static berlin.yuna.nano.services.http.model.HttpHeaders.*;
 import static java.nio.charset.StandardCharsets.US_ASCII;

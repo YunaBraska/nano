@@ -13,7 +13,7 @@ import java.util.Map;
 
 import static berlin.yuna.nano.core.model.Config.CONFIG_LOG_LEVEL;
 import static berlin.yuna.nano.helper.NanoUtils.waitForCondition;
-import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_UNHANDLED;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_UNHANDLED;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Execution(ExecutionMode.CONCURRENT)

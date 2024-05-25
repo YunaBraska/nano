@@ -7,32 +7,35 @@ import berlin.yuna.nano.helper.logger.logic.LogQueue;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
 import berlin.yuna.nano.services.http.HttpService;
 import berlin.yuna.nano.services.metric.logic.MetricService;
-import com.sun.net.httpserver.HttpServer;
 
 import java.io.IOException;
-import java.io.OutputStream;
-import java.net.InetSocketAddress;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import static berlin.yuna.nano.core.model.Config.CONFIG_LOG_FORMATTER;
 import static berlin.yuna.nano.core.model.Config.CONFIG_LOG_LEVEL;
-import static berlin.yuna.nano.core.model.NanoThread.VIRTUAL_THREAD_POOL;
-import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_SHUTDOWN;
 
 public class Yuna {
 
     public static void main(final String[] args) throws IOException, InterruptedException {
 
-        HttpServer server = HttpServer.create(new InetSocketAddress(50505), 0);
-        server.createContext("/", exchange -> {
-            final byte[] response = "Hello World".getBytes();
-            exchange.sendResponseHeaders(200, response.length);
-            OutputStream os = exchange.getResponseBody();
-            os.write(response);
-            os.close(); // Close the response stream
-        });
-        server.start();
+//
+//        // Plain Nano
+//        final Nano nano = new Nano();
+//
+//        // Nano with configuration
+//        final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, LogLevel.INFO));
+//
+//        // Nano with startup services
+//        final Nano nano = new Nano(new HttpService());
+//
+//        // Nano adding "Hello World" API
+//        final Nano nano = new Nano(new HttpService())
+//            .subscribeEvent(EVENT_HTTP_REQUEST, event -> event.payloadOpt(HttpObject.class)
+//                .filter(HttpObject::isMethodGet)
+//                .filter(request -> request.pathMatch("/hello"))
+//                .ifPresent(request -> request.response().body(System.getProperty("user.name")).send(event))
+//            );
+
 
 
         //TODO: Dynamic Queues to Services

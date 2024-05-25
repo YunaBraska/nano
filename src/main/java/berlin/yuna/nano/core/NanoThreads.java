@@ -7,14 +7,19 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 
 import static berlin.yuna.nano.core.model.Config.CONFIG_THREAD_POOL_TIMEOUT_MS;
 import static berlin.yuna.nano.core.model.NanoThread.activeNanoThreads;
 import static berlin.yuna.nano.helper.NanoUtils.callerInfoStr;
 import static berlin.yuna.nano.helper.NanoUtils.getThreadName;
-import static berlin.yuna.nano.helper.event.model.EventType.*;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_SCHEDULER_REGISTER;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_SCHEDULER_UNREGISTER;
 import static java.util.Collections.unmodifiableSet;
 
 /**

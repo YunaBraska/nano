@@ -23,8 +23,8 @@ import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 import static berlin.yuna.nano.helper.NanoUtils.*;
-import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_LOG_LEVEL;
-import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_LOG_QUEUE;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_LOG_LEVEL;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_LOG_QUEUE;
 import static berlin.yuna.typemap.logic.TypeConverter.convertObj;
 import static java.lang.System.lineSeparator;
 import static java.util.Arrays.stream;
@@ -138,26 +138,26 @@ public abstract class NanoBase<T extends NanoBase<T>> {
     /**
      * Registers an event listener for a specific event type.
      *
-     * @param eventType The integer identifier of the event type.
+     * @param channelId The integer identifier of the event type.
      * @param listener  The consumer function that processes the {@link Event}.
      * @return Self for chaining
      */
     @SuppressWarnings({"unchecked"})
-    public T subscribeEvent(final int eventType, final Consumer<Event> listener) {
-        listeners.computeIfAbsent(eventType, value -> new LinkedHashSet<>()).add(listener);
+    public T subscribeEvent(final int channelId, final Consumer<Event> listener) {
+        listeners.computeIfAbsent(channelId, value -> new LinkedHashSet<>()).add(listener);
         return (T) this;
     }
 
     /**
      * Removes a registered event listener for a specific event type.
      *
-     * @param eventType The integer identifier of the event type.
+     * @param channelId The integer identifier of the event type.
      * @param listener  The consumer function to be removed.
      * @return Self for chaining
      */
     @SuppressWarnings({"unchecked"})
-    public T unsubscribeEvent(final int eventType, final Consumer<Event> listener) {
-        listeners.computeIfAbsent(eventType, value -> new LinkedHashSet<>()).remove(listener);
+    public T unsubscribeEvent(final int channelId, final Consumer<Event> listener) {
+        listeners.computeIfAbsent(channelId, value -> new LinkedHashSet<>()).remove(listener);
         return (T) this;
     }
 
@@ -222,7 +222,8 @@ public abstract class NanoBase<T extends NanoBase<T>> {
         final Context result = readConfigFiles(null, "");
         System.getenv().forEach((key, value) -> addConfig(result, key, value));
         System.getProperties().forEach((key, value) -> addConfig(result, key, value));
-        ArgsDecoder.argsOf(String.join(" ", args)).forEach((key, value) -> addConfig(result, key, value));
+        if(args != null)
+            ArgsDecoder.argsOf(String.join(" ", args)).forEach((key, value) -> addConfig(result, key, value));
         return resolvePlaceHolders(result);
     }
 

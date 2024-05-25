@@ -4,7 +4,7 @@ import berlin.yuna.nano.core.config.TestConfig;
 import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.core.model.Service;
 import berlin.yuna.nano.core.model.Unhandled;
-import berlin.yuna.nano.helper.event.EventTypeRegister;
+import berlin.yuna.nano.helper.event.EventChannelRegister;
 import berlin.yuna.nano.helper.event.model.Event;
 
 import java.util.List;
@@ -29,7 +29,7 @@ public class TestService extends Service {
     private final AtomicReference<Consumer<Context>> startConsumer = new AtomicReference<>();
     private final AtomicReference<Consumer<Context>> stopConsumer = new AtomicReference<>();
     private long startTime = System.currentTimeMillis();
-    public static int TEST_EVENT = EventTypeRegister.registerEventType("TEST_EVENT");
+    public static int TEST_EVENT = EventChannelRegister.registerChannelId("TEST_EVENT");
 
     public TestService() {
         super(null, false);
@@ -40,29 +40,29 @@ public class TestService extends Service {
         return this;
     }
 
-    public List<Event> events(final int eventId) {
-        getEvent(eventId);
-        return events.stream().filter(event -> event.id() == eventId).toList();
+    public List<Event> events(final int channelId) {
+        getEvent(channelId);
+        return events.stream().filter(event -> event.id() == channelId).toList();
     }
 
-    public Event getEvent(final int eventId) {
-        return getEvent(eventId, null, 2000);
+    public Event getEvent(final int channelId) {
+        return getEvent(channelId, null, 2000);
     }
 
-    public Event getEvent(final int eventId, final Function<Event, Boolean> condition) {
-        return getEvent(eventId, condition, TestConfig.TEST_TIMEOUT);
+    public Event getEvent(final int channelId, final Function<Event, Boolean> condition) {
+        return getEvent(channelId, condition, TestConfig.TEST_TIMEOUT);
     }
 
-    public Event getEvent(final int eventId, final long timeoutMs) {
-        return getEvent(eventId, null, timeoutMs);
+    public Event getEvent(final int channelId, final long timeoutMs) {
+        return getEvent(channelId, null, timeoutMs);
     }
 
-    public Event getEvent(final int eventId, final Function<Event, Boolean> condition, final long timeoutMs) {
+    public Event getEvent(final int channelId, final Function<Event, Boolean> condition, final long timeoutMs) {
         final AtomicReference<Event> result = new AtomicReference<>();
         waitForCondition(
             () -> {
                 final Event event1 = events.stream()
-                    .filter(event -> event.id() == eventId)
+                    .filter(event -> event.id() == channelId)
                     .filter(event -> condition != null ? condition.apply(event) : true)
                     .findFirst()
                     .orElse(null);

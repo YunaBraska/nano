@@ -20,7 +20,16 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.StringJoiner;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -28,9 +37,27 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.zip.Inflater;
 
-import static berlin.yuna.nano.helper.NanoUtils.*;
-import static berlin.yuna.nano.services.http.model.ContentType.*;
-import static berlin.yuna.nano.services.http.model.HttpHeaders.*;
+import static berlin.yuna.nano.helper.NanoUtils.decodeGzip;
+import static berlin.yuna.nano.helper.NanoUtils.decoderDeflate;
+import static berlin.yuna.nano.helper.NanoUtils.generateNanoName;
+import static berlin.yuna.nano.helper.NanoUtils.split;
+import static berlin.yuna.nano.services.http.model.ContentType.APPLICATION_PROBLEM_JSON;
+import static berlin.yuna.nano.services.http.model.ContentType.APPLICATION_PROBLEM_XML;
+import static berlin.yuna.nano.services.http.model.ContentType.WILDCARD;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.ACCEPT;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.ACCEPT_ENCODING;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.ACCEPT_LANGUAGE;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.CACHE_CONTROL;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.CONNECTION;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.CONTENT_ENCODING;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.CONTENT_LENGTH;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.CONTENT_RANGE;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.CONTENT_TYPE;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.DATE;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.HOST;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.RANGE;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.TRANSFER_ENCODING;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.USER_AGENT;
 import static berlin.yuna.nano.services.http.model.HttpMethod.GET;
 import static berlin.yuna.typemap.logic.TypeConverter.collectionOf;
 import static berlin.yuna.typemap.logic.TypeConverter.convertObj;
@@ -235,12 +262,12 @@ public class HttpObject extends HttpRequest {
     }
 
     public Locale acceptLanguage() {
-        final List<Locale> result = acceptLanguages();
-        return result.isEmpty() ? null : result.getFirst();
+        return acceptLanguages().getFirst();
     }
 
     public List<Locale> acceptLanguages() {
-        return splitHeaderValue(headerMap().getList(String.class, HttpHeaders.ACCEPT_LANGUAGE), Locale::forLanguageTag);
+        final List<Locale> result = splitHeaderValue(headerMap().getList(String.class, ACCEPT_LANGUAGE), Locale::forLanguageTag);
+        return result.isEmpty() ? List.of(Locale.ENGLISH) : result;
     }
 
     /**
@@ -1161,7 +1188,7 @@ public class HttpObject extends HttpRequest {
                 }
             }
         }
-        return ContentType.APPLICATION_OCTET_STREAM;
+        return ContentType.APPLICATION_JSON;
     }
 
     public static <R> List<R> splitHeaderValue(final Collection<String> value, final Function<String, R> mapper) {

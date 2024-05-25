@@ -8,7 +8,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 import static berlin.yuna.typemap.logic.TypeConverter.convertObj;
-import static berlin.yuna.nano.helper.event.EventTypeRegister.eventNameOf;
+import static berlin.yuna.nano.helper.event.EventChannelRegister.eventNameOf;
 import static java.util.Optional.ofNullable;
 
 @SuppressWarnings({"unused", "UnusedReturnValue"})
@@ -54,23 +54,23 @@ public class Event {
         return createdAtMs;
     }
 
-    public Event ifPresent(final int eventType, final Consumer<Event> consumer) {
-        if (this.id == eventType) {
+    public Event ifPresent(final int channelId, final Consumer<Event> consumer) {
+        if (this.id == channelId) {
             consumer.accept(this);
         }
         return this;
     }
 
-    public Event ifPresentAck(final int eventType, final Consumer<Event> consumer) {
-        if (this.id == eventType) {
+    public Event ifPresentAck(final int channelId, final Consumer<Event> consumer) {
+        if (this.id == channelId) {
             consumer.accept(this);
             acknowledge();
         }
         return this;
     }
 
-    public <T> Event ifPresent(final int eventType, final Class<T> clazz, final Consumer<T> consumer) {
-        if (this.id == eventType) {
+    public <T> Event ifPresent(final int channelId, final Class<T> clazz, final Consumer<T> consumer) {
+        if (this.id == channelId) {
             final T payloadObj = payload(clazz);
             if (payloadObj != null)
                 consumer.accept(payloadObj);
@@ -78,8 +78,8 @@ public class Event {
         return this;
     }
 
-    public <T> Event ifPresentAck(final int eventType, final Class<T> clazz, final Consumer<T> consumer) {
-        if (this.id == eventType) {
+    public <T> Event ifPresentAck(final int channelId, final Class<T> clazz, final Consumer<T> consumer) {
+        if (this.id == channelId) {
             final T payloadObj = payload(clazz);
             if (payloadObj != null) {
                 consumer.accept(payloadObj);

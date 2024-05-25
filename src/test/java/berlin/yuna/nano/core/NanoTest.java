@@ -20,8 +20,8 @@ import static berlin.yuna.nano.core.config.TestConfig.*;
 import static berlin.yuna.nano.core.model.Config.*;
 import static berlin.yuna.nano.core.model.Context.*;
 import static berlin.yuna.nano.helper.NanoUtils.waitForCondition;
-import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_SHUTDOWN;
-import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_UNHANDLED;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_SHUTDOWN;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_UNHANDLED;
 import static berlin.yuna.nano.model.TestService.TEST_EVENT;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -132,8 +132,26 @@ class NanoTest {
     }
 
     @RepeatedTest(TEST_REPEAT)
+    void constructor_withConfigAndLazyServices_Test() {
+        final Nano configAndService = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL), context -> List.of(new TestService()));
+        assertThat(configAndService).isNotNull();
+        assertThat(configAndService.logger().level()).isEqualTo(TEST_LOG_LEVEL);
+        waitForStartUp(configAndService);
+        assertThat(configAndService.stop(this.getClass()).waitForStop().isReady()).isFalse();
+    }
+
+    @RepeatedTest(TEST_REPEAT)
+    void constructor_withArgsAndLazyServices_Test() {
+        final Nano lazyServices = new Nano(new String[]{"-" + CONFIG_LOG_LEVEL + "=" + TEST_LOG_LEVEL}, context -> List.of(new TestService()));
+        assertThat(lazyServices).isNotNull();
+        assertThat(lazyServices.logger().level()).isEqualTo(TEST_LOG_LEVEL);
+        waitForStartUp(lazyServices);
+        lazyServices.stop(this.getClass());
+    }
+
+    @RepeatedTest(TEST_REPEAT)
     void constructor_withLazyServices_Test() {
-        final Nano lazyServices = new Nano(context -> List.of(new TestService()), "-" + CONFIG_LOG_LEVEL + "=" + TEST_LOG_LEVEL);
+        final Nano lazyServices = new Nano(context -> List.of(new TestService()), null, "-" + CONFIG_LOG_LEVEL + "=" + TEST_LOG_LEVEL);
         assertThat(lazyServices).isNotNull();
         assertThat(lazyServices.logger().level()).isEqualTo(TEST_LOG_LEVEL);
         waitForStartUp(lazyServices);

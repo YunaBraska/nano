@@ -25,7 +25,7 @@ import static berlin.yuna.nano.core.config.TestConfig.TEST_LOG_LEVEL;
 import static berlin.yuna.nano.core.config.TestConfig.TEST_REPEAT;
 import static berlin.yuna.nano.core.model.Config.*;
 import static berlin.yuna.nano.core.model.NanoThread.VIRTUAL_THREAD_POOL;
-import static berlin.yuna.nano.helper.event.model.EventType.EVENT_HTTP_REQUEST;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_HTTP_REQUEST;
 import static berlin.yuna.nano.services.http.model.ContentType.*;
 import static berlin.yuna.nano.services.http.model.HttpHeaders.*;
 import static berlin.yuna.nano.services.http.model.HttpMethod.GET;

@@ -4,7 +4,6 @@ import berlin.yuna.nano.core.Nano;
 import berlin.yuna.nano.core.config.TestConfig;
 import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.model.TestService;
-import berlin.yuna.typemap.model.TypeList;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
@@ -18,7 +17,7 @@ import static berlin.yuna.nano.core.model.Config.CONFIG_LOG_LEVEL;
 import static berlin.yuna.nano.core.model.Context.CONTEXT_LOGGER_KEY;
 import static berlin.yuna.nano.core.model.Context.CONTEXT_TRACE_ID_KEY;
 import static berlin.yuna.nano.helper.NanoUtils.waitForCondition;
-import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_HEARTBEAT;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_HEARTBEAT;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -47,22 +46,22 @@ class ContextTest {
 
         // Verify event sending
         final CountDownLatch eventLatch = new CountDownLatch(4);
-        final int eventType = context.registerEventType("TEST_EVENT");
-        context.subscribeEvent(eventType, event -> eventLatch.countDown());
-        context.sendEvent(eventType, "AA");
-        final Event event = context.sendEventReturn(eventType, "BB");
-        context.broadcastEvent(eventType, "CC");
-        context.broadcastEventReturn(eventType, "DD");
+        final int channelId = context.registerChannelId("TEST_EVENT");
+        context.subscribeEvent(channelId, event -> eventLatch.countDown());
+        context.sendEvent(channelId, "AA");
+        final Event event = context.sendEventReturn(channelId, "BB");
+        context.broadcastEvent(channelId, "CC");
+        context.broadcastEventReturn(channelId, "DD");
         assertThat(event).isNotNull();
         assertThat(event.payload()).isEqualTo("BB");
         assertThat(event.name()).isEqualTo("TEST_EVENT");
-        assertThat(event.id()).isEqualTo(eventType);
+        assertThat(event.id()).isEqualTo(channelId);
         assertThat(event.context()).isEqualTo(context);
         assertThat(event.isAcknowledged()).isFalse();
         assertThat(eventLatch.await(1000, MILLISECONDS)).isTrue();
         assertThat(eventLatch.getCount()).isZero();
-        assertThat(context.eventIdOf("TEST_EVENT")).contains(eventType);
-        assertThat(context.eventNameOf(eventType)).isEqualTo("TEST_EVENT");
+        assertThat(context.channelIdOf("TEST_EVENT")).contains(channelId);
+        assertThat(context.eventNameOf(channelId)).isEqualTo("TEST_EVENT");
 
         // Verify services
         final TestService testService = new TestService();

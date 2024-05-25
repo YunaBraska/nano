@@ -11,8 +11,8 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static berlin.yuna.nano.core.model.Config.CONFIG_PARALLEL_SHUTDOWN;
-import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_SERVICE_REGISTER;
-import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_SERVICE_UNREGISTER;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_SERVICE_REGISTER;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_SERVICE_UNREGISTER;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.unmodifiableList;
 

@@ -16,8 +16,8 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
-import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_LOG_LEVEL;
-import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_LOG_QUEUE;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_LOG_LEVEL;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_LOG_QUEUE;
 
 @SuppressWarnings("UnusedReturnValue")
 public class LogQueue extends Service {

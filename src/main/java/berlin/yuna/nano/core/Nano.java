@@ -6,7 +6,6 @@ import berlin.yuna.nano.core.model.NanoThread;
 import berlin.yuna.nano.core.model.Service;
 import berlin.yuna.nano.helper.NanoUtils;
 import berlin.yuna.nano.helper.event.model.Event;
-import berlin.yuna.nano.helper.event.model.EventType;
 import berlin.yuna.nano.helper.logger.logic.LogQueue;
 import berlin.yuna.nano.helper.logger.logic.NanoLogger;
 import berlin.yuna.nano.services.metric.model.MetricType;
@@ -14,14 +13,23 @@ import berlin.yuna.nano.services.metric.model.MetricUpdate;
 import berlin.yuna.typemap.model.FunctionOrNull;
 
 import java.lang.management.ManagementFactory;
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static berlin.yuna.nano.helper.NanoUtils.generateNanoName;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_HEARTBEAT;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_SHUTDOWN;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_UNHANDLED;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_METRIC_UPDATE;
 import static java.lang.System.lineSeparator;
+import static java.util.Arrays.asList;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.stream.Collectors.joining;
 
 @SuppressWarnings({"unused", "UnusedReturnValue"})
@@ -33,7 +41,17 @@ public class Nano extends NanoServices<Nano> {
      * @param startupServices Varargs parameter of startup {@link Service} to be initiated during the {@link Nano} creation.
      */
     public Nano(final Service... startupServices) {
-        this(null, startupServices);
+        this((String[]) null, startupServices);
+    }
+
+    /**
+     * Initializes {@link Nano} with a function to provide startup {@link Service} based on the context.
+     *
+     * @param args            Command-line arguments passed during the application start.
+     * @param startupServices Varargs parameter of startup {@link Service} to be initiated.
+     */
+    public Nano(final String[] args, final Service... startupServices) {
+        this(context -> asList(startupServices), null, args);
     }
 
     /**
@@ -47,12 +65,22 @@ public class Nano extends NanoServices<Nano> {
     }
 
     /**
+     * Initializes  {@link Nano} with configurations and startup {@link Service}.
+     *
+     * @param config          Map of configuration parameters.
+     * @param startupServices Function to provide startup {@link Service} based on the given context.
+     */
+    public Nano(final Map<Object, Object> config, final FunctionOrNull<Context, List<Service>> startupServices) {
+        this(startupServices, config);
+    }
+
+    /**
      * Initializes {@link Nano} with a function to provide startup {@link Service} based on the context.
      *
-     * @param startupServices Function to provide startup {@link Service} based on the given context.
      * @param args            Command-line arguments passed during the application start.
+     * @param startupServices Function to provide startup {@link Service} based on the given context.
      */
-    public Nano(final FunctionOrNull<Context, List<Service>> startupServices, final String... args) {
+    public Nano(final String[] args, final FunctionOrNull<Context, List<Service>> startupServices) {
         this(startupServices, null, args);
     }
 
@@ -84,7 +112,8 @@ public class Nano extends NanoServices<Nano> {
                 context.runAwait(partitionedServices.getOrDefault(false, Collections.emptyList()).toArray(Service[]::new));
             }
         }
-        run(() -> sendEvent(EventType.EVENT_APP_HEARTBEAT, context, this, result -> {}, true), 256, 256, TimeUnit.MILLISECONDS, () -> false);
+        run(() -> sendEvent(EVENT_APP_HEARTBEAT, context, this, result -> {}, true), 256, 256, MILLISECONDS, () -> false);
+        run(System::gc, 10000, 10000, MILLISECONDS, () -> false);
         final long readyTime = System.currentTimeMillis() - service_startUpTime;
         final List<String> list = context.getList(String.class, "_scanned_profiles");
         if (!list.isEmpty()) {
@@ -95,11 +124,11 @@ public class Nano extends NanoServices<Nano> {
         }
         logger.info(() -> "Started [{}] in [{}]", generateNanoName("%s%.0s%.0s%.0s"), NanoUtils.formatDuration(readyTime));
         printSystemInfo();
-        sendEvent(EventType.EVENT_METRIC_UPDATE, context, new MetricUpdate(MetricType.GAUGE, "application.started.time", initTime, null), result -> {}, false);
-        sendEvent(EventType.EVENT_METRIC_UPDATE, context, new MetricUpdate(MetricType.GAUGE, "application.ready.time", readyTime, null), result -> {}, false);
-        subscribeEvent(EventType.EVENT_APP_SHUTDOWN, event -> event.acknowledge(() -> CompletableFuture.runAsync(() -> shutdown(newContext(this.getClass())))));
+        sendEvent(EVENT_METRIC_UPDATE, context, new MetricUpdate(MetricType.GAUGE, "application.started.time", initTime, null), result -> {}, false);
+        sendEvent(EVENT_METRIC_UPDATE, context, new MetricUpdate(MetricType.GAUGE, "application.ready.time", readyTime, null), result -> {}, false);
+        subscribeEvent(EVENT_APP_SHUTDOWN, event -> event.acknowledge(() -> CompletableFuture.runAsync(() -> shutdown(newContext(this.getClass())))));
         // INIT CLEANUP TASK - just for safety
-        subscribeEvent(EventType.EVENT_APP_HEARTBEAT, event -> new HashSet<>(schedulers).stream().filter(scheduler -> scheduler.isShutdown() || scheduler.isTerminated()).forEach(schedulers::remove));
+        subscribeEvent(EVENT_APP_HEARTBEAT, event -> new HashSet<>(schedulers).stream().filter(scheduler -> scheduler.isShutdown() || scheduler.isTerminated()).forEach(schedulers::remove));
     }
 
     /**
@@ -141,7 +170,7 @@ public class Nano extends NanoServices<Nano> {
      */
     @Override
     public Nano stop(final Context context) {
-        sendEvent(EventType.EVENT_APP_SHUTDOWN, context != null ? context : newContext(this.getClass()), null, result -> {
+        sendEvent(EVENT_APP_SHUTDOWN, context != null ? context : newContext(this.getClass()), null, result -> {
         }, true);
         return this;
     }
@@ -231,7 +260,7 @@ public class Nano extends NanoServices<Nano> {
     }
 
     protected void handleEventServiceException(final Event event, final Service service, final Throwable throwable) {
-        if (event.id() != EventType.EVENT_APP_UNHANDLED) {
+        if (event.id() != EVENT_APP_UNHANDLED) {
             service.handleServiceException(event.context(), throwable);
         } else {
             // loop prevention

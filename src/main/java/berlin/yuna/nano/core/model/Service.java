@@ -1,17 +1,20 @@
 package berlin.yuna.nano.core.model;
 
+import berlin.yuna.nano.helper.LockedBoolean;
 import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.helper.logger.logic.LogQueue;
+import berlin.yuna.nano.helper.logger.logic.NanoLogger;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
 import berlin.yuna.nano.services.metric.model.MetricType;
 import berlin.yuna.nano.services.metric.model.MetricUpdate;
-import berlin.yuna.nano.helper.LockedBoolean;
-import berlin.yuna.nano.helper.logger.logic.NanoLogger;
 
 import java.util.Map;
 import java.util.function.Supplier;
 
-import static berlin.yuna.nano.helper.event.model.EventType.*;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_LOG_LEVEL;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_LOG_QUEUE;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_SERVICE_REGISTER;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_METRIC_UPDATE;
 import static java.util.Arrays.stream;
 
 public abstract class Service {
