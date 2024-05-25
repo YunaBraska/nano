@@ -1,5 +1,5 @@
-[Home](../../README.md) 
-| [**> Context <**](README.md)
+[[Home](../../README.md) / [Components](../../README.md#-components)] 
+ [**> Context <**](README.md)
 | [Events](../events/README.md)
 | [Logger](../logger/README.md)
 | [Schedulers](../schedulers/README.md)
@@ -7,23 +7,26 @@
 
 # Context
 
-The context object is the main object that is passed around in Nano.
-It is used to interact with the [Logger](../logger/README.md), [Events](../events/README.md) , [Services](../services/README.md) and [Schedulers](../schedulers/README.md), traces and
-configuration.
-There is **no need to create any custom config** class as the context contains all needed information including type conversion.
+The [Context](../context/README.md) object is the main and overwhelming object that is passed around in Nano.
+It is used to interact with the core
+components: [Logger](../logger/README.md), [Events](../events/README.md) , [Services](../services/README.md), [Schedulers](../schedulers/README.md),
+traces and
+[configuration](#configuration).
+There is **no need to create any custom config** class as the [Context](../context/README.md) contains all needed
+information including type conversion.
 
 ### Examples
 
-#### Configuration
+#### Access Configs
 
 * `context.get(Integer.class, "app_config_key")` - Get a configuration value as an Integer
 * `context.getList(Integer.class, "app_config_key")` - Get a configuration value as a List of Integers
 * `context.getMap(String.class, Integer.class, "app_config_key")` - Get a configuration value as a Map of Strings to
   Integers
-* `context.traceId()` - Get the trace id of the current context
-* `context.logLevel()` - Get the log level of the current context
+* `context.traceId()` - Get the trace id of the current [Context](../context/README.md)
+* `context.logLevel()` - Get the log level of the current [Context](../context/README.md)
 * `context.logger.info(() -> "Hello {}", "World")` - Log a message with the [Logger](../logger/README.md) at the info level
-* `context.newContext(MyClass.class)` - Create a new context with a [Logger](../logger/README.md) for the specific class
+* `context.newContext(MyClass.class)` - Create a new [Context](../context/README.md) with a [Logger](../logger/README.md) for the specific class
 
 #### Events
 
@@ -44,7 +47,7 @@ There is **no need to create any custom config** class as the context contains a
 
 ## Configuration
 
-Available properties can be found by starting the application with the `--help` flag.
+The configuration can be set in multiple ways, with the following order of precedence:
 
 | Order | Type                   | Description & examples                                                                                                    |
 |-------|------------------------|---------------------------------------------------------------------------------------------------------------------------|
@@ -53,6 +56,9 @@ Available properties can be found by starting the application with the `--help` 
 | 2     | Command Line Arguments | `-Dproperty=value` start parameters                                                                                       |
 | 3     | Args                   | `app_profiles=production` arguments that are passed to the `main` method of the application                               |
 | 4     | Defaults               | If no other configuration value is provided                                                                               |
+
+To access the configuration, use the [Context](../context/README.md) object.
+Available properties can be found by starting the application with the `--help` flag.
 
 ### Configuration Profiles
 

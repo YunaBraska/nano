@@ -15,13 +15,13 @@
 ![Label][label_shield]
 ![Label][java_version]
 
-* [Introduction](#introduction)
-* [Core Concept](#-core-concept)
-* [Mechanics](#-mechanics)
-* [Components](#-components)
-* [Getting Started](#-getting-started)
-* [Build Nano](#-build-nano)
-* [Benefits](#-benefits-of-nano)
+[Index] [Introduction](#introduction)
+| [Core Concept](#-core-concept)
+| [Mechanics](#-mechanics)
+| [Components](#-components)
+| [Getting Started](#-getting-started)
+| [Build Nano](#-build-nano)
+| [Benefits](#-benefits-of-nano)
 
 ## 🖼️ Introduction
 
@@ -37,19 +37,13 @@ Nano handles threads for you and provides a basic construct for event driven arc
 It's providing a simple way to write microservices in a functional fluent and chaining style, so that **objects are less
 needed**. Nano gives the full control to the user, therefore there are not many private methods or fields.
 
-## ⚙️ Mechanics
-* Error Handling \[TODO]
-* Registers (Types, LogFormatters, EventChannels) \[TODO]
-* [Integrations (Spring Boot, Micronaut, Quarkus)](docs/integrations/README.md)
-* Code Examples (Rest) \[TODO]
-
 ## 📚 Components
 
-**All you need to know are few classes:** 
-[Context](docs/context/README.md), 
-[Events](README.md), 
-[Logger](../logger/README.md), 
-[Schedulers](../schedulers/README.md), 
+**All you need to know are few classes:**
+[Context](docs/context/README.md),
+[Events](README.md),
+[Logger](../logger/README.md),
+[Schedulers](../schedulers/README.md),
 [Services](../services/README.md)
 
 ```mermaid
@@ -73,6 +67,13 @@ flowchart LR
     style services fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
     style schedulers fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
 ```
+
+## ⚙️ Mechanics
+
+* Error Handling \[TODO]
+* Registers (Types, LogFormatters, EventChannels) \[TODO]
+* [Integrations (Spring Boot, Micronaut, Quarkus)](docs/integrations/README.md)
+* Code Examples (Rest) \[TODO]
 
 ## 📚 Getting Started
 

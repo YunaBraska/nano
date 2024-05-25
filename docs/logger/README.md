@@ -1,5 +1,5 @@
-[Home](../../README.md)
-| [Context](../context/README.md)
+[[Home](../../README.md) / [Components](../../README.md#-components)]
+ [Context](../context/README.md)
 | [Events](../events/README.md)
 | [**> Logger <**](README.md)
 | [Schedulers](../schedulers/README.md)

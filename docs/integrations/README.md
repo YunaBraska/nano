@@ -1,4 +1,4 @@
-[Home](../../README.md)  / [**Integrations**](README.md)
+[[Home](../../README.md) / [**Integrations**](README.md)]
 
 # Integrations
 
