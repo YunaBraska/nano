@@ -1,4 +1,5 @@
-[[Home](../../README.md) / [Components](../../README.md#-components)]
+[Home](../../README.md) / [Components](../../README.md#-components)
+
  [Context](../context/README.md)
 | [**> Events <**](README.md)
 | [Logger](../logger/README.md)
@@ -50,10 +51,6 @@ flowchart TD
     sendEvent --> services[Services]
     services --> eventResponse[Event Response]
     eventListeners --> eventResponse[Event Response]
-
-    click events "docs/events/README.md" "Events"
-    click services "docs/services/README.md" "Services"
-    click eventResponse "docs/events/README.md" "Events"
 
     style eventRegistry fill:#E3F2FD,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
     style channelId fill:#E3F2FD,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%

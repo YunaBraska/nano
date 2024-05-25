@@ -1,4 +1,5 @@
-[[Home](../../README.md) / [Components](../../README.md#-components)]
+[Home](../../README.md) / [Components](../../README.md#-components)
+
  [Context](../context/README.md)
 | [Events](../events/README.md)
 | [Logger](../logger/README.md)
@@ -29,12 +30,6 @@ flowchart TD
     httpService <--> events[Event]
     logQueue <--> events[Event]
     events[Event] <--> function[Custom Function]
-    
-    click context "docs/context/README.md" "Context"
-    click logger "docs/logger/README.md" "Logger"
-    click services "docs/services/README.md" "Services"
-    click events "docs/events/README.md" "Events"
-    click schedulers "docs/schedulers/README.md" "Schedulers"
     
     style services fill:#E3F2FD,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
     style events fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%

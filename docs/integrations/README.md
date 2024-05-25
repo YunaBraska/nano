@@ -1,12 +1,13 @@
-[[Home](../../README.md) / [**Integrations**](README.md)]
+[Home](../../README.md) / [**Integrations**](README.md)
+ 
+[Spring Boot](#-nano-in-spring-boot)
+| [Micronaut](#-nano-in-micronaut)
+| [Quarkus](#-nano-in-quarkus).
 
 # Integrations
 
 Nano is fully standalone and can be integrated into various frameworks and libraries.
 This section provides examples of how to integrate Nano into
-[Spring Boot](#-nano-in-spring-boot),
-[Micronaut](#-nano-in-micronaut), and
-[Quarkus](#-nano-in-quarkus).
 
 ## 🌱 Nano in Spring boot
 

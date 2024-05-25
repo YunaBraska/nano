@@ -1,5 +1,6 @@
-[[Home](../../README.md) / [Components](../../README.md#-components)] 
- [**> Context <**](README.md)
+[Home](../../README.md) / [Components](../../README.md#-components) 
+
+[**> Context <**](README.md)
 | [Events](../events/README.md)
 | [Logger](../logger/README.md)
 | [Schedulers](../schedulers/README.md)
@@ -107,12 +108,6 @@ flowchart TD
     context --> events[Events]
     context --> services[Services]
     context --> schedulers[Services]
-    
-    click context "docs/context/README.md" "Context"
-    click logger "docs/logger/README.md" "Logger"
-    click services "docs/services/README.md" "Services"
-    click events "docs/events/README.md" "Events"
-    click schedulers "docs/schedulers/README.md" "Schedulers"
     
     style nano fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
     style context fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%

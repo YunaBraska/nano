@@ -15,7 +15,7 @@
 ![Label][label_shield]
 ![Label][java_version]
 
-[Index] [Introduction](#introduction)
+[Introduction](#introduction)
 | [Core Concept](#-core-concept)
 | [Mechanics](#-mechanics)
 | [Components](#-components)
@@ -54,12 +54,6 @@ flowchart LR
     events --> services[Services]
     services --> schedulers[Schedulers]
     
-    click context "docs/context/README.md" "Context"
-    click logger "docs/logger/README.md" "Logger"
-    click services "docs/services/README.md" "Services"
-    click events "docs/events/README.md" "Events"
-    click schedulers "docs/schedulers/README.md" "Schedulers"
-    
     style nano fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
     style context fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
     style logger fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
@@ -72,7 +66,7 @@ flowchart LR
 
 * Error Handling \[TODO]
 * Registers (Types, LogFormatters, EventChannels) \[TODO]
-* [Integrations (Spring Boot, Micronaut, Quarkus)](docs/integrations/README.md)
+* [Integrations (🌱 Spring Boot, 🧑‍🚀 Micronaut, 🐸 Quarkus)](docs/integrations/README.md)
 * Code Examples (Rest) \[TODO]
 
 ## 📚 Getting Started
