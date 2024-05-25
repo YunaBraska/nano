@@ -58,6 +58,13 @@ needed**. Nano gives the full control to the user, therefore there are not many 
 
 ## 📚 Components
 
+**All you need to know are few classes:** 
+[Context](docs/context/README.md), 
+[Events](README.md), 
+[Logger](../logger/README.md), 
+[Schedulers](../schedulers/README.md), 
+[Services](../services/README.md)
+
 ```mermaid
 flowchart LR
     nano(((Nano))) --> context[Context]
