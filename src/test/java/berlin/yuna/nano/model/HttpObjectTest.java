@@ -28,6 +28,7 @@ import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_HTTP_REQUES
 import static berlin.yuna.nano.services.http.model.ContentType.*;
 import static berlin.yuna.nano.services.http.model.HttpHeaders.*;
 import static java.nio.charset.StandardCharsets.US_ASCII;
+import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class HttpObjectTest {
@@ -52,7 +53,7 @@ class HttpObjectTest {
         assertThat(httpObject.path()).isEqualTo("/notifications/indicator");
         assertThat(httpObject.accepts()).containsExactly(APPLICATION_JSON);
         assertThat(httpObject.acceptEncodings()).containsExactly("gzip", "deflate");
-        assertThat(httpObject.acceptLanguages()).containsExactly(Locale.UK, Locale.ENGLISH);
+        assertThat(httpObject.acceptLanguages()).containsExactly(Locale.UK, ENGLISH);
         assertThat(httpObject.header(HOST)).isEqualTo("example.com");
         assertThat(httpObject.header(REFERER)).isEqualTo("https://example.com/test");
         assertThat(httpObject.userAgent()).isEqualTo("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15");
@@ -185,8 +186,8 @@ class HttpObjectTest {
         assertThat(new HttpObject().contentType("application/json", "TexT/Plain").hasContentType(APPLICATION_JSON.value(), TEXT_PLAIN.value(), APPLICATION_PDF.value())).isFalse();
 
         // General
-        assertThat(new HttpObject().contentTypes()).containsExactly(APPLICATION_OCTET_STREAM);
-        assertThat(new HttpObject().contentType()).isEqualTo(APPLICATION_OCTET_STREAM);
+        assertThat(new HttpObject().contentTypes()).containsExactly(APPLICATION_JSON);
+        assertThat(new HttpObject().contentType()).isEqualTo(APPLICATION_JSON);
     }
 
     @Test
@@ -413,7 +414,7 @@ class HttpObjectTest {
             .containsEntry(ACCEPT, List.of(WILDCARD.value()))
             .containsEntry(CONTENT_ENCODING, List.of("gzip"))
             .containsEntry(CACHE_CONTROL, List.of("no-cache"))
-            .containsEntry(CONTENT_TYPE, List.of(APPLICATION_OCTET_STREAM.value()))
+            .containsEntry(CONTENT_TYPE, List.of(APPLICATION_JSON.value()))
             .containsEntry(CONTENT_LENGTH, List.of("0"))
         ;
 
@@ -423,7 +424,7 @@ class HttpObjectTest {
             .doesNotContainKey(ACCEPT)
             .containsEntry(CONTENT_ENCODING, List.of("gzip"))
             .containsEntry(CACHE_CONTROL, List.of("no-cache"))
-            .containsEntry(CONTENT_TYPE, List.of(APPLICATION_OCTET_STREAM.value()))
+            .containsEntry(CONTENT_TYPE, List.of(APPLICATION_JSON.value()))
             .containsEntry(CONTENT_LENGTH, List.of("0"))
         ;
     }
@@ -492,14 +493,14 @@ class HttpObjectTest {
     void testHeaderLanguage() {
         final HttpObject httpObject = new HttpObject().header(ACCEPT_LANGUAGE, "en-US,en;q=0.9,de;q=0.8");
         assertThat(httpObject.acceptLanguage()).isEqualTo(Locale.of("en", "us"));
-        assertThat(httpObject.acceptLanguages()).containsExactly(Locale.of("en", "us"), Locale.ENGLISH, Locale.GERMAN);
+        assertThat(httpObject.acceptLanguages()).containsExactly(Locale.of("en", "us"), ENGLISH, Locale.GERMAN);
 
         // General
-        assertThat(new HttpObject().acceptLanguages()).isEmpty();
-        assertThat(new HttpObject().acceptLanguage()).isNull();
-        assertThat(new HttpObject().acceptLanguages(Locale.UK, Locale.ENGLISH, Locale.GERMAN).acceptLanguages()).containsExactly(Locale.UK, Locale.ENGLISH, Locale.GERMAN);
-        assertThat(new HttpObject().acceptLanguages(null).acceptLanguages()).isEmpty();
-        assertThat(new HttpObject().acceptLanguages(new Locale[0]).acceptLanguages()).isEmpty();
+        assertThat(new HttpObject().acceptLanguages()).containsExactly(ENGLISH);
+        assertThat(new HttpObject().acceptLanguage()).isEqualTo(ENGLISH);
+        assertThat(new HttpObject().acceptLanguages(Locale.UK, ENGLISH, Locale.GERMAN).acceptLanguages()).containsExactly(Locale.UK, ENGLISH, Locale.GERMAN);
+        assertThat(new HttpObject().acceptLanguages(null).acceptLanguages()).containsExactly(ENGLISH);
+        assertThat(new HttpObject().acceptLanguages(new Locale[0]).acceptLanguages()).containsExactly(ENGLISH);
     }
 
     @Test

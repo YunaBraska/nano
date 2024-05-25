@@ -172,7 +172,7 @@ public class HttpClientTest {
         assertThat(response.failure()).isNull();
         assertThat(response.header(CONTENT_LENGTH)).isEqualTo("0");
         assertThat(response.header(CONTENT_RANGE)).isEqualTo("bytes 0-0/1234");
-        assertThat(response.header(CONTENT_TYPE)).isEqualTo(APPLICATION_OCTET_STREAM.value());
+        assertThat(response.header(CONTENT_TYPE)).isEqualTo(APPLICATION_JSON.value());
         assertThat(response.size()).isEqualTo(1234L);
 
         // verify invalid header range response
@@ -180,7 +180,7 @@ public class HttpClientTest {
         assertThat(response.failure()).isNull();
         assertThat(response.header(CONTENT_LENGTH)).isEqualTo("0");
         assertThat(response.header(CONTENT_RANGE)).isEqualTo("aa");
-        assertThat(response.header(CONTENT_TYPE)).isEqualTo(APPLICATION_OCTET_STREAM.value());
+        assertThat(response.header(CONTENT_TYPE)).isEqualTo(APPLICATION_JSON.value());
         assertThat(response.size()).isZero();
 
         // verify body request
