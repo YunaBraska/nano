@@ -15,7 +15,13 @@
 ![Label][label_shield]
 ![Label][java_version]
 
-[Introduction](#introduction)
+* [Introduction](#introduction)
+* [Core Concept](#-core-concept)
+* [Mechanics](#-mechanics)
+* [Components](#-components)
+* [Getting Started](#-getting-started)
+* [Build Nano](#-build-nano)
+* [Benefits](#-benefits-of-nano)
 
 ## 🖼️ Introduction
 
@@ -24,25 +30,6 @@
 Nano is a lightweight concept which makes it easier for developer to write microservices in 
 **functional, fluent, chaining, plain, modern java** with a nano footprint.
 Nano is also designed to be fully compilable with [GraalVM](https://www.graalvm.org) to create native executables.
-
-## ✨ Benefits of Nano:
-
-* 🧩 **Modular Design**: Nano's architecture is modular, making it easy to understand, extend, and maintain.
-* 🧵 **Concurrency Management**: Efficiently handle asynchronous tasks using advanced thread management.
-* 📡 **Event-Driven Architecture**: Robust event handling that simplifies communication between different parts of your
-  application.
-* ⚙️ **Flexible Configuration**: Configure your application using environment variables, system properties, or
-  command-line
-  arguments.
-* 📊 **Robust Logging and Error Handling**: Integrated logging and comprehensive error handling mechanisms for reliable
-  operation.
-* 🚀 **Scalable and Performant**: Designed with scalability and performance in mind to handle high-concurrency scenarios.
-* 🪶 **Lightweight & Fast**: Starts in milliseconds, uses ~10MB memory.
-* 🌿 **Pure Java, Pure Simplicity**: No reflections, no regex, no unnecessary magic.
-* ⚡ **GraalVM Ready**: For ahead-of-time compilation and faster startup.
-* 🔒 **Minimal Dependencies**: Reduces CVE risks and simplifies updates.
-* 🌊 **Fluent & Stateless**: Intuitive API design for easy readability and maintenance.
-* 🛠️ **Rapid Service Development**: Build real services in minutes.
 
 ## 📐 Core Concept
 
@@ -152,6 +139,25 @@ add the native-image profile to your `pom.xml` and run `mvn package -Pnative-ima
     </profile>
 </profiles>
 ```
+
+## ✨ Benefits of Nano:
+
+* 🧩 **Modular Design**: Nano's architecture is modular, making it easy to understand, extend, and maintain.
+* 🧵 **Concurrency Management**: Efficiently handle asynchronous tasks using advanced thread management.
+* 📡 **Event-Driven Architecture**: Robust event handling that simplifies communication between different parts of your
+  application.
+* ⚙️ **Flexible Configuration**: Configure your application using environment variables, system properties, or
+  command-line
+  arguments.
+* 📊 **Robust Logging and Error Handling**: Integrated logging and comprehensive error handling mechanisms for reliable
+  operation.
+* 🚀 **Scalable and Performant**: Designed with scalability and performance in mind to handle high-concurrency scenarios.
+* 🪶 **Lightweight & Fast**: Starts in milliseconds, uses ~10MB memory.
+* 🌿 **Pure Java, Pure Simplicity**: No reflections, no regex, no unnecessary magic.
+* ⚡ **GraalVM Ready**: For ahead-of-time compilation and faster startup.
+* 🔒 **Minimal Dependencies**: Reduces CVE risks and simplifies updates.
+* 🌊 **Fluent & Stateless**: Intuitive API design for easy readability and maintenance.
+* 🛠️ **Rapid Service Development**: Build real services in minutes.
 
 ## 🤝 Contributing
 
