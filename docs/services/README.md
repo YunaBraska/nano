@@ -19,8 +19,6 @@ Nano has default [Services](../services/README.md) like `HttpService`, `MetricSe
   Nano Startup
 * `context.run(new HttpService())` - Service start
 
-## Stop Services
-
 ```mermaid
 flowchart TD
     services(((Services))) -.-> metricService[MetricService]
