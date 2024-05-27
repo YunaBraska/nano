@@ -1,6 +1,6 @@
 package berlin.yuna.nano.services.metric.logic;
 
-import berlin.yuna.nano.core.Config;
+import berlin.yuna.nano.core.model.Config;
 import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.core.model.NanoThread;
 import berlin.yuna.nano.core.model.Service;
@@ -28,6 +28,10 @@ import static berlin.yuna.nano.helper.event.model.EventType.*;
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class MetricService extends Service {
     private final MetricCache metrics = new MetricCache();
+    private String prometheusPath;
+    private String dynamoPath;
+    private String influx;
+    private String wavefront;
 
     public MetricService() {
         super(null, false);
@@ -36,13 +40,11 @@ public class MetricService extends Service {
     @Override
     public void start(final Supplier<Context> contextSupplier) {
         isReady.set(false, true, run -> updateSystemMetrics());
-        //addlistener for event
-
-        // metrics.prometheus(); this will the response body
-        // GET call
-        // http://localhost:8080/metrics thinks of good word
-        // status code 200
-
+        Optional<String> basePath = contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_BASE_PATH.id());
+        prometheusPath = basePath.map(base -> base + "/prometheus").or(() -> contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_PROMETHEUS_PATH.id())).orElse(null);
+        dynamoPath = basePath.map(base -> base + "/dynamo").or(() -> contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_DYNAMO_PATH.id())).orElse(null);
+        influx = basePath.map(base -> base + "/influx").or(() -> contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_INFLUX_PATH.id())).orElse(null);
+        wavefront = basePath.map(base -> base + "/wavefront").or(() -> contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_WAVEFRONT_PATH.id())).orElse(null);
     }
 
     @Override
@@ -78,49 +80,49 @@ public class MetricService extends Service {
     protected void addMetricsEndpoint(Event event) {
         event
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
-            {
-                request.pathMatch(Config.getMetricsBaseUrl() + Config.getPrometheusBaseUrl());
-                request.isMethodGet();
-                    final String response = metrics.prometheus();
-                    request.response()
-                        .statusCode(200)
-                        .body(metrics.prometheus())
-                        .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event);
-
-            })
+                Optional.ofNullable(prometheusPath)
+                    .filter( request::pathMatch)
+                    .filter(path -> request.isMethodGet())
+                    .ifPresent(path ->
+                        request.response()
+                            .statusCode(200)
+                            .body(metrics.prometheus())
+                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event)
+                    )
+            )
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
-            {
-                request.pathMatch(Config.getMetricsBaseUrl() + Config.getInfluxBaseUrl());
-                request.isMethodGet();
-                final String response = metrics.influx();
-                request.response()
-                    .statusCode(200)
-                    .body(metrics.influx())
-                    .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event);
-
-            })
+                Optional.ofNullable(dynamoPath)
+                    .filter( request::pathMatch)
+                    .filter(path -> request.isMethodGet())
+                    .ifPresent(path ->
+                        request.response()
+                            .statusCode(200)
+                            .body(metrics.dynatrace())
+                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event)
+                    )
+            )
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
-            {
-                request.pathMatch(Config.getMetricsBaseUrl() + Config.getDynamoBaseUrl());
-                request.isMethodGet();
-                final String response = metrics.dynatrace();
-                request.response()
-                    .statusCode(200)
-                    .body(metrics.dynatrace())
-                    .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event);
-
-            })
+                Optional.ofNullable(influx)
+                    .filter( request::pathMatch)
+                    .filter(path -> request.isMethodGet())
+                    .ifPresent(path ->
+                        request.response()
+                            .statusCode(200)
+                            .body(metrics.influx())
+                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event)
+                    )
+            )
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
-            {
-                request.pathMatch(Config.getMetricsBaseUrl() + Config.getWavefrontBaseUrl());
-                request.isMethodGet();
-                final String response = metrics.wavefront();
-                request.response()
-                    .statusCode(200)
-                    .body(metrics.wavefront())
-                    .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event);
-
-            });
+                Optional.ofNullable(wavefront)
+                    .filter( request::pathMatch)
+                    .filter(path -> request.isMethodGet())
+                    .ifPresent(path ->
+                        request.response()
+                            .statusCode(200)
+                            .body(metrics.wavefront())
+                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event)
+                    )
+            );
     }
 
     public void updateMetric(final MetricUpdate metric) {

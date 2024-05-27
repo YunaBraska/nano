@@ -30,8 +30,14 @@ public enum Config {
     CONFIG_HTTP_CLIENT_MAX_RETRIES("app_service_http_max_retries", "Maximum number of retries for the HTTP client (see " + HttpClient.class.getSimpleName() + ")"),
     CONFIG_HTTP_CLIENT_CON_TIMEOUT_MS("app_service_http_con_timeoutMs", "Connection timeout in milliseconds for the HTTP client (see " + HttpClient.class.getSimpleName() + ")"),
     CONFIG_HTTP_CLIENT_READ_TIMEOUT_MS("app_service_http_read_timeoutMs", "Read timeout in milliseconds for the HTTP client (see " + HttpClient.class.getSimpleName() + ")"),
-    CONFIG_HTTP_CLIENT_FOLLOW_REDIRECTS("app_service_http_follow_redirects", "Follow redirects for the HTTP client (see " + HttpClient.class.getSimpleName() + ")");
-    ;
+    CONFIG_HTTP_CLIENT_FOLLOW_REDIRECTS("app_service_http_follow_redirects", "Follow redirects for the HTTP client (see " + HttpClient.class.getSimpleName() + ")"),
+
+    // ########## METRIC SERVICES ##########
+    CONFIG_METRIC_SERVICE_BASE_PATH("metrics_base_url", "Base path for the metric service"),
+    CONFIG_METRIC_SERVICE_PROMETHEUS_PATH("prometheus_metrics_url", "Prometheus path for the metric service"),
+    CONFIG_METRIC_SERVICE_INFLUX_PATH("influx_metrics_url", "Influx path for the metric service"),
+    CONFIG_METRIC_SERVICE_WAVEFRONT_PATH("wavefront_metrics_url", "Wavefront path for the metric service"),
+    CONFIG_METRIC_SERVICE_DYNAMO_PATH("dynamo_metrics_url", "Dynamo path for the metric service");
 
     private final String id;
     private final String description;

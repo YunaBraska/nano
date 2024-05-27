@@ -12,27 +12,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MetricServiceTest {
 
     @Test
-    void testAddMetricsEndpoint() {
-        final MetricService metricService = new MetricService();
-        Event event = new Event(EVENT_HTTP_REQUEST, Context.createRootContext(), new HttpObject().methodType(HttpMethod.GET).path("/metrics/influx"), null);
-        metricService.addMetricsEndpoint(event);
-        assertThat(event.responseOpt(HttpObject.class)).isPresent();
-        assertThat(((HttpObject) event.payload()).path()).isEqualTo("/metrics/influx");
-        assertThat(((HttpObject) event.payload()).path()).isNotEqualTo("/metrics/prometheus");
-        assertThat(event.response(HttpObject.class).statusCode()).isEqualTo(200);
-    }
-
-    @Test
-    void testAnyMetricsEndpoint() {
-
-        Event event= new Event(EVENT_HTTP_REQUEST, Context.createRootContext(), new HttpObject().methodType(HttpMethod.GET).path("/metrics/influx"), null);
+    void testMetricsEndpoint() {
+        String influxPath = "/metrics/influx";
+        String prometheusPath = "/metrics/prometheus";
+        Event event= new Event(EVENT_HTTP_REQUEST, Context.createRootContext(), new HttpObject().methodType(HttpMethod.GET).path(influxPath), null);
 
         event.payloadOpt(HttpObject.class)
             .filter(HttpObject::isMethodGet)
-            .filter(request -> request.pathMatch("/metrics/influx"))
+            .filter(request -> request.pathMatch(influxPath))
             .ifPresent(request -> request.response().statusCode(200).body("application.listeners 8.0 source=nano ").send(event));
 
         assertThat(event.responseOpt(HttpObject.class)).isPresent();
+        assertThat(((HttpObject) event.payload()).path()).isEqualTo(influxPath);
+        assertThat(((HttpObject) event.payload()).path()).isNotEqualTo(prometheusPath);
         assertThat(event.response(HttpObject.class).statusCode()).isEqualTo(200);
         assertThat(event.response(HttpObject.class).bodyAsString()).isEqualTo("application.listeners 8.0 source=nano ");
     }
