@@ -34,7 +34,7 @@ public class TestConfig {
      * - Promotes Confidence in Security: Helps identify potential security vulnerabilities that could be exploited through concurrent execution.
      */
     public static final int TEST_REPEAT = 128;
-    public static final int TEST_TIMEOUT = 1000 + (int) (Math.sqrt(TEST_REPEAT) * 50);
+    public static final int TEST_TIMEOUT = 1024 + (int) (Math.sqrt(TEST_REPEAT) * 50);
 
     public static Nano waitForStartUp(final Nano nano) {
         return waitForStartUp(nano, 1);

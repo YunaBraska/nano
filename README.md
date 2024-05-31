@@ -41,10 +41,10 @@ needed**. Nano provides full access to all internal components, resulting in ver
 
 **All you need to know are few classes:**
 [Context](docs/context/README.md),
-[Events](README.md),
-[Logger](../logger/README.md),
-[Schedulers](../schedulers/README.md),
-[Services](../services/README.md)
+[Events](docs/events/README.md),
+[Logger](docs/logger/README.md),
+[Schedulers](docs/schedulers/README.md),
+[Services](docs/services/README.md)
 
 ```mermaid
 flowchart LR

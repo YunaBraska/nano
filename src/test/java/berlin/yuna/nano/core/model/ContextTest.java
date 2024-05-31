@@ -13,8 +13,11 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
+import static berlin.yuna.nano.core.config.TestConfig.TEST_TIMEOUT;
 import static berlin.yuna.nano.core.model.Config.CONFIG_LOG_LEVEL;
+import static berlin.yuna.nano.core.model.Context.CONTEXT_CLASS_KEY;
 import static berlin.yuna.nano.core.model.Context.CONTEXT_LOGGER_KEY;
+import static berlin.yuna.nano.core.model.Context.CONTEXT_PARENT_KEY;
 import static berlin.yuna.nano.core.model.Context.CONTEXT_TRACE_ID_KEY;
 import static berlin.yuna.nano.helper.NanoUtils.waitForCondition;
 import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_HEARTBEAT;
@@ -66,19 +69,19 @@ class ContextTest {
         // Verify services
         final TestService testService = new TestService();
         assertThat(context.run(testService)).isEqualTo(context);
-        assertThat(waitForCondition(() -> context.services().contains(testService), TestConfig.TEST_TIMEOUT)).isTrue();
+        assertThat(waitForCondition(() -> context.services().contains(testService), TEST_TIMEOUT)).isTrue();
         assertThat(context.service(testService.getClass())).isEqualTo(testService);
         assertThat(context.services(TestService.class)).containsExactly(testService);
 
         // Verify schedule once
         final AtomicInteger schedulerAck = new AtomicInteger(0);
         context.run(schedulerAck::incrementAndGet, 24, MILLISECONDS);
-        assertThat(waitForCondition(() -> schedulerAck.get() == 1, TestConfig.TEST_TIMEOUT))
+        assertThat(waitForCondition(() -> schedulerAck.get() == 1, TEST_TIMEOUT))
             .withFailMessage(() -> "schedulerAck \nExpected: 1 \n Actual: " + schedulerAck.get())
             .isTrue();
         // Verify schedule multiple time with stop
         context.run(schedulerAck::incrementAndGet, 0, 16, MILLISECONDS, () -> schedulerAck.get() == 4);
-        assertThat(waitForCondition(() -> schedulerAck.get() == 4, TestConfig.TEST_TIMEOUT))
+        assertThat(waitForCondition(() -> schedulerAck.get() == 4, TEST_TIMEOUT))
             .withFailMessage(() -> "schedulerAck \nExpected: 4 \n Actual: " + schedulerAck.get())
             .isTrue();
 
@@ -98,8 +101,8 @@ class ContextTest {
     void testNewEmptyContext_withoutClass_willCreateRootContext() {
         final Context context = Context.createRootContext();
         assertContextBehaviour(context);
-        final Context subContext = context.newEmptyContext(null, null);
-        assertThat(subContext.traceId()).startsWith("RootContext/");
+        final Context subContext = context.newContext(null, null);
+        assertThat(subContext.traceId()).startsWith(Context.class.getSimpleName() + "/");
     }
 
     @RepeatedTest(TestConfig.TEST_REPEAT)
@@ -142,35 +145,34 @@ class ContextTest {
 
     private void assertContextBehaviour(final Context context) {
         assertThat(context)
-            .hasSize(1)
-            .containsKey(CONTEXT_TRACE_ID_KEY);
+            .hasSize(2)
+            .containsKeys(CONTEXT_TRACE_ID_KEY, CONTEXT_CLASS_KEY);
 
         context.put("AA", "BB");
         assertThat(context)
-            .hasSize(2)
+            .hasSize(3)
             .containsKey(CONTEXT_TRACE_ID_KEY)
             .containsKey("AA");
 
         assertThat(context.newContext(this.getClass()))
-            .hasSize(3)
+            .hasSize(4)
             .containsKey(CONTEXT_TRACE_ID_KEY)
-            .containsKey(CONTEXT_LOGGER_KEY)
             .containsKey("AA");
 
-        assertThat(context.newEmptyContext(this.getClass()))
-            .hasSize(2)
-            .containsKey(CONTEXT_TRACE_ID_KEY)
-            .containsKey(CONTEXT_LOGGER_KEY);
+        assertThat(context.newContext(this.getClass()))
+            .hasSize(4)
+            .containsKey(CONTEXT_TRACE_ID_KEY);
 
         //Verify trace id is shared between contexts
-        assertThat(context.newContext(this.getClass()).getList(CONTEXT_TRACE_ID_KEY)).hasSize(2).contains(context.traceId());
-        final Context subContext = context.newEmptyContext(this.getClass());
-        assertThat(subContext.getList(CONTEXT_TRACE_ID_KEY)).hasSize(2).contains(context.traceId());
+        assertThat(context.newContext(this.getClass()).getList(CONTEXT_TRACE_ID_KEY)).hasSize(1).doesNotContain(context.traceId());
+        final Context subContext = context.newContext(this.getClass());
+        assertThat(subContext.getList(CONTEXT_TRACE_ID_KEY)).hasSize(1).doesNotContain(context.traceId());
         assertThat(subContext.traceId()).isNotEqualTo(context.traceId());
-        assertThat(subContext.traceId(0)).isEqualTo(context.traceId()).isNotEqualTo(subContext.traceId());
-        assertThat(subContext.traceId(1)).isEqualTo(subContext.traceId()).isNotEqualTo(context.traceId());
+        assertThat(subContext.traceId(0)).isEqualTo(subContext.traceId()).isNotEqualTo(context.traceId());
         assertThat(subContext.traceIds()).containsExactlyInAnyOrder(context.traceId(), subContext.traceId());
+        assertThat(context).doesNotContainKey(CONTEXT_LOGGER_KEY);
         assertThat(subContext.logger()).isNotNull();
+        assertThat(context).containsKey(CONTEXT_LOGGER_KEY);
         assertThat(subContext.logger().level()).isNotNull().isEqualTo(subContext.logLevel());
         assertThat(subContext.logger().logQueue()).isNull();
     }

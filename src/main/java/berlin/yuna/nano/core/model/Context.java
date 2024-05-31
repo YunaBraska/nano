@@ -10,9 +10,10 @@ import berlin.yuna.nano.helper.logger.model.LogLevel;
 import berlin.yuna.nano.services.http.model.ContentType;
 import berlin.yuna.nano.services.http.model.HttpMethod;
 import berlin.yuna.typemap.model.ConcurrentTypeMap;
-import berlin.yuna.typemap.model.TypeList;
 
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
@@ -20,6 +21,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.logging.Formatter;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static berlin.yuna.nano.core.model.Service.threadsOf;
 import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_UNHANDLED;
@@ -34,6 +36,8 @@ public class Context extends ConcurrentTypeMap {
 
     public static final String CONTEXT_TRACE_ID_KEY = "app_core_context_trace_id";
     public static final String CONTEXT_LOGGER_KEY = "app_core_context_logger";
+    public static final String CONTEXT_PARENT_KEY = "app_core_context_parent";
+    public static final String CONTEXT_CLASS_KEY = "app_core_context_class";
 
     static {
         registerTypeConvert(String.class, Formatter.class, LogFormatRegister::getLogFormatter);
@@ -66,18 +70,6 @@ public class Context extends ConcurrentTypeMap {
     }
 
     /**
-     * Adds the trace IDs to the context. Creates new unique trace ID if empty or null.
-     *
-     * @param traceIds The trace IDs to add to the context.
-     * @return The newly created root context.
-     */
-    public static List<Object> newTraceId(final Collection<Object> traceIds, final Class<?> clazz) {
-        final List<Object> result = traceIds != null ? new TypeList(traceIds) : new TypeList();
-        result.add((clazz != null ? clazz.getSimpleName() : "Root" + Context.class.getSimpleName()) + "/" + UUID.randomUUID().toString().replace("-", ""));
-        return result;
-    }
-
-    /**
      * Retrieves the {@link Nano} instance associated with this context.
      *
      * @return The {@link Nano} instance associated with this context.
@@ -87,12 +79,21 @@ public class Context extends ConcurrentTypeMap {
     }
 
     /**
+     * Retrieves the {@link Context} parent associated with this context.
+     *
+     * @return Parent {@link Context} or null
+     */
+    public Context parent() {
+        return this.get(Context.class, CONTEXT_PARENT_KEY);
+    }
+
+    /**
      * Retrieves the last created trace ID of the context.
      *
      * @return The last created trace ID of the context.
      */
     public String traceId() {
-        return getList(String.class, CONTEXT_TRACE_ID_KEY).getLast();
+        return get(String.class, CONTEXT_TRACE_ID_KEY);
     }
 
     /**
@@ -102,8 +103,11 @@ public class Context extends ConcurrentTypeMap {
      * @return The trace ID at the specified index, or the last trace ID if the index is out of bounds.
      */
     public String traceId(final int index) {
-        final List<String> list = getList(String.class, CONTEXT_TRACE_ID_KEY);
-        return index > -1 && index < list.size() ? list.get(index) : list.getLast();
+        return index < 1 ? traceId() : Stream.iterate(Optional.of(this), opt -> opt.flatMap(ctx -> Optional.ofNullable(ctx.parent())))
+            .limit(index + 1L)
+            .reduce((first, second) -> second)
+            .flatMap(ctx -> ctx.map(Context::traceId))
+            .orElse(traceId());
     }
 
     /**
@@ -112,7 +116,10 @@ public class Context extends ConcurrentTypeMap {
      * @return A list of all trace IDs associated with this context.
      */
     public List<String> traceIds() {
-        return getList(String.class, CONTEXT_TRACE_ID_KEY);
+        return Stream.iterate(Optional.of(this), Optional::isPresent, opt -> opt.flatMap(ctx -> Optional.ofNullable(ctx.parent())))
+            .map(opt -> opt.flatMap(ctx -> Optional.ofNullable(ctx.traceId())))
+            .flatMap(Optional::stream)
+            .toList();
     }
 
     /**
@@ -121,8 +128,8 @@ public class Context extends ConcurrentTypeMap {
      * @return The logger associated with this context.
      */
     public NanoLogger logger() {
-        return getOpt(NanoLogger.class, CONTEXT_LOGGER_KEY)
-            .orElseGet(() -> logger(Context.class).get(NanoLogger.class, CONTEXT_LOGGER_KEY).warn(() -> "Fallback to generic logger used. It is recommended to provide a context-specific logger for improved traceability and context-aware logging. A context-specific logger allows for more granular control over logging behaviors, including level filtering, log format customization, and targeted log output, which enhances the debugging and monitoring capabilities. Using a generic logger might result in less optimal logging granularity and difficulty in tracing issues related to specific contexts.", new IllegalStateException("Context-specific logger not provided. Falling back to a generic logger.")));
+        final NanoLogger logger = get(NanoLogger.class, CONTEXT_LOGGER_KEY);
+        return logger != null ? logger : loggerReturn(clazz());
     }
 
     /**
@@ -133,7 +140,7 @@ public class Context extends ConcurrentTypeMap {
      * @return The newly created context.
      */
     public Context newContext(final Class<?> clazz, final Nano nano) {
-        return clazz != null ? new Context(this, getNano(nano), clazz).logger(clazz) : new Context(this, getNano(nano), null);
+        return new Context(this, getNano(nano), clazz);
     }
 
     /**
@@ -164,9 +171,7 @@ public class Context extends ConcurrentTypeMap {
      * @return The newly created context.
      */
     public Context newEmptyContext(final Class<?> clazz, final Nano nano) {
-        return clazz != null
-            ? new Context(Map.of(CONTEXT_TRACE_ID_KEY, this.get(CONTEXT_TRACE_ID_KEY)), getNano(nano), clazz).logger(clazz)
-            : new Context(Map.of(CONTEXT_TRACE_ID_KEY, this.get(CONTEXT_TRACE_ID_KEY)), getNano(nano), null);
+        return new Context(null, getNano(nano), clazz);
     }
 
     /**
@@ -252,26 +257,15 @@ public class Context extends ConcurrentTypeMap {
      * Sets the logger name for the context logger.
      *
      * @param clazz The class to use for the logger name.
-     * @return Self for chaining
-     */
-    public Context logger(final Class<?> clazz) {
-        final NanoLogger logger = new NanoLogger(clazz);
-        final NanoLogger coreLogger = nano == null ? logger : nano.logger();
-        logger.level(coreLogger.level()).logQueue(coreLogger.logQueue()).formatter(coreLogger.formatter());
-        put(CONTEXT_LOGGER_KEY, logger);
-        return this;
-    }
-
-    /**
-     * Sets the logger name for the context logger.
-     *
-     * @param clazz The class to use for the logger name.
      * @return The created {@link NanoLogger}
      */
-    public NanoLogger loggerReturn(final Class<?> clazz) {
-        final NanoLogger coreLogger = nano().logger();
+    protected NanoLogger loggerReturn(final Class<?> clazz) {
         final NanoLogger logger = new NanoLogger(clazz);
-        logger.level(coreLogger.level()).logQueue(coreLogger.logQueue()).formatter(coreLogger.formatter());
+        ofNullable(parent()).ifPresent(p -> logger
+            .level(p.logger().level())
+            .logQueue(p.logger().logQueue())
+            .formatter(p.logger().formatter())
+        );
         put(CONTEXT_LOGGER_KEY, logger);
         return logger;
     }
@@ -621,14 +615,22 @@ public class Context extends ConcurrentTypeMap {
     }
 
     protected Context() {
-        nano = null;
-        this.put(CONTEXT_TRACE_ID_KEY, newTraceId(null, null));
+        this(null, null, null);
     }
 
-    protected Context(final Map<?, ?> map, final Nano nano, final Class<?> clazz) {
-        super(map);
-        this.put(CONTEXT_TRACE_ID_KEY, newTraceId(getList(Object.class, CONTEXT_TRACE_ID_KEY), clazz));
+    @SuppressWarnings("java:S3358")
+    protected Context(final Context parent, final Nano nano, final Class<?> clazz) {
+        super(parent);
+        final Class<?> resolvedClass = clazz != null ? clazz : (parent == null ? Context.class : parent.clazz());
         this.nano = nano;
+        this.put(CONTEXT_CLASS_KEY, resolvedClass);
+        this.put(CONTEXT_TRACE_ID_KEY, (resolvedClass.getSimpleName()) + "/" + UUID.randomUUID().toString().replace("-", ""));
+        if(parent != null)
+            this.put(CONTEXT_PARENT_KEY, parent);
+    }
+
+    private Class<?> clazz() {
+        return this.getOpt(Class.class, CONTEXT_CLASS_KEY).orElse(Context.class);
     }
 
     protected Nano getNano(final Nano nano) {

@@ -1,6 +1,5 @@
 package berlin.yuna.nano.model;
 
-import berlin.yuna.nano.core.config.TestConfig;
 import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.core.model.Service;
 import berlin.yuna.nano.core.model.Unhandled;
@@ -15,6 +14,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static berlin.yuna.nano.core.config.TestConfig.TEST_TIMEOUT;
 import static berlin.yuna.nano.helper.NanoUtils.waitForCondition;
 import static java.util.Optional.ofNullable;
 
@@ -50,7 +50,7 @@ public class TestService extends Service {
     }
 
     public Event getEvent(final int channelId, final Function<Event, Boolean> condition) {
-        return getEvent(channelId, condition, TestConfig.TEST_TIMEOUT);
+        return getEvent(channelId, condition, TEST_TIMEOUT);
     }
 
     public Event getEvent(final int channelId, final long timeoutMs) {

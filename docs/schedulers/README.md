@@ -12,8 +12,10 @@
 
 ## Examples
 
-* `context.run(() -> System.out.println("Scheduled"), 128, MILLISECONDS)` - Run a lambda on a [Schedulers](../schedulers/README.md) with a 128ms delay
-* `context.run(() -> System.out.println("Scheduled"), 128, 256, MILLISECONDS)` - Run a lambda on a [Schedulers](../schedulers/README.md) with a 128ms delay and 256ms period
+* Run once with delay (128ms)
+  * `context.run(() -> System.out.println("Scheduled"), 128, MILLISECONDS)`
+* Run periodically (evey 256ms) with initial delay (128ms)
+  * `context.run(() -> System.out.println("Scheduled"), 128, 256, MILLISECONDS)`
 
 ## Stop Services
 

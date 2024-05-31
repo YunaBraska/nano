@@ -36,7 +36,7 @@ public class NanoThread {
     public NanoThread(final Context context) {
         this.context = context;
         if (context != null)
-            context.logger(this.getClass());
+            context.loggerReturn(this.getClass());
     }
 
     public Context context() {

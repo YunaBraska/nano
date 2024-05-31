@@ -24,11 +24,11 @@ logger.
 The [Logger](../logger/README.md) supports two log formatters at default:
 
 * `console` - The console formatter logs the message to the console.
-    * Example: `context.logger(() -> "Hello {}", "World")` will
-      log: `[2024-11-11 11:11:11.111] [DEBUG] [Nano] - Hello World`
+    * Example: `context.logger(() -> "Hello {}", "World")`
+    * Output: `[2024-11-11 11:11:11.111] [DEBUG] [Nano] - Hello World`
 * `json` - The json formatter logs the message as json to the console.
-    * Example: `context.logger(() -> "Hello {}", "World")` will
-      log: `{"Hello":"World", "level":"DEBUG","logger":"Nano","message":"Hello World","timestamp":"2024-11-11 11:11:11.111"}`
+    * Example: `context.logger(() -> "Hello {}", "World")`
+      Output: `{"Hello":"World", "level":"DEBUG","logger":"Nano","message":"Hello World","timestamp":"2024-11-11 11:11:11.111"}`
 
 ## Custom Log Formatter
 

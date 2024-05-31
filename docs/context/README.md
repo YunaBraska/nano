@@ -54,9 +54,10 @@ The configuration can be set in multiple ways, with the following order of prece
 |-------|------------------------|---------------------------------------------------------------------------------------------------------------------------|
 | 0     | Property Files         | `application.properties` config files, which gets automatically loaded from `config`, `resources`, and `resources/config` |
 | 1     | Environment Variables  | `export app_profiles=production` variables that are set in the environment                                                |
-| 2     | Command Line Arguments | `-Dproperty=value` start parameters                                                                                       |
+| 2     | Command Line Arguments | `-Dapp_profiles=production` start parameters                                                                              |
 | 3     | Args                   | `app_profiles=production` arguments that are passed to the `main` method of the application                               |
-| 4     | Defaults               | If no other configuration value is provided                                                                               |
+| 4     | Nano Start             | `new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL))` passing configuration at the start of nano                           |
+| 5     | Defaults               | If no other configuration value is provided                                                                               |
 
 To access the configuration, use the [Context](../context/README.md) object.
 Available properties can be found by starting the application with the `--help` flag.
@@ -64,7 +65,7 @@ Available properties can be found by starting the application with the `--help` 
 ### Configuration Profiles
 
 Profiles are used to define different configurations for different environments.
-They can be set by using the `app_profiles` property. But compatible with properties
+They can be set by using the `app_profiles` property. It is compatible with properties
 like `spring.profiles.active`, `quarkus.profile`, `micronaut.profiles`, etc.
 When using profiles, the corresponding `application-{profile}.properties` file will be loaded if present.
 
@@ -93,8 +94,8 @@ Example: `test.placeholder.value=${placeholder_value:fallback}`
 |-------------------------------------|---------|---------------------------------------------------------------------------------------------------------------------------------------|
 | help                                | Boolean | Lists available config keys without starting the application                                                                          |
 | app_params_print                    | Boolean | Prints all configured values                                                                                                          |
-| app_profiles                        | String  | ist of active config profiles for the application                                                                                     |
-| app_log_level                       | String  | Log level for the application                                                                                                         |
+| app_profiles                        | String  | Is config for application profiles                                                                                                    | 
+| app_log_level                       | String  | Log level for the application `INFO`, `DEBUG`, `FATAL`, `ERROR`, `WARN`                                                               |
 | app_log_formatter                   | String  | Log formatter `console` or `json`                                                                                                     |
 | app_log_queue_size                  | String  | Log queue size. A full queue means that log messages will start to wait to be executed - only available when using `LogQueue` Service |
 | app_thread_pool_shutdown_timeout_ms | String  | Timeout for thread pool shutdown in milliseconds                                                                                      |

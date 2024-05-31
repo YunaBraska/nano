@@ -3,12 +3,13 @@ package berlin.yuna.nano.helper.event.model;
 import berlin.yuna.nano.core.Nano;
 import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.helper.logger.logic.NanoLogger;
+import berlin.yuna.typemap.model.TypeMap;
 
 import java.util.Optional;
 import java.util.function.Consumer;
 
-import static berlin.yuna.typemap.logic.TypeConverter.convertObj;
 import static berlin.yuna.nano.helper.event.EventChannelRegister.eventNameOf;
+import static berlin.yuna.typemap.logic.TypeConverter.convertObj;
 import static java.util.Optional.ofNullable;
 
 @SuppressWarnings({"unused", "UnusedReturnValue"})
@@ -19,6 +20,7 @@ public class Event {
     protected final Context context;
     protected final Consumer<Object> responseListener;
     protected final Object payload;
+    protected TypeMap cache;
     protected Object response;
 
     /**
@@ -154,6 +156,13 @@ public class Event {
     public Event put(final Object key, final Object value) {
         context.put(key, value);
         return this;
+    }
+
+    public TypeMap cache() {
+        if (cache == null) {
+            cache = new TypeMap();
+        }
+        return cache;
     }
 
     @Override

@@ -24,16 +24,22 @@ and [DefaultEventChannel](../../src/main/java/berlin/yuna/nano/helper/event/mode
 
 [Events](../events/README.md) can be sent **synchronous**, **asynchronous**, **single cast** or **broadcast**.
 
-* `context.sendEvent(channelId, MyPayloadObject)` - sends event with given payload _(sendEventReturn will return the
-  Event)_
-* `context.sendEvent(channelId, MyPayloadObject, response -> myListener)` - sends event with given payload *
-  *asynchronously** _(sendEventReturn will return the Event)_
+* synchronous (SingleCast)
+  * `context.sendEvent(channelId, MyPayloadObject)`
+  * `sendEventReturn()` will return the Event instead of the Context
+* asynchronous (SingleCast)
+  * `context.sendEvent(channelId, MyPayloadObject, response -> myListener)`
+  * `sendEventReturn()` will return the Event instead of the Context
 
-* `context.broadcastEvent(channelId, MyPayloadObject)` - sends event using broadcast style which will not stop at the
-  first responding listeners as in `sendEvent` _(broadcastEventReturn will return the Event)_
-* `context.broadcastEvent(channelId, MyPayloadObject, response -> myListener)` - sends event **asynchronously** using
-  broadcast style which will not stop at the first responding listeners as in `sendEvent` _(broadcastEventReturn will
-  return the Event)_
+* synchronous (BroadCast)
+  * `context.broadcastEvent(channelId, MyPayloadObject)`
+  * `broadcastEventReturn()` will return the Event instead of the Context
+  * _broadcast will not stop at the first responding listeners_
+* asynchronous (BroadCast)
+  * `context.broadcastEvent(channelId, MyPayloadObject, response -> myListener)`
+  * `broadcastEventReturn()` will return the Event instead of the Context
+  * _broadcast will not stop at the first responding listeners_
+
 
 # Listening to Events
 
