@@ -1,9 +1,11 @@
 package berlin.yuna.nano.helper;
 
+import berlin.yuna.nano.core.Nano;
 import berlin.yuna.nano.core.NanoBase;
 import berlin.yuna.nano.core.NanoServices;
 import berlin.yuna.nano.core.NanoThreads;
 import berlin.yuna.nano.core.model.Context;
+import berlin.yuna.nano.core.model.NanoThread;
 import berlin.yuna.nano.core.model.Scheduler;
 import berlin.yuna.nano.core.model.Service;
 
@@ -132,9 +134,11 @@ public class NanoUtils {
     public static StackTraceElement callerInfo(final Class<?> source) {
         final List<String> sourceNames = List.of(
             source.getName(),
+            Nano.class.getName(),
             Service.class.getName(),
             NanoBase.class.getName(),
             NanoUtils.class.getName(),
+            NanoThread.class.getName(),
             NanoThreads.class.getName(),
             NanoServices.class.getName()
         );
