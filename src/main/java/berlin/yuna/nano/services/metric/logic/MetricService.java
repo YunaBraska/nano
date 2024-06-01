@@ -28,10 +28,10 @@ import static berlin.yuna.nano.helper.event.model.EventType.*;
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class MetricService extends Service {
     private final MetricCache metrics = new MetricCache();
-    private String prometheusPath;
-    private String dynamoPath;
-    private String influx;
-    private String wavefront;
+    protected String prometheusPath;
+    protected String dynamoPath;
+    protected String influx;
+    protected String wavefront;
 
     public MetricService() {
         super(null, false);
@@ -40,11 +40,13 @@ public class MetricService extends Service {
     @Override
     public void start(final Supplier<Context> contextSupplier) {
         isReady.set(false, true, run -> updateSystemMetrics());
-        Optional<String> basePath = contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_BASE_PATH.id());
-        prometheusPath = basePath.map(base -> base + "/prometheus").or(() -> contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_PROMETHEUS_PATH.id())).orElse(null);
-        dynamoPath = basePath.map(base -> base + "/dynamo").or(() -> contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_DYNAMO_PATH.id())).orElse(null);
-        influx = basePath.map(base -> base + "/influx").or(() -> contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_INFLUX_PATH.id())).orElse(null);
-        wavefront = basePath.map(base -> base + "/wavefront").or(() -> contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_WAVEFRONT_PATH.id())).orElse(null);
+        Optional<String> basePath = Optional.ofNullable(contextSupplier.get().get(String.class, Config.CONFIG_METRIC_SERVICE_BASE_PATH.id())).or(() -> Optional.of("/metrics"));
+
+        prometheusPath = contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_PROMETHEUS_PATH.id()).orElseGet(() -> basePath.map(base -> base + "/prometheus").orElse(null));
+        dynamoPath = contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_DYNAMO_PATH.id()).orElseGet(() -> basePath.map(base -> base + "/dynamo").orElse(null));
+        influx = contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_INFLUX_PATH.id()).orElseGet(() -> basePath.map(base -> base + "/influx").orElse(null));
+        wavefront = contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_WAVEFRONT_PATH.id()).orElseGet(() -> basePath.map(base -> base + "/wavefront").orElse(null));
+
     }
 
     @Override
@@ -81,7 +83,7 @@ public class MetricService extends Service {
         event
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
                 Optional.ofNullable(prometheusPath)
-                    .filter( request::pathMatch)
+                    .filter(request::pathMatch)
                     .filter(path -> request.isMethodGet())
                     .ifPresent(path ->
                         request.response()
@@ -92,7 +94,7 @@ public class MetricService extends Service {
             )
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
                 Optional.ofNullable(dynamoPath)
-                    .filter( request::pathMatch)
+                    .filter(request::pathMatch)
                     .filter(path -> request.isMethodGet())
                     .ifPresent(path ->
                         request.response()
@@ -103,7 +105,7 @@ public class MetricService extends Service {
             )
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
                 Optional.ofNullable(influx)
-                    .filter( request::pathMatch)
+                    .filter(request::pathMatch)
                     .filter(path -> request.isMethodGet())
                     .ifPresent(path ->
                         request.response()
@@ -114,7 +116,7 @@ public class MetricService extends Service {
             )
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
                 Optional.ofNullable(wavefront)
-                    .filter( request::pathMatch)
+                    .filter(request::pathMatch)
                     .filter(path -> request.isMethodGet())
                     .ifPresent(path ->
                         request.response()

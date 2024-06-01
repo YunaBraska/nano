@@ -8,8 +8,7 @@ import berlin.yuna.nano.services.metric.logic.MetricService;
 
 import java.util.Map;
 
-import static berlin.yuna.nano.core.model.Config.CONFIG_LOG_FORMATTER;
-import static berlin.yuna.nano.core.model.Config.CONFIG_LOG_LEVEL;
+import static berlin.yuna.nano.core.model.Config.*;
 
 public class Kazim {
 
@@ -17,7 +16,8 @@ public class Kazim {
         final Nano application = new Nano(Map.of(
             CONFIG_LOG_LEVEL, LogLevel.INFO,
             CONFIG_LOG_FORMATTER, "console"
-//            CONFIG_METRIC_SERVICE_BASE_PATH, "/metrics"
+//            CONFIG_METRIC_SERVICE_BASE_PATH, "/metrics",
+//            CONFIG_METRIC_SERVICE_PROMETHEUS_PATH, "/influx"
         ), new LogQueue(), new MetricService(), new HttpService());
 
     }
