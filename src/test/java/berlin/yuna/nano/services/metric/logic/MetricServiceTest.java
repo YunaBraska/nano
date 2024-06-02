@@ -1,8 +1,6 @@
 package berlin.yuna.nano.services.metric.logic;
 
 import berlin.yuna.nano.core.Nano;
-import berlin.yuna.nano.helper.logger.logic.LogQueue;
-import berlin.yuna.nano.helper.logger.model.LogLevel;
 import berlin.yuna.nano.services.http.HttpService;
 import berlin.yuna.nano.services.http.model.HttpMethod;
 import berlin.yuna.nano.services.http.model.HttpObject;
@@ -10,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static berlin.yuna.nano.core.config.TestConfig.TEST_LOG_LEVEL;
 import static berlin.yuna.nano.core.model.Config.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -19,7 +18,7 @@ class MetricServiceTest {
 
     @Test
     void metricEndpointsWithoutBasePath() {
-        Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, LogLevel.INFO, CONFIG_LOG_FORMATTER, "console"), new LogQueue(), new MetricService(), new HttpService());
+        Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL), new MetricService(), new HttpService());
 
         final HttpObject result = new HttpObject()
             .methodType(HttpMethod.GET)
@@ -34,7 +33,7 @@ class MetricServiceTest {
 
     @Test
     void metricEndpointsWithCustomBasePath() {
-        Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, LogLevel.INFO, CONFIG_LOG_FORMATTER, "console", CONFIG_METRIC_SERVICE_BASE_PATH, "/custom-metrics"), new LogQueue(), new MetricService(), new HttpService());
+        Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL, CONFIG_METRIC_SERVICE_BASE_PATH, "/custom-metrics"), new MetricService(), new HttpService());
 
         final HttpObject result = new HttpObject()
             .methodType(HttpMethod.GET)
@@ -49,7 +48,7 @@ class MetricServiceTest {
 
     @Test
     void metricEndpointsWithPrometheus() {
-        Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, LogLevel.INFO, CONFIG_LOG_FORMATTER, "console", CONFIG_METRIC_SERVICE_PROMETHEUS_PATH, "/prometheus"), new LogQueue(), new MetricService(), new HttpService());
+        Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL, CONFIG_METRIC_SERVICE_PROMETHEUS_PATH, "/prometheus"), new MetricService(), new HttpService());
 
         final HttpObject result = new HttpObject()
             .methodType(HttpMethod.GET)
@@ -63,11 +62,11 @@ class MetricServiceTest {
 
     @Test
     void metricEndpointsWithBasePath() {
-        Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, LogLevel.INFO, CONFIG_LOG_FORMATTER, "console", CONFIG_METRIC_SERVICE_BASE_PATH, "/metrics"), new LogQueue(), new MetricService(), new HttpService());
+        Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL, CONFIG_METRIC_SERVICE_BASE_PATH, "/stats"), new MetricService(), new HttpService());
 
         final HttpObject result = new HttpObject()
             .methodType(HttpMethod.GET)
-            .path(serverUrl + nano.service(HttpService.class).port() + "/metrics/prometheus")
+            .path(serverUrl + nano.service(HttpService.class).port() + "/stats/prometheus")
             .send(nano.newContext(MetricServiceTest.class));
 
         assertThat(result).isNotNull();
@@ -78,7 +77,7 @@ class MetricServiceTest {
 
     @Test
     void withoutMetricService() {
-        Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, LogLevel.INFO, CONFIG_LOG_FORMATTER, "console"), new LogQueue(), new HttpService());
+        Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL), new HttpService());
 
         final HttpObject result = new HttpObject()
             .methodType(HttpMethod.GET)

@@ -344,19 +344,19 @@ public class MetricService extends Service {
         return 24 + (long) string.length() * 2; // String object overhead + 2 bytes per character
     }
 
-    public String getPrometheusPath() {
+    public String prometheusPath() {
         return prometheusPath;
     }
 
-    public String getDynamoPath() {
+    public String dynamoPath() {
         return dynamoPath;
     }
 
-    public String getInflux() {
+    public String influx() {
         return influx;
     }
 
-    public String getWavefront() {
+    public String wavefront() {
         return wavefront;
     }
 }
