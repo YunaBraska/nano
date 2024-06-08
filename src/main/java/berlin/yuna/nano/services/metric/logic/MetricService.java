@@ -1,5 +1,6 @@
 package berlin.yuna.nano.services.metric.logic;
 
+import berlin.yuna.nano.core.model.Config;
 import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.core.model.NanoThread;
 import berlin.yuna.nano.core.model.Service;
@@ -7,6 +8,9 @@ import berlin.yuna.nano.core.model.Unhandled;
 import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.helper.logger.logic.LogQueue;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
+import berlin.yuna.nano.services.http.model.ContentType;
+import berlin.yuna.nano.services.http.model.HttpHeaders;
+import berlin.yuna.nano.services.http.model.HttpObject;
 import berlin.yuna.nano.services.metric.model.MetricCache;
 import berlin.yuna.nano.services.metric.model.MetricUpdate;
 import berlin.yuna.nano.core.Nano;
@@ -14,6 +18,7 @@ import berlin.yuna.nano.core.Nano;
 import java.io.File;
 import java.lang.management.*;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -24,6 +29,10 @@ import static berlin.yuna.nano.helper.event.model.EventType.*;
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class MetricService extends Service {
     private final MetricCache metrics = new MetricCache();
+    protected String prometheusPath;
+    protected String dynamoPath;
+    protected String influx;
+    protected String wavefront;
 
     public MetricService() {
         super(null, false);
@@ -31,13 +40,16 @@ public class MetricService extends Service {
 
     @Override
     public void start(final Supplier<Context> contextSupplier) {
-        isReady.set(false, true, run -> updateSystemMetrics());
-        //addlistener for event
-        // metrics.prometheus() this will the response body
-        // GET call
-        // http://localhost:8080/metrics thinks of good word
-        // status code 200
+        AtomicReference<Optional<String>> basePath = new AtomicReference<>(Optional.empty());
+        isReady.set(false, true, run -> {
+            updateSystemMetrics();
+            basePath.set(Optional.ofNullable(contextSupplier.get().get(String.class, Config.CONFIG_METRIC_SERVICE_BASE_PATH.id())).or(() -> Optional.of("/metrics")));
+        });
 
+        prometheusPath = contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_PROMETHEUS_PATH.id()).orElseGet(() -> basePath.get().map(base -> base + "/prometheus").orElse(null));
+        dynamoPath = contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_DYNAMO_PATH.id()).orElseGet(() -> basePath.get().map(base -> base + "/dynamo").orElse(null));
+        influx = contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_INFLUX_PATH.id()).orElseGet(() -> basePath.get().map(base -> base + "/influx").orElse(null));
+        wavefront = contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_WAVEFRONT_PATH.id()).orElseGet(() -> basePath.get().map(base -> base + "/wavefront").orElse(null));
     }
 
     @Override
@@ -66,6 +78,56 @@ public class MetricService extends Service {
                 metrics.gaugeSet("logger", 1, Map.of("level", level.name()));
             })
             .ifPresent(EVENT_APP_LOG_QUEUE, LogQueue.class, logger::logQueue);
+        addMetricsEndpoint(event);
+
+    }
+
+    protected void addMetricsEndpoint(Event event) {
+        event
+            .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
+                Optional.ofNullable(prometheusPath)
+                    .filter(request::pathMatch)
+                    .filter(path -> request.isMethodGet())
+                    .ifPresent(path ->
+                        request.response()
+                            .statusCode(200)
+                            .body(metrics.prometheus())
+                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event)
+                    )
+            )
+            .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
+                Optional.ofNullable(dynamoPath)
+                    .filter(request::pathMatch)
+                    .filter(path -> request.isMethodGet())
+                    .ifPresent(path ->
+                        request.response()
+                            .statusCode(200)
+                            .body(metrics.dynatrace())
+                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event)
+                    )
+            )
+            .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
+                Optional.ofNullable(influx)
+                    .filter(request::pathMatch)
+                    .filter(path -> request.isMethodGet())
+                    .ifPresent(path ->
+                        request.response()
+                            .statusCode(200)
+                            .body(metrics.influx())
+                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event)
+                    )
+            )
+            .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
+                Optional.ofNullable(wavefront)
+                    .filter(request::pathMatch)
+                    .filter(path -> request.isMethodGet())
+                    .ifPresent(path ->
+                        request.response()
+                            .statusCode(200)
+                            .body(metrics.wavefront())
+                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event)
+                    )
+            );
     }
 
     public void updateMetric(final MetricUpdate metric) {
@@ -280,5 +342,21 @@ public class MetricService extends Service {
 
     private long estimateStringSize(final String string) {
         return 24 + (long) string.length() * 2; // String object overhead + 2 bytes per character
+    }
+
+    public String prometheusPath() {
+        return prometheusPath;
+    }
+
+    public String dynamoPath() {
+        return dynamoPath;
+    }
+
+    public String influx() {
+        return influx;
+    }
+
+    public String wavefront() {
+        return wavefront;
     }
 }
