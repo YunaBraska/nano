@@ -3,74 +3,92 @@ package berlin.yuna.nano.helper.event.model;
 import berlin.yuna.nano.core.Nano;
 import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.helper.logger.logic.NanoLogger;
+import berlin.yuna.typemap.model.TypeMap;
 
 import java.util.Optional;
 import java.util.function.Consumer;
 
+import static berlin.yuna.nano.helper.event.EventChannelRegister.eventNameOf;
 import static berlin.yuna.typemap.logic.TypeConverter.convertObj;
-import static berlin.yuna.nano.helper.event.EventTypeRegister.eventNameOf;
 import static java.util.Optional.ofNullable;
 
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class Event {
 
-    protected final int id;
+    protected int channelId;
     protected final long createdAtMs;
     protected final Context context;
     protected final Consumer<Object> responseListener;
     protected final Object payload;
+    protected TypeMap cache;
     protected Object response;
+    protected Throwable error;
+
+    public static final String EVENT_ORIGINAL_CHANNEL_ID = "app_original_event_channel_id";
 
     /**
      * Constructs an instance of the Event class with specified type, context, payload, and response listener.
      * This event object can be used to trigger specific actions or responses based on the event type and payload.
      *
-     * @param id               The integer representing the type of the event. This typically corresponds to a specific kind of event.
+     * @param channelId        The integer representing the type of the event. This typically corresponds to a specific kind of event.
      * @param context          The {@link Context} in which the event is created and processed. It provides environmental data and configurations.
      * @param payload          The data or object that is associated with this event. This can be any relevant information that needs to be passed along with the event.
      * @param responseListener A consumer that handles the response of the event processing. It can be used to execute actions based on the event's outcome or data.
      */
-    public Event(final int id, final Context context, final Object payload, final Consumer<Object> responseListener) {
+    public Event(final int channelId, final Context context, final Object payload, final Consumer<Object> responseListener) {
         this.context = context;
-        this.id = id;
+        this.channelId = channelId;
         this.responseListener = responseListener;
         this.payload = payload;
         this.createdAtMs = System.currentTimeMillis();
     }
 
     public String name() {
-        return eventNameOf(id);
+        return eventNameOf(channelId);
+    }
+
+    public String nameOrg() {
+        return eventNameOf(channelIdOrg());
     }
 
     public Nano nano() {
         return context.nano();
     }
 
-    public int id() {
-        return id;
+    public int channelId() {
+        return channelId;
+    }
+
+    public int channelIdOrg() {
+        return ofNullable(cache).flatMap(c -> c.getOpt(Integer.class, EVENT_ORIGINAL_CHANNEL_ID)).orElse(channelId);
+    }
+
+    public Event channelId(final int channelId) {
+        this.channelId = channelId;
+        return this;
     }
 
     public long createdAtMs() {
         return createdAtMs;
     }
 
-    public Event ifPresent(final int eventType, final Consumer<Event> consumer) {
-        if (this.id == eventType) {
+    public Event ifPresent(final int channelId, final Consumer<Event> consumer) {
+        if (this.channelId == channelId) {
             consumer.accept(this);
         }
         return this;
     }
 
-    public Event ifPresentAck(final int eventType, final Consumer<Event> consumer) {
-        if (this.id == eventType) {
+    public Event ifPresentAck(final int channelId, final Consumer<Event> consumer) {
+        if (this.channelId == channelId) {
             consumer.accept(this);
             acknowledge();
         }
         return this;
     }
 
-    public <T> Event ifPresent(final int eventType, final Class<T> clazz, final Consumer<T> consumer) {
-        if (this.id == eventType) {
+    public <T> Event ifPresent(final int channelId, final Class<T> clazz, final Consumer<T> consumer) {
+        if (this.channelId == channelId) {
             final T payloadObj = payload(clazz);
             if (payloadObj != null)
                 consumer.accept(payloadObj);
@@ -78,8 +96,8 @@ public class Event {
         return this;
     }
 
-    public <T> Event ifPresentAck(final int eventType, final Class<T> clazz, final Consumer<T> consumer) {
-        if (this.id == eventType) {
+    public <T> Event ifPresentAck(final int channelId, final Class<T> clazz, final Consumer<T> consumer) {
+        if (this.channelId == channelId) {
             final T payloadObj = payload(clazz);
             if (payloadObj != null) {
                 consumer.accept(payloadObj);
@@ -151,8 +169,35 @@ public class Event {
         return response;
     }
 
+    public Event peek(final Consumer<Event> peek) {
+        if (peek != null)
+            peek.accept(this);
+        return this;
+    }
+
     public Event put(final Object key, final Object value) {
         context.put(key, value);
+        return this;
+    }
+
+    public Event cache(final Object key, final Object value) {
+        cache().put(key, value);
+        return this;
+    }
+
+    public TypeMap cache() {
+        if (cache == null) {
+            cache = new TypeMap();
+        }
+        return cache;
+    }
+
+    public Throwable error() {
+        return error;
+    }
+
+    public Event error(final Throwable error) {
+        this.error = error;
         return this;
     }
 

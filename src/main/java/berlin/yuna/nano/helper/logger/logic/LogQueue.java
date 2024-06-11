@@ -3,7 +3,6 @@ package berlin.yuna.nano.helper.logger.logic;
 import berlin.yuna.nano.core.model.Config;
 import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.core.model.Service;
-import berlin.yuna.nano.core.model.Unhandled;
 import berlin.yuna.nano.helper.Pair;
 import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
@@ -16,8 +15,8 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
-import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_LOG_LEVEL;
-import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_LOG_QUEUE;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_LOG_LEVEL;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_LOG_QUEUE;
 
 @SuppressWarnings("UnusedReturnValue")
 public class LogQueue extends Service {
@@ -58,7 +57,7 @@ public class LogQueue extends Service {
             try {
                 contextSub.get().broadcastEvent(EVENT_APP_LOG_QUEUE, this);
                 logger.debug(() -> "Shutdown initiated - process last messages [{}]", queue.size());
-                queue.put(new Pair<>(logger.logger(), new LogRecord(Level.INFO, "Shutdown Hook")));
+                queue.put(new Pair<>(logger.javaLogger(), new LogRecord(Level.INFO, "Shutdown Hook")));
                 queue = null;
             } catch (final InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -75,7 +74,7 @@ public class LogQueue extends Service {
     }
 
     @Override
-    public Object onFailure(final Unhandled error) {
+    public Object onFailure(final Event error) {
         return null;
     }
 
@@ -83,7 +82,7 @@ public class LogQueue extends Service {
         while (isReady() || (queue != null && !queue.isEmpty())) {
             try {
                 final Pair<Logger, LogRecord> pair = queue.take();
-                if (pair.left() != this.logger.logger()) {
+                if (pair.left() != this.logger.javaLogger()) {
                     pair.left().log(pair.right());
                 }
             } catch (final InterruptedException e) {

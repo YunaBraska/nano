@@ -25,7 +25,7 @@ import static berlin.yuna.nano.core.config.TestConfig.TEST_LOG_LEVEL;
 import static berlin.yuna.nano.core.config.TestConfig.TEST_REPEAT;
 import static berlin.yuna.nano.core.model.Config.*;
 import static berlin.yuna.nano.core.model.NanoThread.VIRTUAL_THREAD_POOL;
-import static berlin.yuna.nano.helper.event.model.EventType.EVENT_HTTP_REQUEST;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_HTTP_REQUEST;
 import static berlin.yuna.nano.services.http.model.ContentType.*;
 import static berlin.yuna.nano.services.http.model.HttpHeaders.*;
 import static berlin.yuna.nano.services.http.model.HttpMethod.GET;
@@ -134,7 +134,7 @@ public class HttpClientTest {
 
     @RepeatedTest(TEST_REPEAT)
     void sendRequestViaEvent() {
-        final HttpObject response = nano.newContext(HttpClientTest.class)
+        final HttpObject response = nano.context(HttpClientTest.class)
             .sendEventReturn(EVENT_HTTP_REQUEST, new HttpObject().path(serverUrl).body("{Hällo Wörld?!}"))
             .response(HttpObject.class);
         assertThat(response.failure()).isNull();
@@ -172,7 +172,7 @@ public class HttpClientTest {
         assertThat(response.failure()).isNull();
         assertThat(response.header(CONTENT_LENGTH)).isEqualTo("20");
         assertThat(response.header(CONTENT_RANGE)).isEqualTo("bytes 0-0/1234");
-        assertThat(response.header(CONTENT_TYPE)).isEqualTo(APPLICATION_OCTET_STREAM.value());
+        assertThat(response.header(CONTENT_TYPE)).isEqualTo(TEXT_PLAIN.value());
         assertThat(response.size()).isEqualTo(1234L);
 
         // verify invalid header range response
@@ -180,8 +180,8 @@ public class HttpClientTest {
         assertThat(response.failure()).isNull();
         assertThat(response.header(CONTENT_LENGTH)).isEqualTo("20");
         assertThat(response.header(CONTENT_RANGE)).isEqualTo("aa");
-        assertThat(response.header(CONTENT_TYPE)).isEqualTo(APPLICATION_OCTET_STREAM.value());
-        assertThat(response.size()).isEqualTo(20L);
+        assertThat(response.header(CONTENT_TYPE)).isEqualTo(TEXT_PLAIN.value());
+        assertThat(response.size()).isZero();
 
         // verify body request
         response = client.send(new HttpObject().path(serverUrl).body("{Hällo Wörld?!}"));
@@ -190,14 +190,25 @@ public class HttpClientTest {
         assertThat(response.header(CONTENT_LENGTH)).isEqualTo("37");
         assertThat(response.header(CONTENT_TYPE)).isEqualTo(APPLICATION_JSON.value());
         assertThat(response.header(CONTENT_RANGE)).isNull();
+        assertThat(response.size()).isEqualTo(17L);
 
         // send HttpRequest request
+        response = client.send(HttpRequest.newBuilder().header(ACCEPT_ENCODING, "gzip").uri(URI.create(serverUrl)).method(GET.name(), HttpRequest.BodyPublishers.ofString("{Hällo Wörld?!}")).build());
+        assertThat(response.failure()).isNull();
+        assertThat(response.bodyAsString()).isEqualTo("{Hällo Wörld?!}");
+        assertThat(response.header(CONTENT_LENGTH)).isEqualTo("37");
+        assertThat(response.header(CONTENT_TYPE)).isEqualTo(APPLICATION_JSON.value());
+        assertThat(response.header(CONTENT_RANGE)).isNull();
+        assertThat(response.size()).isEqualTo(17L);
+
+        // send HttpRequest request without encoding
         response = client.send(HttpRequest.newBuilder().uri(URI.create(serverUrl)).method(GET.name(), HttpRequest.BodyPublishers.ofString("{Hällo Wörld?!}")).build());
         assertThat(response.failure()).isNull();
         assertThat(response.bodyAsString()).isEqualTo("{Hällo Wörld?!}");
         assertThat(response.header(CONTENT_LENGTH)).isEqualTo("17");
         assertThat(response.header(CONTENT_TYPE)).isEqualTo(APPLICATION_JSON.value());
         assertThat(response.header(CONTENT_RANGE)).isNull();
+        assertThat(response.size()).isEqualTo(17L);
 
         // verify user agent
         assertThat(new HttpObject().headers().firstValue(USER_AGENT).orElse(null)).doesNotStartWith("Java-http-client/");
@@ -211,6 +222,7 @@ public class HttpClientTest {
         assertThat(response.header(CONTENT_LENGTH)).isEqualTo("37");
         assertThat(response.header(CONTENT_TYPE)).isEqualTo(APPLICATION_JSON.value());
         assertThat(response.header(CONTENT_RANGE)).isNull();
+        assertThat(response.size()).isEqualTo(17L);
 
         // verify null url
         response = client.send(new HttpObject());
@@ -251,7 +263,7 @@ public class HttpClientTest {
                     response.header(paths[i - 1], paths[i].replace("_", "/").replace(".", " "));
                 }
             }
-            response.body(request.body()).statusCode(status.get()).send(event);
+            response.body(request.body()).statusCode(status.get()).respond(event);
         });
     }
 }

@@ -5,34 +5,34 @@ import berlin.yuna.nano.core.model.Service;
 import berlin.yuna.nano.core.model.Unhandled;
 import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.services.http.logic.HttpClient;
+import berlin.yuna.nano.services.http.model.ContentType;
 import berlin.yuna.nano.services.http.model.HttpObject;
+import berlin.yuna.typemap.model.LinkedTypeMap;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
-import java.io.ByteArrayOutputStream;
-import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.http.HttpRequest;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
-import java.util.zip.DeflaterOutputStream;
-import java.util.zip.GZIPOutputStream;
 
 import static berlin.yuna.nano.core.model.Config.CONFIG_SERVICE_HTTP_PORT;
-import static berlin.yuna.nano.helper.event.model.EventType.*;
-import static berlin.yuna.nano.services.http.model.HttpHeaders.ACCEPT_ENCODING;
+import static berlin.yuna.nano.helper.NanoUtils.encodeDeflate;
+import static berlin.yuna.nano.helper.NanoUtils.encodeGzip;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_UNHANDLED;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_HTTP_REQUEST;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_HTTP_REQUEST_UNHANDLED;
 import static berlin.yuna.nano.services.http.model.HttpHeaders.CONTENT_ENCODING;
 import static berlin.yuna.nano.services.http.model.HttpObject.CONTEXT_HTTP_CLIENT_KEY;
 import static berlin.yuna.typemap.logic.TypeConverter.collectionOf;
-import static java.util.Optional.ofNullable;
 
 public class HttpService extends Service {
     protected HttpServer server;
@@ -69,7 +69,7 @@ public class HttpService extends Service {
     @Override
     public void start(final Supplier<Context> contextSub) {
         isReady.set(false, true, state -> {
-            context = contextSub.get().newContext(HttpService.class, null);
+            context = contextSub.get().newContext(HttpService.class);
             STARTUP_LOCK.lock();
             final int port = context.getOpt(Integer.class, CONFIG_SERVICE_HTTP_PORT.id()).filter(p -> p > 0).orElseGet(() -> nextFreePort(8080));
             context.put(CONFIG_SERVICE_HTTP_PORT, port);
@@ -78,19 +78,23 @@ public class HttpService extends Service {
                 server = HttpServer.create(new InetSocketAddress(port), 0);
                 server.setExecutor(context.nano().threadPool());
                 server.createContext("/", exchange -> {
-                    final HttpObject httpRequest = new HttpObject(exchange);
+                    final HttpObject request = new HttpObject(exchange);
                     try {
-                        context.sendEventReturn(EVENT_HTTP_REQUEST, httpRequest).responseOpt(HttpObject.class).ifPresentOrElse(
-                            response -> sendResponse(exchange, response),
-                            () -> context.sendEventReturn(EVENT_HTTP_REQUEST_UNHANDLED, httpRequest).responseOpt(HttpObject.class).ifPresentOrElse(
-                                response -> sendResponse(exchange, response),
-                                () -> sendResponse(exchange, new HttpObject().statusCode(404).body("Page not found".getBytes()).headerMap(new HashMap<>()))
+                        final AtomicBoolean internalError = new AtomicBoolean(false);
+                        context.sendEventReturn(EVENT_HTTP_REQUEST, request).peek(setError(internalError)).responseOpt(HttpObject.class).ifPresentOrElse(
+                            response -> sendResponse(exchange, request, response),
+                            () -> context.sendEventReturn(EVENT_HTTP_REQUEST_UNHANDLED, request).responseOpt(HttpObject.class).ifPresentOrElse(
+                                response -> sendResponse(exchange, request, response),
+                                () -> sendResponse(exchange, request, new HttpObject()
+                                    .statusCode(internalError.get() ? 500 : 404)
+                                    .bodyT(new LinkedTypeMap().putReturn("message", internalError.get() ? "Internal Server Error" : "Not Found").putReturn("timestamp", System.currentTimeMillis()))
+                                    .contentType(ContentType.APPLICATION_PROBLEM_JSON))
                             )
                         );
                     } catch (final Exception e) {
-                        context.sendEventReturn(EVENT_APP_UNHANDLED, new Unhandled(context, httpRequest, e)).responseOpt(HttpObject.class).ifPresentOrElse(
-                            response -> sendResponse(exchange, response),
-                            () -> new HttpObject().statusCode(500).body("Internal Server Error".getBytes()).headerMap(new HashMap<>())
+                        context.sendEventReturn(EVENT_APP_UNHANDLED, new Unhandled(context, request, e)).responseOpt(HttpObject.class).ifPresentOrElse(
+                            response -> sendResponse(exchange, request, response),
+                            () -> new HttpObject().statusCode(500).body("Internal Server Error".getBytes()).contentType(ContentType.APPLICATION_PROBLEM_JSON)
                         );
                     }
                 });
@@ -151,17 +155,21 @@ public class HttpService extends Service {
     }
 
     @Override
-    public Object onFailure(final Unhandled error) {
+    public Object onFailure(final Event error) {
         return null;
     }
 
-    protected void sendResponse(final HttpExchange exchange, final HttpObject response) {
+    protected void sendResponse(final HttpExchange exchange, final HttpObject request, final HttpObject response) {
         try {
-            final Map<String, List<String>> headers = response.computedHeaders(false);
+            byte[] body = response.body();
             final int statusCode = response.statusCode() > -1 && response.statusCode() < 600 ? response.statusCode() : 200;
+            final Optional<String> encoding = request.acceptEncodings().stream().filter(s -> s.equals("gzip") || s.equals("deflate")).findFirst();
             response.headerMap().getMap(String.class, value -> collectionOf(value, String.class)).forEach((key, value) -> exchange.getResponseHeaders().put(key, value));
-            headers.forEach((key, value) -> exchange.getResponseHeaders().put(key, value));
-            final byte[] body = encodeBody(exchange, response.body());
+            response.computedHeaders(false).forEach((key, value) -> exchange.getResponseHeaders().put(key, value));
+
+            if (encoding.isPresent())
+                body = encodeBody(body, encoding.get());
+            exchange.getResponseHeaders().put(CONTENT_ENCODING, List.of(encoding.orElse("identity")));
             exchange.sendResponseHeaders(statusCode, body.length);
             try (final OutputStream os = exchange.getResponseBody()) {
                 os.write(body);
@@ -171,20 +179,12 @@ public class HttpService extends Service {
         }
     }
 
-    protected byte[] encodeBody(final HttpExchange exchange, byte[] body) throws IOException {
-        final String acceptEncoding = ofNullable(exchange.getRequestHeaders()
-            .getFirst(ACCEPT_ENCODING))
-            .map(String::toLowerCase)
-            .map(encoding -> encoding.contains("gzip") ? "gzip" : encoding.contains("deflate") ? "deflate" : null)
-            .orElse("identity");
-        if (!"identity".equals(acceptEncoding)) {
-            final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-            try (final FilterOutputStream gzipOutputStream = acceptEncoding.contains("gzip") ? new GZIPOutputStream(byteArrayOutputStream) : new DeflaterOutputStream(byteArrayOutputStream)) {
-                gzipOutputStream.write(body);
-            }
-            body = byteArrayOutputStream.toByteArray();
+    protected byte[] encodeBody(final byte[] body, final String contentEncoding) {
+        if ("gzip".equalsIgnoreCase(contentEncoding)) {
+            return encodeGzip(body);
+        } else if ("deflate".equalsIgnoreCase(contentEncoding)) {
+            return encodeDeflate(body);
         }
-        exchange.getResponseHeaders().set(CONTENT_ENCODING, acceptEncoding);
         return body;
     }
 
@@ -205,6 +205,14 @@ public class HttpService extends Service {
         } catch (final Exception e) {
             return false;
         }
+    }
+
+    public static Consumer<Event> setError(final AtomicBoolean internalError) {
+        return event -> {
+            if (event.error() != null) {
+                internalError.set(true);
+            }
+        };
     }
 }
 

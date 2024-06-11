@@ -5,7 +5,9 @@ import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.services.http.logic.HttpClient;
 import berlin.yuna.typemap.logic.JsonDecoder;
 import berlin.yuna.typemap.logic.XmlDecoder;
+import berlin.yuna.typemap.model.LinkedTypeMap;
 import berlin.yuna.typemap.model.TypeInfo;
+import berlin.yuna.typemap.model.TypeList;
 import berlin.yuna.typemap.model.TypeMap;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
@@ -20,7 +22,16 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.StringJoiner;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -28,9 +39,27 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.zip.Inflater;
 
-import static berlin.yuna.nano.helper.NanoUtils.*;
-import static berlin.yuna.nano.services.http.model.ContentType.*;
-import static berlin.yuna.nano.services.http.model.HttpHeaders.*;
+import static berlin.yuna.nano.helper.NanoUtils.decodeGzip;
+import static berlin.yuna.nano.helper.NanoUtils.decoderDeflate;
+import static berlin.yuna.nano.helper.NanoUtils.generateNanoName;
+import static berlin.yuna.nano.helper.NanoUtils.split;
+import static berlin.yuna.nano.services.http.model.ContentType.APPLICATION_PROBLEM_JSON;
+import static berlin.yuna.nano.services.http.model.ContentType.APPLICATION_PROBLEM_XML;
+import static berlin.yuna.nano.services.http.model.ContentType.WILDCARD;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.ACCEPT;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.ACCEPT_ENCODING;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.ACCEPT_LANGUAGE;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.CACHE_CONTROL;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.CONNECTION;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.CONTENT_ENCODING;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.CONTENT_LENGTH;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.CONTENT_RANGE;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.CONTENT_TYPE;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.DATE;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.HOST;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.RANGE;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.TRANSFER_ENCODING;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.USER_AGENT;
 import static berlin.yuna.nano.services.http.model.HttpMethod.GET;
 import static berlin.yuna.typemap.logic.TypeConverter.collectionOf;
 import static berlin.yuna.typemap.logic.TypeConverter.convertObj;
@@ -234,13 +263,27 @@ public class HttpObject extends HttpRequest {
         return Arrays.stream(encodings).allMatch(result::contains);
     }
 
-    public Locale acceptLanguage() {
-        final List<Locale> result = acceptLanguages();
+    public String contentEncoding() {
+        final List<String> result = acceptEncodings();
         return result.isEmpty() ? null : result.getFirst();
     }
 
+    public List<String> contentEncodings() {
+        return splitHeaderValue(headerMap().getList(String.class, CONTENT_ENCODING), v -> v);
+    }
+
+    public boolean hasContentEncoding(final String... encodings) {
+        final List<String> result = splitHeaderValue(headerMap().getList(String.class, CONTENT_ENCODING), v -> v);
+        return Arrays.stream(encodings).allMatch(result::contains);
+    }
+
+    public Locale acceptLanguage() {
+        return acceptLanguages().getFirst();
+    }
+
     public List<Locale> acceptLanguages() {
-        return splitHeaderValue(headerMap().getList(String.class, HttpHeaders.ACCEPT_LANGUAGE), Locale::forLanguageTag);
+        final List<Locale> result = splitHeaderValue(headerMap().getList(String.class, ACCEPT_LANGUAGE), Locale::forLanguageTag);
+        return result.isEmpty() ? List.of(Locale.ENGLISH) : result;
     }
 
     /**
@@ -338,8 +381,28 @@ public class HttpObject extends HttpRequest {
      * @param body the {@link TypeInfo} representing the body to be set.
      * @return this {@link HttpObject} to allow method chaining.
      */
-    public HttpObject body(final TypeInfo<?> body) {
+    public HttpObject bodyT(final TypeInfo<?> body) {
         return body(body.toJson().getBytes(encoding()));
+    }
+
+    /**
+     * Sets the {@link HttpObject#body()} from a {@link Collection} object, encoding it into JSON format using the {@link Charset} from {@link HttpObject#encoding()}.
+     *
+     * @param body the {@link Collection} representing the body to be set.
+     * @return this {@link HttpObject} to allow method chaining.
+     */
+    public HttpObject body(final Collection<?> body) {
+        return bodyT((body instanceof final TypeInfo<?> info ? info : new TypeList(body)));
+    }
+
+    /**
+     * Sets the {@link HttpObject#body()} from a {@link Map} object, encoding it into JSON format using the {@link Charset} from {@link HttpObject#encoding()}.
+     *
+     * @param body the {@link Map} representing the body to be set.
+     * @return this {@link HttpObject} to allow method chaining.
+     */
+    public HttpObject body(final Map<?, ?> body) {
+        return bodyT((body instanceof final TypeInfo<?> info ? info : new LinkedTypeMap(body)));
     }
 
     /**
@@ -410,7 +473,23 @@ public class HttpObject extends HttpRequest {
     }
 
     /**
-     * Checks if the current {@link HttpObject#path()} matches a specified expression. The expression may include path variables enclosed in curly braces ({}).
+     * <p>
+     * Checks if the current {@link HttpObject#path()} matches a specified expression.
+     * The expression may include:
+     * <ul>
+     *     <li</>Path variables enclosed in curly braces ({}), e.g., /users/{userId}.</li>
+     *     <li</>Asterisks ({@literal *}) to match any single path segment, e.g., /users/{@literal *}/profile</li>
+     *     <li</>Double asterisks (**) to match any number of path segments, e.g., /users/**..</li>
+     * </ul>
+     * </p><p>
+     * Matching rules:
+     * <ul>
+     *     <li</>Exact match: Each part of the path must match the corresponding part of the expression.</li>
+     *     <li</>Single asterisk ({@literal *}): Matches any single path segment.</li>
+     *     <li</>Double asterisk (**): Matches zero or more path segments.</li>
+     *     <li</>Path variables: Captures the value of the segment and stores it in {@link HttpObject#pathParams()}.</li>
+     * </ul>
+     * <lp>
      *
      * @param expression the path expression to match against the current path.
      * @return {@code true} if the current path matches the expression, {@code false} otherwise.
@@ -419,16 +498,17 @@ public class HttpObject extends HttpRequest {
         if (this.path == null || expression == null)
             return false;
 
-        final String pathToMatch = removeLast(expression, "/");
-        final String[] partsToMatch = split(pathToMatch, "/");
+        final String[] partsToMatch = split(removeLast(expression, "/"), "/");
         final String[] parts = split(this.path, "/");
-
-        if (this.path.equals(pathToMatch) && pathToMatch.contains("{")) return true;
-
-        if (partsToMatch.length != parts.length) return false;
 
         pathParams().clear();
         for (int i = 0; i < partsToMatch.length; i++) {
+            if ("*".equals(partsToMatch[i]))
+                continue;
+            if ("**".equals(partsToMatch[i]))
+                return true;
+            if (parts.length - 1 < i)
+                return false;
             if (!partsToMatch[i].equals(parts[i])) {
                 if (partsToMatch[i].startsWith("{")) {
                     final String key = partsToMatch[i].substring(1, partsToMatch[i].length() - 1);
@@ -438,7 +518,6 @@ public class HttpObject extends HttpRequest {
                 }
             }
         }
-
         return true;
     }
 
@@ -508,10 +587,33 @@ public class HttpObject extends HttpRequest {
      * Parses and returns any authentication token found in the {@link HttpHeaders#AUTHORIZATION} header.
      * Supports both 'Bearer' and 'Basic' authentication schemes.
      *
+     * @return token from the {@link HttpObject#authTokens()}
+     * or null if no {@link HttpHeaders#AUTHORIZATION} header is present or the token cannot be parsed.
+     */
+    public String authToken() {
+        return authToken(0);
+    }
+
+    /**
+     * Parses and returns any authentication token found in the {@link HttpHeaders#AUTHORIZATION} header.
+     * Supports both 'Bearer' and 'Basic' authentication schemes.
+     *
+     * @return token from the {@link HttpObject#authTokens()}
+     * or null if no {@link HttpHeaders#AUTHORIZATION} header is present or the token cannot be parsed.
+     */
+    public String authToken(final int index) {
+        final String[] result = authTokens();
+        return index < result.length ? result[index] : null;
+    }
+
+    /**
+     * Parses and returns any authentication token found in the {@link HttpHeaders#AUTHORIZATION} header.
+     * Supports both 'Bearer' and 'Basic' authentication schemes.
+     *
      * @return an array of strings, where the first element is the token or credentials,
      * or an empty array if no {@link HttpHeaders#AUTHORIZATION} header is present or the token cannot be parsed.
      */
-    public String[] authToken() {
+    public String[] authTokens() {
         return ofNullable(header(HttpHeaders.AUTHORIZATION))
             .map(value -> {
                 if (value.startsWith("Bearer ")) {
@@ -582,7 +684,6 @@ public class HttpObject extends HttpRequest {
      * </p><p>
      * Header Details:
      * - {@link HttpHeaders#ACCEPT}: Default "*\/*".
-     * - {@link HttpHeaders#CONTENT_ENCODING}: Default "gzip". Specifies the type of compression used.
      * - {@link HttpHeaders#CACHE_CONTROL}: Ensures fresh content by specifying "no-cache" and overrides with "max-age=0, private, must-revalidate" for more specific caching rules.
      * - {@link HttpHeaders#ACCEPT_ENCODING}: Lists the acceptable encodings the server can handle, defaults to "gzip, deflate".
      * - {@link HttpHeaders#CONTENT_TYPE}: Determined by {@code contentTypes()} method to set the correct media type of the response.
@@ -595,12 +696,12 @@ public class HttpObject extends HttpRequest {
         if (isRequest) {
             result.putIfAbsent(ACCEPT_ENCODING, "gzip, deflate");
             result.computeIfAbsent(ACCEPT, fallback -> WILDCARD.value());
-            result.computeIfAbsent(USER_AGENT, fallback -> generateNanoName("%s/%s (%s %s)"));
         }
         result.putIfAbsent(CACHE_CONTROL, "no-cache");
         result.computeIfAbsent(CONTENT_TYPE, value -> contentTypes().stream().map(ContentType::value).toList());
         result.computeIfAbsent(CONTENT_LENGTH, value -> this.body().length);
         result.computeIfAbsent(DATE, value -> HTTP_DATE_FORMATTER.format(ZonedDateTime.now().withZoneSameInstant(java.time.ZoneOffset.UTC)));
+        result.computeIfAbsent(USER_AGENT, fallback -> generateNanoName("%s/%s (%s %s)"));
         return result.getMap(String.class, value -> collectionOf(value, String.class));
     }
 
@@ -648,13 +749,10 @@ public class HttpObject extends HttpRequest {
      * it returns -1.
      */
     public long size() {
-        final long headerLength = headers == null ? -1L : Math.max(
-            headers.getOpt(String.class, CONTENT_RANGE).map(s -> s.replace("bytes 0-0/", "")).map(s -> convertObj(s, Long.class)).orElse(-1L),
-            headers.getOpt(Long.class, CONTENT_LENGTH).orElse(-1L)
+        return Math.max(
+            body().length,
+            headers == null ? -1L : headers.getOpt(String.class, CONTENT_RANGE).map(s -> s.replace("bytes 0-0/", "")).map(s -> convertObj(s, Long.class)).orElse(-1L)
         );
-        if (headerLength > -1)
-            return headerLength;
-        return body().length;
     }
 
     /**
@@ -781,7 +879,7 @@ public class HttpObject extends HttpRequest {
      * @param event the event to which this {@link HttpObject} should be attached as a response.
      * @return the event after attaching this {@link HttpObject} as a response, facilitating chaining and further manipulation.
      */
-    public Event send(final Event event) {
+    public Event respond(final Event event) {
         return event.response(this);
     }
 
@@ -806,7 +904,7 @@ public class HttpObject extends HttpRequest {
         if (context == null) {
             return null;
         }
-        return ((HttpClient) context.computeIfAbsent(CONTEXT_HTTP_CLIENT_KEY, value -> new HttpClient())).send(this, callback);
+        return ((HttpClient) context.computeIfAbsent(CONTEXT_HTTP_CLIENT_KEY, value -> new HttpClient(context))).send(this, callback);
     }
 
     /**
@@ -1160,7 +1258,7 @@ public class HttpObject extends HttpRequest {
                 }
             }
         }
-        return ContentType.APPLICATION_OCTET_STREAM;
+        return ContentType.TEXT_PLAIN;
     }
 
     public static <R> List<R> splitHeaderValue(final Collection<String> value, final Function<String, R> mapper) {

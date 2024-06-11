@@ -1,10 +1,9 @@
 package berlin.yuna.nano.model;
 
-import berlin.yuna.nano.core.config.TestConfig;
 import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.core.model.Service;
 import berlin.yuna.nano.core.model.Unhandled;
-import berlin.yuna.nano.helper.event.EventTypeRegister;
+import berlin.yuna.nano.helper.event.EventChannelRegister;
 import berlin.yuna.nano.helper.event.model.Event;
 
 import java.util.List;
@@ -15,6 +14,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static berlin.yuna.nano.core.config.TestConfig.TEST_TIMEOUT;
 import static berlin.yuna.nano.helper.NanoUtils.waitForCondition;
 import static java.util.Optional.ofNullable;
 
@@ -22,14 +22,14 @@ public class TestService extends Service {
 
     private final AtomicInteger startCount = new AtomicInteger(0);
     private final AtomicInteger stopCount = new AtomicInteger(0);
-    private final List<Unhandled> failures = new CopyOnWriteArrayList<>();
+    private final List<Event> failures = new CopyOnWriteArrayList<>();
     private final List<Event> events = new CopyOnWriteArrayList<>();
     private final AtomicReference<Consumer<Event>> doOnEvent = new AtomicReference<>();
-    private final AtomicReference<Consumer<Unhandled>> failureConsumer = new AtomicReference<>();
+    private final AtomicReference<Consumer<Event>> failureConsumer = new AtomicReference<>();
     private final AtomicReference<Consumer<Context>> startConsumer = new AtomicReference<>();
     private final AtomicReference<Consumer<Context>> stopConsumer = new AtomicReference<>();
     private long startTime = System.currentTimeMillis();
-    public static int TEST_EVENT = EventTypeRegister.registerEventType("TEST_EVENT");
+    public static int TEST_EVENT = EventChannelRegister.registerChannelId("TEST_EVENT");
 
     public TestService() {
         super(null, false);
@@ -40,29 +40,29 @@ public class TestService extends Service {
         return this;
     }
 
-    public List<Event> events(final int eventId) {
-        getEvent(eventId);
-        return events.stream().filter(event -> event.id() == eventId).toList();
+    public List<Event> events(final int channelId) {
+        getEvent(channelId);
+        return events.stream().filter(event -> event.channelId() == channelId).toList();
     }
 
-    public Event getEvent(final int eventId) {
-        return getEvent(eventId, null, 2000);
+    public Event getEvent(final int channelId) {
+        return getEvent(channelId, null, 2000);
     }
 
-    public Event getEvent(final int eventId, final Function<Event, Boolean> condition) {
-        return getEvent(eventId, condition, TestConfig.TEST_TIMEOUT);
+    public Event getEvent(final int channelId, final Function<Event, Boolean> condition) {
+        return getEvent(channelId, condition, TEST_TIMEOUT);
     }
 
-    public Event getEvent(final int eventId, final long timeoutMs) {
-        return getEvent(eventId, null, timeoutMs);
+    public Event getEvent(final int channelId, final long timeoutMs) {
+        return getEvent(channelId, null, timeoutMs);
     }
 
-    public Event getEvent(final int eventId, final Function<Event, Boolean> condition, final long timeoutMs) {
+    public Event getEvent(final int channelId, final Function<Event, Boolean> condition, final long timeoutMs) {
         final AtomicReference<Event> result = new AtomicReference<>();
         waitForCondition(
             () -> {
                 final Event event1 = events.stream()
-                    .filter(event -> event.id() == eventId)
+                    .filter(event -> event.channelId() == channelId)
                     .filter(event -> condition != null ? condition.apply(event) : true)
                     .findFirst()
                     .orElse(null);
@@ -83,7 +83,7 @@ public class TestService extends Service {
         return stopCount.get();
     }
 
-    public List<Unhandled> failures() {
+    public List<Event> failures() {
         return failures;
     }
 
@@ -100,11 +100,11 @@ public class TestService extends Service {
         return this;
     }
 
-    public Consumer<Unhandled> doOnFailure() {
+    public Consumer<Event> doOnFailure() {
         return failureConsumer.get();
     }
 
-    public TestService doOnFailure(final Consumer<Unhandled> onFailure) {
+    public TestService doOnFailure(final Consumer<Event> onFailure) {
         this.failureConsumer.set(onFailure);
         return this;
     }
@@ -148,7 +148,7 @@ public class TestService extends Service {
     }
 
     @Override
-    public Object onFailure(final Unhandled error) {
+    public Object onFailure(final Event error) {
         failures.add(error);
         ofNullable(failureConsumer.get()).ifPresent(consumer -> consumer.accept(error));
         return null;

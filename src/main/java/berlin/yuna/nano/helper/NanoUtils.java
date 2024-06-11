@@ -1,25 +1,35 @@
 package berlin.yuna.nano.helper;
 
+import berlin.yuna.nano.core.Nano;
 import berlin.yuna.nano.core.NanoBase;
 import berlin.yuna.nano.core.NanoServices;
 import berlin.yuna.nano.core.NanoThreads;
 import berlin.yuna.nano.core.model.Context;
+import berlin.yuna.nano.core.model.NanoThread;
 import berlin.yuna.nano.core.model.Scheduler;
 import berlin.yuna.nano.core.model.Service;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Properties;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 import java.util.zip.DeflaterInputStream;
+import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 import static berlin.yuna.nano.core.NanoBase.standardiseKey;
 import static berlin.yuna.nano.core.model.Config.CONFIG_PROFILES;
@@ -135,6 +145,7 @@ public class NanoUtils {
             Service.class.getName(),
             NanoBase.class.getName(),
             NanoUtils.class.getName(),
+            NanoThread.class.getName(),
             NanoThreads.class.getName(),
             NanoServices.class.getName()
         );
@@ -231,6 +242,17 @@ public class NanoUtils {
         return context;
     }
 
+    public static byte[] encodeGzip(final byte[] data) {
+        try (final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+             final GZIPOutputStream gzipOutputStream = new GZIPOutputStream(outputStream)) {
+            gzipOutputStream.write(data);
+            gzipOutputStream.finish();
+            return outputStream.toByteArray();
+        } catch (final IOException ignored) {
+            return data;
+        }
+    }
+
     public static byte[] decodeGzip(final byte[] data) {
         try (final ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
              final GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
@@ -245,6 +267,17 @@ public class NanoUtils {
              final DeflaterInputStream deflaterInputStream = new DeflaterInputStream(inputStream)) {
             return deflaterInputStream.readAllBytes();
         } catch (final Exception ignored) {
+            return data;
+        }
+    }
+
+    public static byte[] encodeDeflate(final byte[] data) {
+        try (final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+             final DeflaterOutputStream deflaterOutputStream = new DeflaterOutputStream(outputStream)) {
+            deflaterOutputStream.write(data);
+            deflaterOutputStream.finish();
+            return outputStream.toByteArray();
+        } catch (final IOException ignored) {
             return data;
         }
     }

@@ -1,10 +1,10 @@
 package berlin.yuna.nano.services.metric.logic;
 
+import berlin.yuna.nano.core.Nano;
 import berlin.yuna.nano.core.model.Config;
 import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.core.model.NanoThread;
 import berlin.yuna.nano.core.model.Service;
-import berlin.yuna.nano.core.model.Unhandled;
 import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.helper.logger.logic.LogQueue;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
@@ -13,18 +13,36 @@ import berlin.yuna.nano.services.http.model.HttpHeaders;
 import berlin.yuna.nano.services.http.model.HttpObject;
 import berlin.yuna.nano.services.metric.model.MetricCache;
 import berlin.yuna.nano.services.metric.model.MetricUpdate;
-import berlin.yuna.nano.core.Nano;
 
 import java.io.File;
-import java.lang.management.*;
-import java.util.*;
+import java.lang.management.BufferPoolMXBean;
+import java.lang.management.ClassLoadingMXBean;
+import java.lang.management.CompilationMXBean;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryPoolMXBean;
+import java.lang.management.MemoryType;
+import java.lang.management.MemoryUsage;
+import java.lang.management.OperatingSystemMXBean;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static berlin.yuna.nano.helper.event.model.EventType.*;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_HEARTBEAT;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_LOG_LEVEL;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_LOG_QUEUE;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_HTTP_REQUEST;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_METRIC_UPDATE;
+
 
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class MetricService extends Service {
@@ -40,7 +58,7 @@ public class MetricService extends Service {
 
     @Override
     public void start(final Supplier<Context> contextSupplier) {
-        AtomicReference<Optional<String>> basePath = new AtomicReference<>(Optional.empty());
+        final AtomicReference<Optional<String>> basePath = new AtomicReference<>(Optional.empty());
         isReady.set(false, true, run -> {
             updateSystemMetrics();
             basePath.set(Optional.ofNullable(contextSupplier.get().get(String.class, Config.CONFIG_METRIC_SERVICE_BASE_PATH.id())).or(() -> Optional.of("/metrics")));
@@ -63,7 +81,7 @@ public class MetricService extends Service {
     }
 
     @Override
-    public Object onFailure(final Unhandled error) {
+    public Object onFailure(final Event error) {
         return null;
     }
 
@@ -82,7 +100,7 @@ public class MetricService extends Service {
 
     }
 
-    protected void addMetricsEndpoint(Event event) {
+    protected void addMetricsEndpoint(final Event event) {
         event
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
                 Optional.ofNullable(prometheusPath)
@@ -92,7 +110,8 @@ public class MetricService extends Service {
                         request.response()
                             .statusCode(200)
                             .body(metrics.prometheus())
-                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event)
+                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN))
+                            .respond(event)
                     )
             )
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
@@ -103,7 +122,8 @@ public class MetricService extends Service {
                         request.response()
                             .statusCode(200)
                             .body(metrics.dynatrace())
-                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event)
+                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN))
+                            .respond(event)
                     )
             )
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
@@ -114,7 +134,8 @@ public class MetricService extends Service {
                         request.response()
                             .statusCode(200)
                             .body(metrics.influx())
-                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event)
+                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN))
+                            .respond(event)
                     )
             )
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
@@ -125,7 +146,8 @@ public class MetricService extends Service {
                         request.response()
                             .statusCode(200)
                             .body(metrics.wavefront())
-                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event)
+                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN))
+                            .respond(event)
                     )
             );
     }

@@ -6,7 +6,6 @@ import berlin.yuna.nano.core.model.NanoThread;
 import berlin.yuna.nano.core.model.Service;
 import berlin.yuna.nano.helper.NanoUtils;
 import berlin.yuna.nano.helper.event.model.Event;
-import berlin.yuna.nano.helper.event.model.EventType;
 import berlin.yuna.nano.helper.logger.logic.LogQueue;
 import berlin.yuna.nano.helper.logger.logic.NanoLogger;
 import berlin.yuna.nano.services.metric.model.MetricType;
@@ -14,14 +13,25 @@ import berlin.yuna.nano.services.metric.model.MetricUpdate;
 import berlin.yuna.typemap.model.FunctionOrNull;
 
 import java.lang.management.ManagementFactory;
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static berlin.yuna.nano.core.model.Context.CONTEXT_CLASS_KEY;
+import static berlin.yuna.nano.core.model.Context.CONTEXT_LOG_QUEUE_KEY;
+import static berlin.yuna.nano.core.model.Context.CONTEXT_NANO_KEY;
 import static berlin.yuna.nano.helper.NanoUtils.generateNanoName;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_HEARTBEAT;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_SHUTDOWN;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_METRIC_UPDATE;
 import static java.lang.System.lineSeparator;
+import static java.util.Arrays.asList;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.stream.Collectors.joining;
 
 @SuppressWarnings({"unused", "UnusedReturnValue"})
@@ -33,7 +43,17 @@ public class Nano extends NanoServices<Nano> {
      * @param startupServices Varargs parameter of startup {@link Service} to be initiated during the {@link Nano} creation.
      */
     public Nano(final Service... startupServices) {
-        this(null, startupServices);
+        this((String[]) null, startupServices);
+    }
+
+    /**
+     * Initializes {@link Nano} with a function to provide startup {@link Service} based on the context.
+     *
+     * @param args            Command-line arguments passed during the application start.
+     * @param startupServices Varargs parameter of startup {@link Service} to be initiated.
+     */
+    public Nano(final String[] args, final Service... startupServices) {
+        this(context -> asList(startupServices), null, args);
     }
 
     /**
@@ -47,12 +67,22 @@ public class Nano extends NanoServices<Nano> {
     }
 
     /**
+     * Initializes  {@link Nano} with configurations and startup {@link Service}.
+     *
+     * @param config          Map of configuration parameters.
+     * @param startupServices Function to provide startup {@link Service} based on the given context.
+     */
+    public Nano(final Map<Object, Object> config, final FunctionOrNull<Context, List<Service>> startupServices) {
+        this(startupServices, config);
+    }
+
+    /**
      * Initializes {@link Nano} with a function to provide startup {@link Service} based on the context.
      *
-     * @param startupServices Function to provide startup {@link Service} based on the given context.
      * @param args            Command-line arguments passed during the application start.
+     * @param startupServices Function to provide startup {@link Service} based on the given context.
      */
-    public Nano(final FunctionOrNull<Context, List<Service>> startupServices, final String... args) {
+    public Nano(final String[] args, final FunctionOrNull<Context, List<Service>> startupServices) {
         this(startupServices, null, args);
     }
 
@@ -65,26 +95,33 @@ public class Nano extends NanoServices<Nano> {
      */
     public Nano(final FunctionOrNull<Context, List<Service>> startupServices, final Map<Object, Object> config, final String... args) {
         super(config, args);
+        // INIT CONTEXT
+        context.put(CONTEXT_NANO_KEY, this);
+        context.put(CONTEXT_CLASS_KEY, this.getClass());
         final long initTime = System.currentTimeMillis() - createdAtMs;
         logger.debug(() -> "Init {} in [{}]", this.getClass().getSimpleName(), NanoUtils.formatDuration(initTime));
         printParameters();
-        final Context context = this.newContext(this.getClass());
+
         final long service_startUpTime = System.currentTimeMillis();
         logger.debug(() -> "Start {}", this.getClass().getSimpleName());
         // INIT SHUTDOWN HOOK
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> shutdown(newContext(this.getClass()))));
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> shutdown(context(this.getClass()))));
         if (startupServices != null) {
             final List<Service> services = startupServices.apply(context);
             if (services != null) {
                 logger.debug(() -> "PreStartupServices count [{}] services [{}]", services.size(), services.stream().map(Service::name).distinct().collect(joining(", ")));
                 final Map<Boolean, List<Service>> partitionedServices = services.stream().collect(Collectors.partitioningBy(LogQueue.class::isInstance));
                 // INIT ASYNC LOGGING
-                partitionedServices.getOrDefault(true, Collections.emptyList()).stream().findFirst().ifPresent(context::run);
+                partitionedServices.getOrDefault(true, Collections.emptyList()).stream().findFirst().ifPresent(service -> {
+                    context.put(CONTEXT_LOG_QUEUE_KEY, service);
+                    context.run(service);
+                });
                 // INIT SERVICES
                 context.runAwait(partitionedServices.getOrDefault(false, Collections.emptyList()).toArray(Service[]::new));
             }
         }
-        run(() -> sendEvent(EventType.EVENT_APP_HEARTBEAT, context, this, result -> {}, true), 256, 256, TimeUnit.MILLISECONDS, () -> false);
+        run(() -> sendEvent(EVENT_APP_HEARTBEAT, context, this, result -> {}, true), 256, 256, MILLISECONDS, () -> false);
+        run(System::gc, 10000, 10000, MILLISECONDS, () -> false);
         final long readyTime = System.currentTimeMillis() - service_startUpTime;
         final List<String> list = context.getList(String.class, "_scanned_profiles");
         if (!list.isEmpty()) {
@@ -95,11 +132,22 @@ public class Nano extends NanoServices<Nano> {
         }
         logger.info(() -> "Started [{}] in [{}]", generateNanoName("%s%.0s%.0s%.0s"), NanoUtils.formatDuration(readyTime));
         printSystemInfo();
-        sendEvent(EventType.EVENT_METRIC_UPDATE, context, new MetricUpdate(MetricType.GAUGE, "application.started.time", initTime, null), result -> {}, false);
-        sendEvent(EventType.EVENT_METRIC_UPDATE, context, new MetricUpdate(MetricType.GAUGE, "application.ready.time", readyTime, null), result -> {}, false);
-        subscribeEvent(EventType.EVENT_APP_SHUTDOWN, event -> event.acknowledge(() -> CompletableFuture.runAsync(() -> shutdown(newContext(this.getClass())))));
+        sendEvent(EVENT_METRIC_UPDATE, context, new MetricUpdate(MetricType.GAUGE, "application.started.time", initTime, null), result -> {}, false);
+        sendEvent(EVENT_METRIC_UPDATE, context, new MetricUpdate(MetricType.GAUGE, "application.ready.time", readyTime, null), result -> {}, false);
+        subscribeEvent(EVENT_APP_SHUTDOWN, event -> event.acknowledge(() -> CompletableFuture.runAsync(() -> shutdown(context(this.getClass())))));
         // INIT CLEANUP TASK - just for safety
-        subscribeEvent(EventType.EVENT_APP_HEARTBEAT, event -> new HashSet<>(schedulers).stream().filter(scheduler -> scheduler.isShutdown() || scheduler.isTerminated()).forEach(schedulers::remove));
+        subscribeEvent(EVENT_APP_HEARTBEAT, event -> new HashSet<>(schedulers).stream().filter(scheduler -> scheduler.isShutdown() || scheduler.isTerminated()).forEach(schedulers::remove));
+    }
+
+    /**
+     * Returns the root {@link Context}.
+     * This context should be only used to manipulate values.
+     * {@link Nano#context} should be used for running Lambdas, {@link Service}s, {@link berlin.yuna.nano.core.model.Scheduler}s or send {@link Event}s
+     *
+     * @return the root {@link Context} associated.
+     */
+    public Context context() {
+        return context;
     }
 
     /**
@@ -108,18 +156,18 @@ public class Nano extends NanoServices<Nano> {
      * @param clazz The class for which the {@link Context} is to be created.
      * @return A new {@link Context} instance associated with the given class.
      */
-    public Context newContext(final Class<?> clazz) {
-        return rootContext.newContext(clazz, this);
+    public Context context(final Class<?> clazz) {
+        return context.newContext(clazz);
     }
 
     /**
-     * Creates a empty {@link Context} with {@link NanoLogger} for the specified class.
+     * Creates an empty {@link Context} with {@link NanoLogger} for the specified class.
      *
      * @param clazz The class for which the {@link Context} is to be created.
      * @return A new {@link Context} instance associated with the given class.
      */
-    public Context newEmptyContext(final Class<?> clazz) {
-        return rootContext.newEmptyContext(clazz, this);
+    public Context contextEmpty(final Class<?> clazz) {
+        return context.newEmptyContext(clazz);
     }
 
     /**
@@ -130,7 +178,7 @@ public class Nano extends NanoServices<Nano> {
      */
     @Override
     public Nano stop(final Class<?> clazz) {
-        return stop(clazz != null ? newContext(clazz) : null);
+        return stop(clazz != null ? context(clazz) : null);
     }
 
     /**
@@ -141,7 +189,7 @@ public class Nano extends NanoServices<Nano> {
      */
     @Override
     public Nano stop(final Context context) {
-        sendEvent(EventType.EVENT_APP_SHUTDOWN, context != null ? context : newContext(this.getClass()), null, result -> {
+        sendEvent(EVENT_APP_SHUTDOWN, context != null ? context : context(this.getClass()), null, result -> {
         }, true);
         return this;
     }
@@ -161,10 +209,10 @@ public class Nano extends NanoServices<Nano> {
      * Prints the configurations that have been loaded into the {@link Nano} instance.
      */
     public void printParameters() {
-        if (rootContext.getOpt(Boolean.class, Config.APP_PARAMS.id()).filter(helpCalled -> helpCalled).isPresent()) {
+        if (context.getOpt(Boolean.class, Config.APP_PARAMS.id()).filter(helpCalled -> helpCalled).isPresent()) {
             final List<String> secrets = List.of("secret", "token", "pass", "pwd", "bearer", "auth", "private", "ssn");
-            final int keyLength = rootContext.keySet().stream().map(String::valueOf).mapToInt(String::length).max().orElse(0);
-            logger.info(() -> "Configs: " + lineSeparator() + rootContext.entrySet().stream().map(config -> String.format("%-" + keyLength + "s  %s", config.getKey(), secrets.stream().anyMatch(s -> String.valueOf(config.getKey()).toLowerCase().contains(s)) ? "****" : config.getValue())).collect(joining(lineSeparator())));
+            final int keyLength = context.keySet().stream().map(String::valueOf).mapToInt(String::length).max().orElse(0);
+            logger.info(() -> "Configs: " + lineSeparator() + context.entrySet().stream().map(config -> String.format("%-" + keyLength + "s  %s", config.getKey(), secrets.stream().anyMatch(s -> String.valueOf(config.getKey()).toLowerCase().contains(s)) ? "****" : config.getValue())).collect(joining(lineSeparator())));
         }
     }
 
@@ -207,36 +255,29 @@ public class Nano extends NanoServices<Nano> {
 
     /**
      * Sends an event on the same thread and determines whether to process it to the first listener.
-     * Used {@link Context#sendEvent(int, Object)} from {@link Nano#newContext(Class)} instead of the core method.
+     * Used {@link Context#sendEvent(int, Object)} from {@link Nano#context(Class)} instead of the core method.
      *
      * @param event     The event to be processed.
      * @param broadcast Whether to send the event only to the first matching listener or to all.
+     * @return self for chaining
      */
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    public void sendEventSameThread(final Event event, final boolean broadcast) {
+    public Nano sendEventSameThread(final Event event, final boolean broadcast) {
         eventCount.incrementAndGet();
         Context.tryExecute(() -> {
-            final boolean match = listeners.getOrDefault(event.id(), Collections.emptySet()).stream().anyMatch(listener -> {
-                Context.tryExecute(() -> listener.accept(event), throwable -> event.context().logger().error(throwable, () -> "Error processing {} [{}] payload [{}]", Event.class.getSimpleName(), event.name(), event.payload()));
+            final boolean match = listeners.getOrDefault(event.channelId(), Collections.emptySet()).stream().anyMatch(listener -> {
+                Context.tryExecute(() -> listener.accept(event), throwable -> event.context().sendEventError(event, throwable));
                 return !broadcast && event.isAcknowledged();
             });
             if (!match) {
                 services.stream().filter(Service::isReady).anyMatch(service -> {
-                    Context.tryExecute(() -> service.onEvent(event), throwable -> handleEventServiceException(event, service, throwable));
+                    Context.tryExecute(() -> service.onEvent(event), throwable -> event.context().sendEventError(event, service, throwable));
                     return !broadcast && event.isAcknowledged();
                 });
             }
         });
         eventCount.decrementAndGet();
-    }
-
-    protected void handleEventServiceException(final Event event, final Service service, final Throwable throwable) {
-        if (event.id() != EventType.EVENT_APP_UNHANDLED) {
-            service.handleServiceException(event.context(), throwable);
-        } else {
-            // loop prevention
-            event.context().logger().error(throwable, () -> "Error processing {} [{}] service [{}] payload [{}]", Event.class.getSimpleName(), event.name(), service.name(), event.payload());
-        }
+        return this;
     }
 
     /**
@@ -246,7 +287,7 @@ public class Nano extends NanoServices<Nano> {
      * @return Self for chaining
      */
     protected Nano shutdown(final Class<?> clazz) {
-        this.shutdown(newContext(clazz));
+        this.shutdown(context(clazz));
         return this;
     }
 

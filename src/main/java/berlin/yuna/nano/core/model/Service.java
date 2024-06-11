@@ -1,17 +1,20 @@
 package berlin.yuna.nano.core.model;
 
+import berlin.yuna.nano.helper.LockedBoolean;
 import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.helper.logger.logic.LogQueue;
+import berlin.yuna.nano.helper.logger.logic.NanoLogger;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
 import berlin.yuna.nano.services.metric.model.MetricType;
 import berlin.yuna.nano.services.metric.model.MetricUpdate;
-import berlin.yuna.nano.helper.LockedBoolean;
-import berlin.yuna.nano.helper.logger.logic.NanoLogger;
 
 import java.util.Map;
 import java.util.function.Supplier;
 
-import static berlin.yuna.nano.helper.event.model.EventType.*;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_LOG_LEVEL;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_LOG_QUEUE;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_SERVICE_REGISTER;
+import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_METRIC_UPDATE;
 import static java.util.Arrays.stream;
 
 public abstract class Service {
@@ -31,7 +34,7 @@ public abstract class Service {
 
     public abstract void stop(final Supplier<Context> contextSub);
 
-    public abstract Object onFailure(final Unhandled error);
+    public abstract Object onFailure(final Event error);
 
     public void onEvent(final Event event) {
         event.ifPresent(EVENT_APP_LOG_LEVEL, LogLevel.class, logger::level);
@@ -65,19 +68,8 @@ public abstract class Service {
             context.sendEvent(EVENT_METRIC_UPDATE, new MetricUpdate(MetricType.GAUGE, "application.services.ready.time", System.currentTimeMillis() - startTime, Map.of("class", this.getClass().getSimpleName())), result -> {});
         }).onComplete((nanoThread, error) -> {
             if (error != null)
-                handleServiceException(context, error);
+                context.sendEventError(new Event(EVENT_APP_SERVICE_REGISTER, context, this, null), this, error);
         });
-    }
-
-    public void handleServiceException(final Context context, final Throwable exception) {
-        try {
-            final Unhandled unhandled = new Unhandled(context, this, exception);
-            if (this.onFailure(unhandled) == null) {
-                Context.handleExecutionExceptions(context, unhandled, () -> "Execution error [" + this.name() + "]");
-            }
-        } catch (final Exception e) {
-            Context.handleExecutionExceptions(context, new Unhandled(context, this, e), () -> "Execution error [" + this.name() + "]");
-        }
     }
 
     public static NanoThread[] threadsOf(final Context context, final Service... services) {
