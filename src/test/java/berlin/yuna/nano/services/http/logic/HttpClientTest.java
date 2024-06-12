@@ -100,7 +100,7 @@ public class HttpClientTest {
 
     @RepeatedTest(TEST_REPEAT)
     void constructor_withContext() throws InterruptedException {
-        final Context context = Context.createRootContext();
+        final Context context = Context.createRootContext(HttpClientTest.class);
         final HttpClient httpClient = new HttpClient(context);
         assertThat(httpClient).isNotNull();
         assertThat(httpClient.context()).isEqualTo(context);
@@ -116,7 +116,7 @@ public class HttpClientTest {
 
     @RepeatedTest(TEST_REPEAT)
     void constructor_withContextAndClient() throws InterruptedException {
-        final Context context = Context.createRootContext();
+        final Context context = Context.createRootContext(HttpClientTest.class);
         final java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder().connectTimeout(Duration.ofMillis(789)).build();
         final HttpClient httpClient = new HttpClient(context, client);
         assertThat(httpClient).isNotNull();
@@ -133,7 +133,7 @@ public class HttpClientTest {
 
     @RepeatedTest(TEST_REPEAT)
     void constructor_configTest() {
-        final Context context = Context.createRootContext();
+        final Context context = Context.createRootContext(HttpClientTest.class);
         assertThat(new HttpClient(context.put(CONFIG_HTTP_CLIENT_VERSION, HTTP_1_1)).version()).isEqualTo(HTTP_1_1);
         assertThat(new HttpClient(context.put(CONFIG_HTTP_CLIENT_VERSION, 2)).version()).isEqualTo(HTTP_2);
         assertThat(new HttpClient(context.put(CONFIG_HTTP_CLIENT_VERSION, "1")).version()).isEqualTo(HTTP_1_1);
@@ -160,7 +160,7 @@ public class HttpClientTest {
 
     @Test
     void verifyInvalidUrl() {
-        final HttpClient client = new HttpClient(Context.createRootContext()
+        final HttpClient client = new HttpClient(Context.createRootContext(HttpClientTest.class)
             .put(CONFIG_HTTP_CLIENT_MAX_RETRIES, 1)
             .put(CONFIG_HTTP_CLIENT_CON_TIMEOUT_MS, 128)
             .put(CONFIG_HTTP_CLIENT_READ_TIMEOUT_MS, 128)

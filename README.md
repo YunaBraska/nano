@@ -67,8 +67,8 @@ flowchart LR
 ## ⚙️ Mechanics
 
 * Error Handling \[TODO]
-* [Registers](docs/registers/README.md) ([ConfigRegister](docs/registers/README.md#configregister), [TypeConversionRegister](docs/registers/README.md#typeconversionregister), [LogFormatRegister](docs/registers/README.md#logformatregister), [EventChannelRegister](docs/registers/README.md#eventchannelregister))
-* [Integrations (🌱 Spring Boot, 🧑‍🚀 Micronaut, 🐸 Quarkus)](docs/integrations/README.md)
+* [Registers](docs/registers/README.md) _(ConfigRegister, TypeConversionRegister, LogFormatRegister, EventChannelRegister)_
+* [Integrations](docs/integrations/README.md) _(🌱 Spring Boot, 🧑‍🚀 Micronaut, 🐸 Quarkus)_
 * [Code Examples](src/test/java/berlin/yuna/nano/examples)
 
 ## 📚 Getting Started

@@ -67,6 +67,7 @@ public class Context extends ConcurrentTypeMap {
     public static final int EVENT_APP_SCHEDULER_REGISTER = EventChannelRegister.registerChannelId("APP_SCHEDULER_REGISTER");
     public static final int EVENT_APP_SCHEDULER_UNREGISTER = EventChannelRegister.registerChannelId("APP_SCHEDULER_UNREGISTER");
     public static final int EVENT_APP_UNHANDLED = EventChannelRegister.registerChannelId("EVENT_APP_UNHANDLED");
+    public static final int EVENT_APP_ERROR = EventChannelRegister.registerChannelId("EVENT_APP_ERROR");
     public static final int EVENT_APP_HEARTBEAT = EventChannelRegister.registerChannelId("EVENT_HEARTBEAT");
 
     static {
@@ -96,8 +97,8 @@ public class Context extends ConcurrentTypeMap {
      *
      * @return The newly created root context.
      */
-    public static Context createRootContext() {
-        return new Context();
+    public static Context createRootContext(final Class<?> clazz) {
+        return new Context(clazz);
     }
 
     /**
@@ -173,7 +174,7 @@ public class Context extends ConcurrentTypeMap {
      * @return The newly created context.
      */
     public Context newContext(final Class<?> clazz) {
-        return new Context(this, clazz);
+        return new Context(this, clazz, false);
     }
 
     /**
@@ -183,7 +184,7 @@ public class Context extends ConcurrentTypeMap {
      * @return The newly created context.
      */
     public Context newEmptyContext(final Class<?> clazz) {
-        return new Context(null, null);
+        return new Context(this, clazz, true);
     }
 
     /**
@@ -330,7 +331,7 @@ public class Context extends ConcurrentTypeMap {
     public final NanoThread[] runReturn(final ExRunnable... runnable) {
         return stream(runnable).map(task -> new NanoThread(this).run(
             this.nano() == null ? null : nano().threadPool(),
-            () -> this.nano() == null ? null : nano().contextEmpty(this.getClass()),
+            () -> this.nano() == null ? null : nano().contextEmpty(clazz()),
             task
         )).toArray(NanoThread[]::new);
     }
@@ -349,7 +350,7 @@ public class Context extends ConcurrentTypeMap {
                     onFailure.accept(new Unhandled(this, thread, error));
             }).run(
                 nano() == null ? null : nano().threadPool(),
-                () -> this.nano() == null ? null : nano().contextEmpty(this.getClass()),
+                () -> this.nano() == null ? null : nano().contextEmpty(clazz()),
                 task
             )
         ).toArray(NanoThread[]::new);
@@ -449,17 +450,13 @@ public class Context extends ConcurrentTypeMap {
      */
     public Context sendEventError(final Object payload, final Throwable throwable) {
         // prevent loops
-        boolean isHandled;
-        if (payload instanceof final Event event) {
-            if (event.channelId() != EVENT_APP_UNHANDLED) {
-                nano().sendEventSameThread(event.cache(EVENT_ORIGINAL_CHANNEL_ID, event.channelId()).channelId(EVENT_APP_UNHANDLED).error(throwable), false);
-                if (!event.isAcknowledged())
-                    logger().error(throwable, () -> "Event [{}]", event.nameOrg());
-            } else {
+        final Event event = payload instanceof final Event evt ? evt : new Event(EVENT_APP_ERROR, this, payload, null);
+        if (event.channelId() != EVENT_APP_UNHANDLED) {
+            nano().sendEventSameThread(event.cache(EVENT_ORIGINAL_CHANNEL_ID, event.channelId()).channelId(EVENT_APP_UNHANDLED).error(throwable), false);
+            if (!event.isAcknowledged())
                 logger().error(throwable, () -> "Event [{}]", event.nameOrg());
-            }
-        } else if (!sendEventReturn(EVENT_APP_UNHANDLED, new Unhandled(this, payload, throwable)).isAcknowledged()) {
-            logger().error(throwable, () -> "Unhandled error [{}]", payload);
+        } else {
+            logger().error(throwable, () -> "Event [{}]", event.nameOrg());
         }
         return this;
     }
@@ -654,13 +651,17 @@ public class Context extends ConcurrentTypeMap {
         return nano().services();
     }
 
-    protected Context() {
-        this(null, null);
+    protected Context(final Class<?> clazz) {
+        this(null, clazz, false);
+    }
+
+    protected Context(final Context parent, final Class<?> clazz) {
+        this(parent, clazz, false);
     }
 
     @SuppressWarnings("java:S3358")
-    protected Context(final Context parent, final Class<?> clazz) {
-        super(parent);
+    protected Context(final Context parent, final Class<?> clazz, final boolean empty) {
+        super(empty? null : parent);
         final Class<?> resolvedClass = clazz != null ? clazz : (parent == null ? Context.class : parent.clazz());
         this.put(CONTEXT_NANO_KEY, parent != null ? parent.get(Nano.class, CONTEXT_NANO_KEY) : null);
         this.put(CONTEXT_CLASS_KEY, resolvedClass);

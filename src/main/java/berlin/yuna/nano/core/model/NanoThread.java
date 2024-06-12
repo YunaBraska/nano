@@ -74,8 +74,12 @@ public class NanoThread {
             } catch (final Throwable error) {
                 //TODO: handle OutOfMemory
                 //TODO: handle InternalError
-                isComplete.set(true, state -> onCompleteCallbacks.forEach(onComplete -> onComplete.accept(this, error)));
-                ofNullable(context).filter(ctx -> onCompleteCallbacks.isEmpty()).map(Supplier::get).ifPresent(ctx -> ctx.sendEventError(task, error));
+                isComplete.set(true, state -> {
+                    if (!onCompleteCallbacks.isEmpty())
+                        onCompleteCallbacks.forEach(onComplete -> onComplete.accept(this, error));
+                    else
+                        ofNullable(context).map(Supplier::get).ifPresent(ctx -> ctx.sendEventError(task, error));
+                });
             } finally {
                 activeNanoThreadCount.decrementAndGet();
             }

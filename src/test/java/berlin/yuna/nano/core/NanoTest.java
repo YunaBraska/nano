@@ -228,7 +228,7 @@ class NanoTest {
         });
 
         final Context context = nano.contextEmpty(this.getClass());
-        assertThat(context).hasSize(3).containsKeys(CONTEXT_NANO_KEY, CONTEXT_TRACE_ID_KEY, CONTEXT_CLASS_KEY);
+        assertThat(context).hasSize(4).containsKeys(CONTEXT_NANO_KEY, CONTEXT_TRACE_ID_KEY, CONTEXT_CLASS_KEY, CONTEXT_PARENT_KEY);
 
         nano.sendEvent(TEST_EVENT, context, 44444444, result -> {
         }, false);

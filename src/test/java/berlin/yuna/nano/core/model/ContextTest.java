@@ -90,7 +90,7 @@ class ContextTest {
 
     @RepeatedTest(TestConfig.TEST_REPEAT)
     void testNewContext_withoutNano() {
-        final Context context = Context.createRootContext();
+        final Context context = Context.createRootContext(ContextTest.class);
         final Consumer<Event> myListener = event -> {};
         assertContextBehaviour(context);
         assertThatThrownBy(() -> context.subscribeEvent(EVENT_APP_HEARTBEAT, myListener)).isInstanceOf(NullPointerException.class);
@@ -99,15 +99,15 @@ class ContextTest {
 
     @RepeatedTest(TestConfig.TEST_REPEAT)
     void testNewEmptyContext_withoutClass_willCreateRootContext() {
-        final Context context = Context.createRootContext();
+        final Context context = Context.createRootContext(ContextTest.class);
         assertContextBehaviour(context);
         final Context subContext = context.newContext(null);
-        assertThat(subContext.traceId()).startsWith(Context.class.getSimpleName() + "/");
+        assertThat(subContext.traceId()).startsWith(ContextTest.class.getSimpleName() + "/");
     }
 
     @RepeatedTest(TestConfig.TEST_REPEAT)
     void testRunHandled_withException() throws InterruptedException {
-        final Context context = Context.createRootContext();
+        final Context context = Context.createRootContext(ContextTest.class);
         final CountDownLatch latch = new CountDownLatch(2);
         assertContextBehaviour(context);
         assertThat(context.runHandled(unhandled -> latch.countDown(), () -> {
@@ -123,7 +123,7 @@ class ContextTest {
 
     @RepeatedTest(TestConfig.TEST_REPEAT)
     void testRunAwaitHandled_withException() throws InterruptedException {
-        final Context context = Context.createRootContext();
+        final Context context = Context.createRootContext(ContextTest.class);
         final CountDownLatch latch = new CountDownLatch(1);
         assertContextBehaviour(context);
         context.runAwaitHandled(unhandled -> latch.countDown(), () -> {
@@ -135,7 +135,7 @@ class ContextTest {
 
     @RepeatedTest(TestConfig.TEST_REPEAT)
     void testRunAwait_withException() {
-        final Context context = Context.createRootContext();
+        final Context context = Context.createRootContext(ContextTest.class);
         assertContextBehaviour(context);
         context.runAwait(() -> {
             throw new RuntimeException("Nothing to see here, just a test exception");
@@ -179,7 +179,7 @@ class ContextTest {
 
     @RepeatedTest(TestConfig.TEST_REPEAT)
     void testToString() {
-        final Context context = Context.createRootContext();
+        final Context context = Context.createRootContext(ContextTest.class);
         assertThat(context).hasToString("Context{size=" + context.size() + ", loglevel=null, logQueue=false}");
 
     }

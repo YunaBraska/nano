@@ -99,7 +99,7 @@ public class Nano extends NanoServices<Nano> {
         context.put(CONTEXT_NANO_KEY, this);
         context.put(CONTEXT_CLASS_KEY, this.getClass());
         final long initTime = System.currentTimeMillis() - createdAtMs;
-        logger.debug(() -> "Init {} in [{}]", this.getClass().getSimpleName(), NanoUtils.formatDuration(initTime));
+        logger.trace(() -> "Init [{}] in [{}]", this.getClass().getSimpleName(), NanoUtils.formatDuration(initTime));
         printParameters();
 
         final long service_startUpTime = System.currentTimeMillis();
@@ -219,15 +219,15 @@ public class Nano extends NanoServices<Nano> {
     /**
      * Sends an event with the specified parameters, either broadcasting it to all listeners or sending it to a targeted listener asynchronously if a response listener is provided.
      *
-     * @param type             The integer representing the type of the event. This typically corresponds to a specific action or state change.
+     * @param channelId             The integer representing the channelId of the event. This typically corresponds to a specific action or state change.
      * @param context          The {@link Context} in which the event is being sent, providing environmental data and configurations.
      * @param payload          The data or object associated with this event. This could be any relevant information that needs to be communicated through the event.
      * @param responseListener A consumer that handles the response of the event processing. If null, the event is processed in the same thread; otherwise, it's processed asynchronously.
      * @param broadcast        A boolean flag indicating whether the event should be broadcast to all listeners. If true, the event is broadcast; if false, it is sent to a targeted listener.
      * @return The {@link Nano} instance, allowing for method chaining.
      */
-    public Nano sendEvent(final int type, final Context context, final Object payload, final Consumer<Object> responseListener, final boolean broadcast) {
-        sendEventReturn(type, context, payload, responseListener, broadcast);
+    public Nano sendEvent(final int channelId, final Context context, final Object payload, final Consumer<Object> responseListener, final boolean broadcast) {
+        sendEventReturn(channelId, context, payload, responseListener, broadcast);
         return this;
     }
 
@@ -235,15 +235,15 @@ public class Nano extends NanoServices<Nano> {
      * Processes an event with the given parameters and decides on the execution path based on the presence of a response listener and the broadcast flag.
      * If a response listener is provided, the event is processed asynchronously; otherwise, it is processed in the current thread. This method creates an {@link Event} instance and triggers the appropriate event handling logic.
      *
-     * @param type             The integer representing the type of the event, identifying the nature or action of the event.
+     * @param channelId             The integer representing the channelId of the event, identifying the nature or action of the event.
      * @param context          The {@link Context} associated with the event, encapsulating environment and configuration details.
      * @param payload          The payload of the event, containing data relevant to the event's context and purpose.
      * @param responseListener A consumer for handling the event's response. If provided, the event is handled asynchronously; if null, the handling is synchronous.
      * @param broadCast        Determines the event's distribution: if true, the event is made available to all listeners; if false, it targets specific listeners based on the implementation logic.
      * @return An instance of {@link Event} that represents the event being processed. This object can be used for further operations or tracking.
      */
-    public Event sendEventReturn(final int type, final Context context, final Object payload, final Consumer<Object> responseListener, final boolean broadCast) {
-        final Event event = new Event(type, context, payload, responseListener);
+    public Event sendEventReturn(final int channelId, final Context context, final Object payload, final Consumer<Object> responseListener, final boolean broadCast) {
+        final Event event = new Event(channelId, context, payload, responseListener);
         if (responseListener == null) {
             sendEventSameThread(event, broadCast);
         } else {

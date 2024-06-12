@@ -4,12 +4,14 @@ import berlin.yuna.nano.core.Nano;
 import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.services.http.HttpService;
 import berlin.yuna.nano.services.http.model.HttpObject;
+import org.junit.jupiter.api.Disabled;
 
 import java.util.Map;
 
 import static berlin.yuna.nano.core.model.Context.EVENT_APP_UNHANDLED;
 import static berlin.yuna.nano.services.http.HttpService.EVENT_HTTP_REQUEST;
 
+@Disabled
 public class HttpReceive {
 
     public static void main(final String[] args) {

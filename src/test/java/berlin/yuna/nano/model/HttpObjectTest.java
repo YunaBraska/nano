@@ -75,7 +75,7 @@ class HttpObjectTest {
 
     @Test
     void testRespondResponse() {
-        final Event event = new Event(EVENT_HTTP_REQUEST, Context.createRootContext(), new HttpObject().methodType(HttpMethod.GET).path("/create"), null);
+        final Event event = new Event(EVENT_HTTP_REQUEST, Context.createRootContext(HttpObjectTest.class), new HttpObject().methodType(HttpMethod.GET).path("/create"), null);
 
         event.payloadOpt(HttpObject.class)
             .filter(HttpObject::isMethodGet)
@@ -523,7 +523,7 @@ class HttpObjectTest {
         assertThat(new HttpObject().acceptLanguages()).containsExactly(ENGLISH);
         assertThat(new HttpObject().acceptLanguage()).isEqualTo(ENGLISH);
         assertThat(new HttpObject().acceptLanguages(Locale.UK, ENGLISH, Locale.GERMAN).acceptLanguages()).containsExactly(Locale.UK, ENGLISH, Locale.GERMAN);
-        assertThat(new HttpObject().acceptLanguages(null).acceptLanguages()).containsExactly(ENGLISH);
+        assertThat(new HttpObject().acceptLanguages((Locale[]) null).acceptLanguages()).containsExactly(ENGLISH);
         assertThat(new HttpObject().acceptLanguages(new Locale[0]).acceptLanguages()).containsExactly(ENGLISH);
     }
 

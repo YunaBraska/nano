@@ -1,5 +1,6 @@
 package berlin.yuna.nano.helper;
 
+import berlin.yuna.nano.core.Nano;
 import berlin.yuna.nano.core.NanoBase;
 import berlin.yuna.nano.core.NanoServices;
 import berlin.yuna.nano.core.NanoThreads;
@@ -165,7 +166,7 @@ public class NanoUtils {
 
     // ########## NANO CONFIGS ##########
     public static Context readConfigFiles(final Context context, final String profile) {
-        final Context result = context != null ? context : Context.createRootContext();
+        final Context result = context != null ? context : Context.createRootContext(Nano.class);
         final List<String> scannedProfiles = result.getList(ArrayList::new, String.class, "_scanned_profiles");
         if (scannedProfiles.contains(profile))
             return result;

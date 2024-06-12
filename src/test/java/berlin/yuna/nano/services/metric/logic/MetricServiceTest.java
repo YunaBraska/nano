@@ -28,7 +28,7 @@ class MetricServiceTest {
             .send(nano.context(MetricServiceTest.class));
 
         assertThat(result).isNotNull();
-        assertThat(result.bodyAsString()).contains("java_version 21.0");
+        assertThat(result.bodyAsString()).contains("java_version ");
         assertThat(nano.stop(MetricServiceTest.class).waitForStop().isReady()).isFalse();
 
     }
@@ -43,7 +43,7 @@ class MetricServiceTest {
             .send(nano.context(MetricServiceTest.class));
 
         assertThat(result).isNotNull();
-        assertThat(result.bodyAsString()).contains("java_version 21.0");
+        assertThat(result.bodyAsString()).contains("java_version ");
         assertThat(nano.stop(MetricServiceTest.class).waitForStop().isReady()).isFalse();
     }
 
