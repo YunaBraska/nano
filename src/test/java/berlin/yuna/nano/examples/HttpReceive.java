@@ -7,8 +7,8 @@ import berlin.yuna.nano.services.http.model.HttpObject;
 
 import java.util.Map;
 
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_UNHANDLED;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_HTTP_REQUEST;
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_UNHANDLED;
+import static berlin.yuna.nano.services.http.HttpService.EVENT_HTTP_REQUEST;
 
 public class HttpReceive {
 

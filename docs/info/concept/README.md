@@ -1,7 +1,7 @@
-> [Home](../../../README.md) / [Concept](README.md)
+> [Home](../../../README.md) / **[Concept](README.md)**
 
-Nano is a minimalist library designed to facilitate the creation of microservices using plain, modern Java. Nano is a
-tool, not a framework, and it emphasizes simplicity, security, and efficiency.
+Nano is a minimalist standalone library designed to facilitate the creation of microservices using plain, modern Java. 
+Nano is a tool, not a framework, and it emphasizes simplicity, security, and efficiency.
 
 ### Modern and Fluent Design 🚀
 
@@ -65,7 +65,7 @@ You execute only what you define, avoiding the pitfalls of auto-applying depende
 Nano’s built-in `TypeConverter` eliminates the need for custom objects by enabling easy conversion of `JSON`, `XML`, and
 other simple Java objects.
 For example, HTTP requests can be converted to `TypeInfo`, `TypeMap` or `TypeList`, which lazily convert fields to
-the requested type.
+the requested type. _See [TypeMap](https://github.com/YunaBraska/type-map) for more information._
 If an object cannot be converted, it is straightforward to register a custom type conversion.
 These TypeMaps and TypeLists are used extensively, such as in events and the context.
 

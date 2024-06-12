@@ -1,7 +1,6 @@
 package berlin.yuna.nano.core;
 
 import berlin.yuna.nano.core.model.Context;
-import berlin.yuna.nano.core.model.Unhandled;
 import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
 import berlin.yuna.nano.model.TestService;
@@ -16,11 +15,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 
 import static berlin.yuna.nano.core.config.TestConfig.*;
-import static berlin.yuna.nano.core.model.Config.*;
 import static berlin.yuna.nano.core.model.Context.*;
 import static berlin.yuna.nano.helper.NanoUtils.waitForCondition;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_SHUTDOWN;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_UNHANDLED;
 import static berlin.yuna.nano.model.TestService.TEST_EVENT;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,7 +31,7 @@ class NanoTest {
     @Test
     void configFilesTest() {
         final Nano nano = new Nano();
-        assertThat(nano.context().get(String.class, CONFIG_PROFILES.id())).isEqualTo("default, local, dev, prod");
+        assertThat(nano.context().get(String.class, CONFIG_PROFILES)).isEqualTo("default, local, dev, prod");
         assertThat(nano.context().getList(String.class, "_scanned_profiles")).containsExactly("local", "default", "dev", "prod");
         assertThat(nano.context().get(String.class, "test_placeholder_fallback")).isEqualTo("fallback should be used 1");
         assertThat(nano.context().get(String.class, "test_placeholder_key_empty")).isEqualTo("fallback should be used 2");

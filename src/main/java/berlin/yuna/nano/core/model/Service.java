@@ -5,16 +5,17 @@ import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.helper.logger.logic.LogQueue;
 import berlin.yuna.nano.helper.logger.logic.NanoLogger;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
+import berlin.yuna.nano.services.metric.logic.MetricService;
 import berlin.yuna.nano.services.metric.model.MetricType;
 import berlin.yuna.nano.services.metric.model.MetricUpdate;
 
 import java.util.Map;
 import java.util.function.Supplier;
 
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_LOG_LEVEL;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_LOG_QUEUE;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_SERVICE_REGISTER;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_METRIC_UPDATE;
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_LOG_LEVEL;
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_LOG_QUEUE;
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_SERVICE_REGISTER;
+import static berlin.yuna.nano.services.metric.logic.MetricService.EVENT_METRIC_UPDATE;
 import static java.util.Arrays.stream;
 
 public abstract class Service {

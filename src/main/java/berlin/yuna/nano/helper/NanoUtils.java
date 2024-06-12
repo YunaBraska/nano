@@ -1,6 +1,5 @@
 package berlin.yuna.nano.helper;
 
-import berlin.yuna.nano.core.Nano;
 import berlin.yuna.nano.core.NanoBase;
 import berlin.yuna.nano.core.NanoServices;
 import berlin.yuna.nano.core.NanoThreads;
@@ -15,13 +14,9 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Properties;
 import java.util.Random;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -32,7 +27,7 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 import static berlin.yuna.nano.core.NanoBase.standardiseKey;
-import static berlin.yuna.nano.core.model.Config.CONFIG_PROFILES;
+import static berlin.yuna.nano.core.model.Context.CONFIG_PROFILES;
 import static java.util.Arrays.stream;
 
 @SuppressWarnings({"UnusedReturnValue", "java:S6548"})
@@ -195,7 +190,7 @@ public class NanoUtils {
 
     public static Context readProfiles(final Context result) {
         for (final String pConfig : new String[]{
-            CONFIG_PROFILES.id(),
+            CONFIG_PROFILES,
             "app_profile",
             "spring_profiles_active",
             "spring_profile_active",

@@ -1,8 +1,6 @@
 package berlin.yuna.nano.examples;
 
 import berlin.yuna.nano.core.Nano;
-import berlin.yuna.nano.core.model.Context;
-import berlin.yuna.nano.core.model.Service;
 import berlin.yuna.nano.helper.logger.logic.LogQueue;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
 import berlin.yuna.nano.services.http.HttpService;
@@ -11,8 +9,8 @@ import berlin.yuna.nano.services.metric.logic.MetricService;
 import java.io.IOException;
 import java.util.Map;
 
-import static berlin.yuna.nano.core.model.Config.CONFIG_LOG_FORMATTER;
-import static berlin.yuna.nano.core.model.Config.CONFIG_LOG_LEVEL;
+import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_FORMATTER;
+import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_LEVEL;
 
 public class Yuna {
 

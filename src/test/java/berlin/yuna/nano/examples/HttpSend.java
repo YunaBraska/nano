@@ -2,13 +2,10 @@ package berlin.yuna.nano.examples;
 
 import berlin.yuna.nano.core.Nano;
 import berlin.yuna.nano.core.model.Context;
-import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.services.http.HttpService;
 import berlin.yuna.nano.services.http.model.HttpObject;
 
-import java.util.Map;
-
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_HTTP_REQUEST;
+import static berlin.yuna.nano.services.http.HttpService.EVENT_HTTP_REQUEST;
 import static berlin.yuna.nano.services.http.model.HttpMethod.GET;
 
 public class HttpSend {

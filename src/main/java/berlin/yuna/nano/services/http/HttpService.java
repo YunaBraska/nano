@@ -24,12 +24,11 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import static berlin.yuna.nano.core.model.Config.CONFIG_SERVICE_HTTP_PORT;
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_UNHANDLED;
 import static berlin.yuna.nano.helper.NanoUtils.encodeDeflate;
 import static berlin.yuna.nano.helper.NanoUtils.encodeGzip;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_UNHANDLED;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_HTTP_REQUEST;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_HTTP_REQUEST_UNHANDLED;
+import static berlin.yuna.nano.helper.config.ConfigRegister.registerConfig;
+import static berlin.yuna.nano.helper.event.EventChannelRegister.registerChannelId;
 import static berlin.yuna.nano.services.http.model.HttpHeaders.CONTENT_ENCODING;
 import static berlin.yuna.nano.services.http.model.HttpObject.CONTEXT_HTTP_CLIENT_KEY;
 import static berlin.yuna.typemap.logic.TypeConverter.collectionOf;
@@ -37,6 +36,18 @@ import static berlin.yuna.typemap.logic.TypeConverter.collectionOf;
 public class HttpService extends Service {
     protected HttpServer server;
     protected Context context;
+
+    // Register configurations
+    public static final String CONFIG_SERVICE_HTTP_PORT = registerConfig("app_service_http_port", "Default port for the HTTP service (see " + HttpService.class.getSimpleName() + ")");
+    public static final String CONFIG_HTTP_CLIENT_VERSION = registerConfig("app_service_http_version", "HTTP client version 1 or 2 (see " + HttpClient.class.getSimpleName() + ")");
+    public static final String CONFIG_HTTP_CLIENT_MAX_RETRIES = registerConfig("app_service_http_max_retries", "Maximum number of retries for the HTTP client (see " + HttpClient.class.getSimpleName() + ")");
+    public static final String CONFIG_HTTP_CLIENT_CON_TIMEOUT_MS = registerConfig("app_service_http_con_timeoutMs", "Connection timeout in milliseconds for the HTTP client (see " + HttpClient.class.getSimpleName() + ")");
+    public static final String CONFIG_HTTP_CLIENT_READ_TIMEOUT_MS = registerConfig("app_service_http_read_timeoutMs", "Read timeout in milliseconds for the HTTP client (see " + HttpClient.class.getSimpleName() + ")");
+    public static final String CONFIG_HTTP_CLIENT_FOLLOW_REDIRECTS = registerConfig("app_service_http_follow_redirects", "Follow redirects for the HTTP client (see " + HttpClient.class.getSimpleName() + ")");
+
+    // Register event channels
+    public static final int EVENT_HTTP_REQUEST = registerChannelId("HTTP_REQUEST");
+    public static final int EVENT_HTTP_REQUEST_UNHANDLED = registerChannelId("HTTP_REQUEST_UNHANDLED");
 
     public HttpService() {
         super(null, false);
@@ -71,7 +82,7 @@ public class HttpService extends Service {
         isReady.set(false, true, state -> {
             context = contextSub.get().newContext(HttpService.class);
             STARTUP_LOCK.lock();
-            final int port = context.getOpt(Integer.class, CONFIG_SERVICE_HTTP_PORT.id()).filter(p -> p > 0).orElseGet(() -> nextFreePort(8080));
+            final int port = context.getOpt(Integer.class, CONFIG_SERVICE_HTTP_PORT).filter(p -> p > 0).orElseGet(() -> nextFreePort(8080));
             context.put(CONFIG_SERVICE_HTTP_PORT, port);
             handleHttps(context);
             try {

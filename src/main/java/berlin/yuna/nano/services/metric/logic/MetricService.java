@@ -1,7 +1,6 @@
 package berlin.yuna.nano.services.metric.logic;
 
 import berlin.yuna.nano.core.Nano;
-import berlin.yuna.nano.core.model.Config;
 import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.core.model.NanoThread;
 import berlin.yuna.nano.core.model.Service;
@@ -37,11 +36,12 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_HEARTBEAT;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_LOG_LEVEL;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_LOG_QUEUE;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_HTTP_REQUEST;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_METRIC_UPDATE;
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_HEARTBEAT;
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_LOG_LEVEL;
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_LOG_QUEUE;
+import static berlin.yuna.nano.helper.config.ConfigRegister.registerConfig;
+import static berlin.yuna.nano.helper.event.EventChannelRegister.registerChannelId;
+import static berlin.yuna.nano.services.http.HttpService.EVENT_HTTP_REQUEST;
 
 
 @SuppressWarnings({"unused", "UnusedReturnValue"})
@@ -52,6 +52,16 @@ public class MetricService extends Service {
     protected String influx;
     protected String wavefront;
 
+    // Register configurations
+    public static final String CONFIG_METRIC_SERVICE_BASE_PATH = registerConfig("app_service_metrics_base_url", "Base path for the metric service");
+    public static final String CONFIG_METRIC_SERVICE_PROMETHEUS_PATH = registerConfig("app_service_prometheus_metrics_url", "Prometheus path for the metric service");
+    public static final String CONFIG_METRIC_SERVICE_INFLUX_PATH = registerConfig("app_service_influx_metrics_url", "Influx path for the metric service");
+    public static final String CONFIG_METRIC_SERVICE_WAVEFRONT_PATH = registerConfig("app_service_wavefront_metrics_url", "Wavefront path for the metric service");
+    public static final String CONFIG_METRIC_SERVICE_DYNAMO_PATH = registerConfig("app_service_dynamo_metrics_url", "Dynamo path for the metric service");
+
+    // Register event channels
+    public static final int EVENT_METRIC_UPDATE = registerChannelId("EVENT_METRIC_UPDATE");
+
     public MetricService() {
         super(null, false);
     }
@@ -61,13 +71,13 @@ public class MetricService extends Service {
         final AtomicReference<Optional<String>> basePath = new AtomicReference<>(Optional.empty());
         isReady.set(false, true, run -> {
             updateSystemMetrics();
-            basePath.set(Optional.ofNullable(contextSupplier.get().get(String.class, Config.CONFIG_METRIC_SERVICE_BASE_PATH.id())).or(() -> Optional.of("/metrics")));
+            basePath.set(Optional.ofNullable(contextSupplier.get().get(String.class, CONFIG_METRIC_SERVICE_BASE_PATH)).or(() -> Optional.of("/metrics")));
         });
 
-        prometheusPath = contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_PROMETHEUS_PATH.id()).orElseGet(() -> basePath.get().map(base -> base + "/prometheus").orElse(null));
-        dynamoPath = contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_DYNAMO_PATH.id()).orElseGet(() -> basePath.get().map(base -> base + "/dynamo").orElse(null));
-        influx = contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_INFLUX_PATH.id()).orElseGet(() -> basePath.get().map(base -> base + "/influx").orElse(null));
-        wavefront = contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_WAVEFRONT_PATH.id()).orElseGet(() -> basePath.get().map(base -> base + "/wavefront").orElse(null));
+        prometheusPath = contextSupplier.get().getOpt(String.class, CONFIG_METRIC_SERVICE_PROMETHEUS_PATH).orElseGet(() -> basePath.get().map(base -> base + "/prometheus").orElse(null));
+        dynamoPath = contextSupplier.get().getOpt(String.class, CONFIG_METRIC_SERVICE_DYNAMO_PATH).orElseGet(() -> basePath.get().map(base -> base + "/dynamo").orElse(null));
+        influx = contextSupplier.get().getOpt(String.class, CONFIG_METRIC_SERVICE_INFLUX_PATH).orElseGet(() -> basePath.get().map(base -> base + "/influx").orElse(null));
+        wavefront = contextSupplier.get().getOpt(String.class, CONFIG_METRIC_SERVICE_WAVEFRONT_PATH).orElseGet(() -> basePath.get().map(base -> base + "/wavefront").orElse(null));
     }
 
     @Override

@@ -14,13 +14,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static berlin.yuna.nano.core.config.TestConfig.TEST_TIMEOUT;
-import static berlin.yuna.nano.core.model.Config.CONFIG_LOG_LEVEL;
+import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_LEVEL;
 import static berlin.yuna.nano.core.model.Context.CONTEXT_CLASS_KEY;
 import static berlin.yuna.nano.core.model.Context.CONTEXT_LOGGER_KEY;
 import static berlin.yuna.nano.core.model.Context.CONTEXT_NANO_KEY;
 import static berlin.yuna.nano.core.model.Context.CONTEXT_TRACE_ID_KEY;
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_HEARTBEAT;
 import static berlin.yuna.nano.helper.NanoUtils.waitForCondition;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_HEARTBEAT;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

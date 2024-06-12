@@ -1,10 +1,13 @@
 package berlin.yuna.nano.core.model;
 
 import berlin.yuna.nano.core.Nano;
+import berlin.yuna.nano.core.NanoServices;
+import berlin.yuna.nano.core.NanoThreads;
 import berlin.yuna.nano.helper.ExRunnable;
 import berlin.yuna.nano.helper.event.EventChannelRegister;
 import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.helper.logger.LogFormatRegister;
+import berlin.yuna.nano.helper.logger.logic.LogQueue;
 import berlin.yuna.nano.helper.logger.logic.NanoLogger;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
 import berlin.yuna.nano.services.http.model.ContentType;
@@ -24,8 +27,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static berlin.yuna.nano.core.model.Service.threadsOf;
+import static berlin.yuna.nano.helper.config.ConfigRegister.registerConfig;
 import static berlin.yuna.nano.helper.event.model.Event.EVENT_ORIGINAL_CHANNEL_ID;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_UNHANDLED;
 import static berlin.yuna.typemap.config.TypeConversionRegister.registerTypeConvert;
 import static java.net.http.HttpClient.Version.HTTP_1_1;
 import static java.net.http.HttpClient.Version.HTTP_2;
@@ -35,6 +38,7 @@ import static java.util.Optional.ofNullable;
 @SuppressWarnings({"unused", "UnusedReturnValue", "java:S2160"})
 public class Context extends ConcurrentTypeMap {
 
+    // Context keys
     public static final String CONTEXT_TRACE_ID_KEY = "app_core_context_trace_id";
     public static final String CONTEXT_LOGGER_KEY = "app_core_context_logger";
     public static final String CONTEXT_PARENT_KEY = "app_core_context_parent";
@@ -42,11 +46,34 @@ public class Context extends ConcurrentTypeMap {
     public static final String CONTEXT_NANO_KEY = "app_core_context_nano";
     public static final String CONTEXT_LOG_QUEUE_KEY = "app_core_context_log_queue";
 
+    // Register configurations
+    public static final String APP_HELP = registerConfig("help", "Lists available config keys");
+    public static final String APP_PARAMS = registerConfig("app_params_print", "Pints all config values");
+    public static final String CONFIG_PROFILES = registerConfig("app_profiles", "Active config profiles for the application");
+    public static final String CONFIG_LOG_LEVEL = registerConfig("app_log_level", "Log level for the application (see " + LogLevel.class.getSimpleName() + ")");
+    public static final String CONFIG_LOG_FORMATTER = registerConfig("app_log_formatter", "Log formatter (see " + LogFormatRegister.class.getSimpleName() + ")");
+    public static final String CONFIG_LOG_QUEUE_SIZE = registerConfig("app_log_queue_size", "Log queue size. A full queue means that log messages will start to wait to be executed (see " + LogQueue.class.getSimpleName() + ")");
+    public static final String CONFIG_THREAD_POOL_TIMEOUT_MS = registerConfig("app_thread_pool_shutdown_timeout_ms", "Timeout for thread pool shutdown in milliseconds (see " + NanoThreads.class.getSimpleName() + ")");
+    public static final String CONFIG_PARALLEL_SHUTDOWN = registerConfig("app_service_shutdown_parallel", "Enable or disable parallel service shutdown (see " + NanoServices.class.getSimpleName() + "). Enabled = Can increase the shutdown performance on`true`");
+
+    // Register event channels
+    public static final int EVENT_APP_START = EventChannelRegister.registerChannelId("APP_START");
+    public static final int EVENT_APP_SHUTDOWN = EventChannelRegister.registerChannelId("APP_SHUTDOWN");
+    public static final int EVENT_APP_LOG_LEVEL = EventChannelRegister.registerChannelId("APP_LOGLEVEL");
+    public static final int EVENT_APP_LOG_QUEUE = EventChannelRegister.registerChannelId("APP_LOG_QUEUE_EVENT");
+    public static final int EVENT_APP_LOG_FORMATTER = EventChannelRegister.registerChannelId("APP_LOG_FORMATTER_EVENT");
+    public static final int EVENT_APP_SERVICE_REGISTER = EventChannelRegister.registerChannelId("APP_SERVICE_REGISTER");
+    public static final int EVENT_APP_SERVICE_UNREGISTER = EventChannelRegister.registerChannelId("APP_SERVICE_UNREGISTER");
+    public static final int EVENT_APP_SCHEDULER_REGISTER = EventChannelRegister.registerChannelId("APP_SCHEDULER_REGISTER");
+    public static final int EVENT_APP_SCHEDULER_UNREGISTER = EventChannelRegister.registerChannelId("APP_SCHEDULER_UNREGISTER");
+    public static final int EVENT_APP_UNHANDLED = EventChannelRegister.registerChannelId("EVENT_APP_UNHANDLED");
+    public static final int EVENT_APP_HEARTBEAT = EventChannelRegister.registerChannelId("EVENT_HEARTBEAT");
+
     static {
+        // Register type converters
         registerTypeConvert(String.class, Formatter.class, LogFormatRegister::getLogFormatter);
         registerTypeConvert(String.class, LogLevel.class, LogLevel::nanoLogLevelOf);
         registerTypeConvert(LogLevel.class, String.class, Enum::name);
-        registerTypeConvert(Config.class, String.class, Config::id);
         registerTypeConvert(ContentType.class, String.class, ContentType::name);
         registerTypeConvert(String.class, ContentType.class, ContentType::fromValue);
         registerTypeConvert(HttpMethod.class, String.class, HttpMethod::name);
@@ -250,8 +277,8 @@ public class Context extends ConcurrentTypeMap {
                 .logQueue(p.logger().logQueue())
                 .formatter(p.logger().formatter()),
             () -> logger
-                .level(getOpt(LogLevel.class, Config.CONFIG_LOG_LEVEL.id()).orElse(LogLevel.INFO))
-                .formatter(getOpt(Formatter.class, Config.CONFIG_LOG_FORMATTER.id()).orElseGet(() -> LogFormatRegister.getLogFormatter("console"))));
+                .level(getOpt(LogLevel.class, CONFIG_LOG_LEVEL).orElse(LogLevel.INFO))
+                .formatter(getOpt(Formatter.class, CONFIG_LOG_FORMATTER).orElseGet(() -> LogFormatRegister.getLogFormatter("console"))));
         put(CONTEXT_LOGGER_KEY, logger);
         return logger;
     }

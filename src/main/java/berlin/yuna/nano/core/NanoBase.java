@@ -1,6 +1,5 @@
 package berlin.yuna.nano.core;
 
-import berlin.yuna.nano.core.model.Config;
 import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.helper.LockedBoolean;
 import berlin.yuna.nano.helper.event.model.Event;
@@ -22,12 +21,16 @@ import java.util.logging.Formatter;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
-import static berlin.yuna.nano.helper.NanoUtils.*;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_LOG_LEVEL;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_LOG_QUEUE;
+import static berlin.yuna.nano.core.model.Context.APP_HELP;
+import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_FORMATTER;
+import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_LEVEL;
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_LOG_LEVEL;
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_LOG_QUEUE;
+import static berlin.yuna.nano.helper.NanoUtils.addConfig;
+import static berlin.yuna.nano.helper.NanoUtils.readConfigFiles;
+import static berlin.yuna.nano.helper.NanoUtils.resolvePlaceHolders;
 import static berlin.yuna.typemap.logic.TypeConverter.convertObj;
 import static java.lang.System.lineSeparator;
-import static java.util.Arrays.stream;
 import static java.util.Optional.ofNullable;
 
 /**
@@ -46,6 +49,7 @@ public abstract class NanoBase<T extends NanoBase<T>> {
     protected final AtomicInteger eventCount = new AtomicInteger(0);
     @SuppressWarnings("java:S2386")
     public static final Map<Integer, String> EVENT_TYPES = new ConcurrentHashMap<>();
+    public static final Map<String, String> CONFIG_KEYS = new ConcurrentHashMap<>();
     public static final AtomicInteger EVENT_ID_COUNTER = new AtomicInteger(0);
 
     /**
@@ -60,8 +64,8 @@ public abstract class NanoBase<T extends NanoBase<T>> {
         if (configs != null)
             configs.forEach((key, value) -> context.computeIfAbsent(convertObj(key, String.class), add -> ofNullable(convertObj(value, String.class)).orElse("")));
         this.logger = new NanoLogger(this)
-            .level(context.getOpt(LogLevel.class, Config.CONFIG_LOG_LEVEL.id()).orElse(LogLevel.DEBUG))
-            .formatter(context.getOpt(Formatter.class, Config.CONFIG_LOG_FORMATTER.id()).orElseGet(() -> LogFormatRegister.getLogFormatter("console")));
+            .level(context.getOpt(LogLevel.class, CONFIG_LOG_LEVEL).orElse(LogLevel.DEBUG))
+            .formatter(context.getOpt(Formatter.class, CONFIG_LOG_FORMATTER).orElseGet(() -> LogFormatRegister.getLogFormatter("console")));
         displayHelpMenu();
         subscribeEvent(EVENT_APP_LOG_LEVEL, event -> event.payloadOpt(LogLevel.class).or(() -> event.payloadOpt(Level.class).map(LogLevel::nanoLogLevelOf)).map(this::setLogLevel).ifPresent(nano -> event.acknowledge()));
         subscribeEvent(EVENT_APP_LOG_QUEUE, event -> event.payloadOpt(LogQueue.class).map(logger::logQueue).ifPresent(nano -> event.acknowledge()));
@@ -206,8 +210,9 @@ public abstract class NanoBase<T extends NanoBase<T>> {
      * Displays a help menu with available configuration keys and their descriptions and exits.
      */
     protected void displayHelpMenu() {
-        if (context.getOpt(Boolean.class, Config.APP_HELP.id()).filter(helpCalled -> helpCalled).isPresent()) {
-            logger.info(() -> "Available configs keys: " + lineSeparator() + stream(Config.values()).map(config -> String.format("%-" + stream(Config.values()).map(Config::id).mapToInt(String::length).max().orElse(0) + "s  %s", config, config.description())).collect(Collectors.joining(lineSeparator())));
+        if (context.getOpt(Boolean.class, APP_HELP).filter(helpCalled -> helpCalled).isPresent()) {
+            final int keyLength = CONFIG_KEYS.keySet().stream().mapToInt(String::length).max().orElse(0);
+            logger.info(() -> "Available configs keys: " + lineSeparator() + CONFIG_KEYS.keySet().stream().map(s -> String.format("%-" + keyLength + "s  %s", s, s)).collect(Collectors.joining(lineSeparator())));
             System.exit(0);
         }
     }
@@ -222,7 +227,7 @@ public abstract class NanoBase<T extends NanoBase<T>> {
         final Context result = readConfigFiles(null, "");
         System.getenv().forEach((key, value) -> addConfig(result, key, value));
         System.getProperties().forEach((key, value) -> addConfig(result, key, value));
-        if(args != null)
+        if (args != null)
             ArgsDecoder.argsOf(String.join(" ", args)).forEach((key, value) -> addConfig(result, key, value));
         return resolvePlaceHolders(result);
     }
@@ -236,7 +241,7 @@ public abstract class NanoBase<T extends NanoBase<T>> {
     @SuppressWarnings("unchecked")
     protected T setLogLevel(final LogLevel level) {
         logger.level(level);
-        context.put(Config.CONFIG_LOG_LEVEL.id(), level);
+        context.put(CONFIG_LOG_LEVEL, level);
         logger.trace(() -> "New {} [{}]", LogLevel.class.getSimpleName(), level);
         return (T) this;
     }
@@ -248,7 +253,13 @@ public abstract class NanoBase<T extends NanoBase<T>> {
      */
     @SuppressWarnings("java:S3358") // Ternary operator should not be nested
     public static String standardiseKey(final Object key) {
-        return key == null ? null : convertObj(key, String.class).replace('.', '_').replace('-', '_').trim().toLowerCase();
+        return key == null ? null : convertObj(key, String.class)
+            .replace('.', '_')
+            .replace('-', '_')
+            .replace('+', '_')
+            .replace(':', '_')
+            .trim()
+            .toLowerCase();
     }
 
 }

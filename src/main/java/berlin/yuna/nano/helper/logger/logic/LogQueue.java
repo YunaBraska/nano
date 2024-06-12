@@ -1,6 +1,5 @@
 package berlin.yuna.nano.helper.logger.logic;
 
-import berlin.yuna.nano.core.model.Config;
 import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.core.model.Service;
 import berlin.yuna.nano.helper.Pair;
@@ -15,8 +14,9 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_LOG_LEVEL;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_LOG_QUEUE;
+import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_QUEUE_SIZE;
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_LOG_LEVEL;
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_LOG_QUEUE;
 
 @SuppressWarnings("UnusedReturnValue")
 public class LogQueue extends Service {
@@ -43,7 +43,7 @@ public class LogQueue extends Service {
     public void start(final Supplier<Context> contextSub) {
         isReady.set(false, true, state -> {
             final Context context = contextSub.get();
-            queueCapacity = context.getOpt(Integer.class, Config.CONFIG_LOG_QUEUE_SIZE.id()).orElse(1000);
+            queueCapacity = context.getOpt(Integer.class, CONFIG_LOG_QUEUE_SIZE).orElse(1000);
             queue = new LinkedBlockingQueue<>(queueCapacity);
             context.run(this::process)
                 .run(this::checkQueueSizeAndWarn, 5, 5, TimeUnit.MINUTES, () -> !isReady())

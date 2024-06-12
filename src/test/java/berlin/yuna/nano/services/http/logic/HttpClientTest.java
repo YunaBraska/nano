@@ -7,7 +7,10 @@ import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.services.http.HttpService;
 import berlin.yuna.nano.services.http.model.HttpObject;
 import berlin.yuna.typemap.model.LinkedTypeMap;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
@@ -23,11 +26,22 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static berlin.yuna.nano.core.config.TestConfig.TEST_LOG_LEVEL;
 import static berlin.yuna.nano.core.config.TestConfig.TEST_REPEAT;
-import static berlin.yuna.nano.core.model.Config.*;
+import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_LEVEL;
 import static berlin.yuna.nano.core.model.NanoThread.VIRTUAL_THREAD_POOL;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_HTTP_REQUEST;
-import static berlin.yuna.nano.services.http.model.ContentType.*;
-import static berlin.yuna.nano.services.http.model.HttpHeaders.*;
+import static berlin.yuna.nano.services.http.HttpService.CONFIG_HTTP_CLIENT_CON_TIMEOUT_MS;
+import static berlin.yuna.nano.services.http.HttpService.CONFIG_HTTP_CLIENT_FOLLOW_REDIRECTS;
+import static berlin.yuna.nano.services.http.HttpService.CONFIG_HTTP_CLIENT_MAX_RETRIES;
+import static berlin.yuna.nano.services.http.HttpService.CONFIG_HTTP_CLIENT_READ_TIMEOUT_MS;
+import static berlin.yuna.nano.services.http.HttpService.CONFIG_HTTP_CLIENT_VERSION;
+import static berlin.yuna.nano.services.http.HttpService.EVENT_HTTP_REQUEST;
+import static berlin.yuna.nano.services.http.model.ContentType.APPLICATION_JSON;
+import static berlin.yuna.nano.services.http.model.ContentType.APPLICATION_PROBLEM_JSON;
+import static berlin.yuna.nano.services.http.model.ContentType.TEXT_PLAIN;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.ACCEPT_ENCODING;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.CONTENT_LENGTH;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.CONTENT_RANGE;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.CONTENT_TYPE;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.USER_AGENT;
 import static berlin.yuna.nano.services.http.model.HttpMethod.GET;
 import static berlin.yuna.typemap.logic.TypeConverter.convertObj;
 import static java.net.http.HttpClient.Version.HTTP_1_1;
@@ -120,15 +134,15 @@ public class HttpClientTest {
     @RepeatedTest(TEST_REPEAT)
     void constructor_configTest() {
         final Context context = Context.createRootContext();
-        assertThat(new HttpClient(context.put(CONFIG_HTTP_CLIENT_VERSION.id(), HTTP_1_1)).version()).isEqualTo(HTTP_1_1);
-        assertThat(new HttpClient(context.put(CONFIG_HTTP_CLIENT_VERSION.id(), 2)).version()).isEqualTo(HTTP_2);
-        assertThat(new HttpClient(context.put(CONFIG_HTTP_CLIENT_VERSION.id(), "1")).version()).isEqualTo(HTTP_1_1);
-        assertThat(new HttpClient(context.put(CONFIG_HTTP_CLIENT_MAX_RETRIES.id(), "1")).retries()).isEqualTo(1);
-        assertThat(new HttpClient(context.put(CONFIG_HTTP_CLIENT_MAX_RETRIES.id(), 2)).retries()).isEqualTo(2);
-        assertThat(new HttpClient(context.put(CONFIG_HTTP_CLIENT_CON_TIMEOUT_MS.id(), 128)).connectionTimeoutMs()).isEqualTo(128L);
-        assertThat(new HttpClient(context.put(CONFIG_HTTP_CLIENT_READ_TIMEOUT_MS.id(), 256)).readTimeoutMs()).isEqualTo(256);
-        assertThat(new HttpClient(context.put(CONFIG_HTTP_CLIENT_FOLLOW_REDIRECTS.id(), false)).followRedirects()).isFalse();
-        assertThat(new HttpClient(context.put(CONFIG_HTTP_CLIENT_FOLLOW_REDIRECTS.id(), true)).followRedirects()).isTrue();
+        assertThat(new HttpClient(context.put(CONFIG_HTTP_CLIENT_VERSION, HTTP_1_1)).version()).isEqualTo(HTTP_1_1);
+        assertThat(new HttpClient(context.put(CONFIG_HTTP_CLIENT_VERSION, 2)).version()).isEqualTo(HTTP_2);
+        assertThat(new HttpClient(context.put(CONFIG_HTTP_CLIENT_VERSION, "1")).version()).isEqualTo(HTTP_1_1);
+        assertThat(new HttpClient(context.put(CONFIG_HTTP_CLIENT_MAX_RETRIES, "1")).retries()).isEqualTo(1);
+        assertThat(new HttpClient(context.put(CONFIG_HTTP_CLIENT_MAX_RETRIES, 2)).retries()).isEqualTo(2);
+        assertThat(new HttpClient(context.put(CONFIG_HTTP_CLIENT_CON_TIMEOUT_MS, 128)).connectionTimeoutMs()).isEqualTo(128L);
+        assertThat(new HttpClient(context.put(CONFIG_HTTP_CLIENT_READ_TIMEOUT_MS, 256)).readTimeoutMs()).isEqualTo(256);
+        assertThat(new HttpClient(context.put(CONFIG_HTTP_CLIENT_FOLLOW_REDIRECTS, false)).followRedirects()).isFalse();
+        assertThat(new HttpClient(context.put(CONFIG_HTTP_CLIENT_FOLLOW_REDIRECTS, true)).followRedirects()).isTrue();
         assertThat(new HttpClient()).hasToString("HttpClient{version=HTTP_2, retries=3, followRedirects=true, readTimeoutMs=10000, connectionTimeoutMs=5000}");
     }
 
@@ -147,9 +161,9 @@ public class HttpClientTest {
     @Test
     void verifyInvalidUrl() {
         final HttpClient client = new HttpClient(Context.createRootContext()
-            .put(CONFIG_HTTP_CLIENT_MAX_RETRIES.id(), 1)
-            .put(CONFIG_HTTP_CLIENT_CON_TIMEOUT_MS.id(), 128)
-            .put(CONFIG_HTTP_CLIENT_READ_TIMEOUT_MS.id(), 128)
+            .put(CONFIG_HTTP_CLIENT_MAX_RETRIES, 1)
+            .put(CONFIG_HTTP_CLIENT_CON_TIMEOUT_MS, 128)
+            .put(CONFIG_HTTP_CLIENT_READ_TIMEOUT_MS, 128)
         );
         if (client.connectionTimeoutMs() < 1000) {
             final HttpObject response = client.send(new HttpObject().path("http://localhost/invalid/url"));

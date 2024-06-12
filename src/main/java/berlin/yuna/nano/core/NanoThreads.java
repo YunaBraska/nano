@@ -14,12 +14,12 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 
-import static berlin.yuna.nano.core.model.Config.CONFIG_THREAD_POOL_TIMEOUT_MS;
+import static berlin.yuna.nano.core.model.Context.CONFIG_THREAD_POOL_TIMEOUT_MS;
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_SCHEDULER_REGISTER;
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_SCHEDULER_UNREGISTER;
 import static berlin.yuna.nano.core.model.NanoThread.activeNanoThreads;
 import static berlin.yuna.nano.helper.NanoUtils.callerInfoStr;
 import static berlin.yuna.nano.helper.NanoUtils.getThreadName;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_SCHEDULER_REGISTER;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_SCHEDULER_UNREGISTER;
 import static java.util.Collections.unmodifiableSet;
 
 /**
@@ -135,7 +135,7 @@ public abstract class NanoThreads<T extends NanoThreads<T>> extends NanoBase<T> 
      * Shuts down all threads and scheduled executors gracefully.
      */
     protected void shutdownThreads() {
-        final long timeoutMs = context.getOpt(Long.class, CONFIG_THREAD_POOL_TIMEOUT_MS.id()).filter(l -> l > 0).orElse(500L);
+        final long timeoutMs = context.getOpt(Long.class, CONFIG_THREAD_POOL_TIMEOUT_MS).filter(l -> l > 0).orElse(500L);
         logger.debug(() -> "Shutdown schedulers [{}]", schedulers.size());
         shutdownExecutors(timeoutMs, schedulers.toArray(ScheduledExecutorService[]::new));
         logger.debug(() -> "Shutdown {} [{}]", threadPool.getClass().getSimpleName(), activeNanoThreads());

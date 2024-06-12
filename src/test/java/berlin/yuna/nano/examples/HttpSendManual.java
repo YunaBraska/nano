@@ -6,7 +6,6 @@ import berlin.yuna.nano.services.http.HttpService;
 import berlin.yuna.nano.services.http.logic.HttpClient;
 import berlin.yuna.nano.services.http.model.HttpObject;
 
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_HTTP_REQUEST;
 import static berlin.yuna.nano.services.http.model.HttpMethod.GET;
 
 public class HttpSendManual {

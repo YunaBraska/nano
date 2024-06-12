@@ -8,7 +8,7 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import java.util.Map;
 
 import static berlin.yuna.nano.core.config.TestConfig.*;
-import static berlin.yuna.nano.core.model.Config.CONFIG_LOG_LEVEL;
+import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_LEVEL;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Execution(ExecutionMode.CONCURRENT)

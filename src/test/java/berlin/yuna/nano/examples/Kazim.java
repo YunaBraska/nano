@@ -8,7 +8,8 @@ import berlin.yuna.nano.services.metric.logic.MetricService;
 
 import java.util.Map;
 
-import static berlin.yuna.nano.core.model.Config.*;
+import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_FORMATTER;
+import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_LEVEL;
 
 public class Kazim {
 

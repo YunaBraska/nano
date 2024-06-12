@@ -1,6 +1,5 @@
 package berlin.yuna.nano.core;
 
-import berlin.yuna.nano.core.model.Config;
 import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.core.model.NanoThread;
 import berlin.yuna.nano.core.model.Service;
@@ -22,13 +21,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static berlin.yuna.nano.core.model.Context.APP_PARAMS;
 import static berlin.yuna.nano.core.model.Context.CONTEXT_CLASS_KEY;
 import static berlin.yuna.nano.core.model.Context.CONTEXT_LOG_QUEUE_KEY;
 import static berlin.yuna.nano.core.model.Context.CONTEXT_NANO_KEY;
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_HEARTBEAT;
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_SHUTDOWN;
 import static berlin.yuna.nano.helper.NanoUtils.generateNanoName;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_HEARTBEAT;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_APP_SHUTDOWN;
-import static berlin.yuna.nano.helper.event.model.EventChannel.EVENT_METRIC_UPDATE;
+import static berlin.yuna.nano.services.metric.logic.MetricService.EVENT_METRIC_UPDATE;
 import static java.lang.System.lineSeparator;
 import static java.util.Arrays.asList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -209,7 +209,7 @@ public class Nano extends NanoServices<Nano> {
      * Prints the configurations that have been loaded into the {@link Nano} instance.
      */
     public void printParameters() {
-        if (context.getOpt(Boolean.class, Config.APP_PARAMS.id()).filter(helpCalled -> helpCalled).isPresent()) {
+        if (context.getOpt(Boolean.class, APP_PARAMS).filter(helpCalled -> helpCalled).isPresent()) {
             final List<String> secrets = List.of("secret", "token", "pass", "pwd", "bearer", "auth", "private", "ssn");
             final int keyLength = context.keySet().stream().map(String::valueOf).mapToInt(String::length).max().orElse(0);
             logger.info(() -> "Configs: " + lineSeparator() + context.entrySet().stream().map(config -> String.format("%-" + keyLength + "s  %s", config.getKey(), secrets.stream().anyMatch(s -> String.valueOf(config.getKey()).toLowerCase().contains(s)) ? "****" : config.getValue())).collect(joining(lineSeparator())));
