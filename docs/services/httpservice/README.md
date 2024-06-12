@@ -65,33 +65,25 @@ private static void controllerAdvice(final Event event) {
 
 ### Send HTTP Requests
 
-Via Events:
-
 ```java
 public static void main(final String[] args) {
     final Context context = new Nano(args, new HttpService()).context(MyClass.class);
 
+    // send request via event
     context.sendEventReturn(EVENT_HTTP_REQUEST, new HttpObject()
         .methodType(GET)
         .path("http://localhost:8080/hello")
         .body("Hello World")
     ).response(HttpObject.class);
-}
-```
 
-Manually:
-```java
-public static void main(final String[] args) {
-    final Context context = new Nano(args, new HttpService()).context(HttpSendManual.class);
-
-    // With context
+    // send request via context
     new HttpObject()
         .methodType(GET)
         .path("http://localhost:8080/hello")
         .body("Hello World")
         .send(context);
 
-    // Without context
+    // send request manually
     new HttpClient().send(new HttpObject()
         .methodType(GET)
         .path("http://localhost:8080/hello")
