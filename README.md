@@ -16,12 +16,12 @@
 ![Label][java_version]
 
 > [Introduction](#-introduction)
-| [Core Concept](#-core-concept)
-| [Mechanics](#-mechanics)
-| [Components](#-components)
-| [Getting Started](#-getting-started)
-| [Build Nano](#-build-nano)
-| [Benefits](#-benefits-of-nano)
+> | [Core Concept](#-core-concept)
+> | [Mechanics](#-mechanics)
+> | [Components](#-components)
+> | [Getting Started](#-getting-started)
+> | [Build Nano](#-build-nano)
+> | [Benefits](#-benefits-of-nano)
 
 ## 🖼️ Introduction
 
@@ -36,6 +36,8 @@ Nano is also designed to be fully compilable with [GraalVM](https://www.graalvm.
 Nano handles threads for you and provides a basic construct for event driven architecture.
 It's providing a simple way to write microservices in a functional fluent and chaining style, so that **objects are less
 needed**. Nano provides full access to all internal components, resulting in very few private methods or fields.
+
+[Read more...](docs/info/concept/README.md)
 
 ## 📚 Components
 
