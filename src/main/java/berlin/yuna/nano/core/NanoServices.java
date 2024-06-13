@@ -90,7 +90,7 @@ public abstract class NanoServices<T extends NanoServices<T>> extends NanoThread
             try {
                 context.runAwait(services.stream().map(service -> (ExRunnable) () -> unregisterService(context, service)).toArray(ExRunnable[]::new));
             } catch (final Exception err) {
-                logger.fatal(err, () -> "[{}] shutdown error", Service.class.getSimpleName());
+                logger.fatal(err, () -> "Service [{}] shutdown error", Service.class.getSimpleName());
                 Thread.currentThread().interrupt();
             }
         } else {

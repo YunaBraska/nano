@@ -169,6 +169,8 @@ class ContextTest {
         assertThat(subContext.getList(CONTEXT_TRACE_ID_KEY)).hasSize(1).doesNotContain(context.traceId());
         assertThat(subContext.traceId()).isNotEqualTo(context.traceId());
         assertThat(subContext.traceId(0)).isEqualTo(subContext.traceId()).isNotEqualTo(context.traceId());
+        assertThat(subContext.traceId(1)).isNotEqualTo(subContext.traceId()).isEqualTo(context.traceId());
+        assertThat(subContext.traceId(99)).isEqualTo(subContext.traceId()).isNotEqualTo(context.traceId());
         assertThat(subContext.traceIds()).containsExactlyInAnyOrder(context.traceId(), subContext.traceId());
         assertThat(context).doesNotContainKey(CONTEXT_LOGGER_KEY);
         assertThat(subContext.logger()).isNotNull();

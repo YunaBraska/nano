@@ -38,7 +38,7 @@ import static java.util.Optional.ofNullable;
  *
  * @param <T> The type of the {@link NanoBase} implementation, used for method chaining.
  */
-@SuppressWarnings({"unused", "UnusedReturnValue"})
+@SuppressWarnings({"unused", "UnusedReturnValue", "java:S2386"})
 public abstract class NanoBase<T extends NanoBase<T>> {
 
     protected final Context context;

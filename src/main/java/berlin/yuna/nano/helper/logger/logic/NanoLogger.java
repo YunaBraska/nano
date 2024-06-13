@@ -7,10 +7,19 @@ import berlin.yuna.nano.helper.logger.model.LogLevel;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
-import java.util.logging.*;
+import java.util.logging.Formatter;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
-@SuppressWarnings({"unused", "UnusedReturnValue"})
+@SuppressWarnings({"unused", "UnusedReturnValue", "java:S1104"})
 public class NanoLogger {
+
+    //TODO: Logger: change format on runtime
+    //TODO: Logger exclude package pattern config
+    //TODO: extract logger as a service
+
     public static final Formatter DEFAULT_LOG_FORMATTER = new LogFormatterJson();
     public static final LogInfoHandler DEFAULT_LOG_INFO_HANDLER = new LogInfoHandler(DEFAULT_LOG_FORMATTER);
     public static final LogErrorHandler DEFAULT_LOG_ERROR_HANDLER = new LogErrorHandler(DEFAULT_LOG_FORMATTER);
@@ -19,7 +28,7 @@ public class NanoLogger {
     // FIXME: create very own logger as every config of the java logger is not thread safe
     protected final AtomicReference<LogLevel> level = new AtomicReference<>(LogLevel.DEBUG);
     protected LogQueue logQueue;
-    public static AtomicInteger MAX_LOG_NAME_LENGTH = new AtomicInteger(10);
+    public static final AtomicInteger MAX_LOG_NAME_LENGTH = new AtomicInteger(10);
 
     public NanoLogger(final Object object) {
         this(object.getClass());
@@ -60,13 +69,11 @@ public class NanoLogger {
 
     public NanoLogger level(final LogLevel level) {
         this.level.set(level);
-//        logger.setLevel(level.toJavaLogLevel());
         return this;
     }
 
     public LogLevel level() {
         return level.get();
-//        return nanoLogLevelOf(logger.getLevel());
     }
 
     public NanoLogger fatal(final Supplier<String> message, final Object... params) {

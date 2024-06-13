@@ -2,8 +2,10 @@ package berlin.yuna.nano.core;
 
 import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.helper.event.model.Event;
+import berlin.yuna.nano.helper.logger.logic.LogQueue;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
 import berlin.yuna.nano.model.TestService;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
@@ -14,23 +16,35 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 
-import static berlin.yuna.nano.core.config.TestConfig.*;
-import static berlin.yuna.nano.core.model.Context.*;
+import static berlin.yuna.nano.core.config.TestConfig.TEST_LOG_LEVEL;
+import static berlin.yuna.nano.core.config.TestConfig.TEST_REPEAT;
+import static berlin.yuna.nano.core.config.TestConfig.TEST_TIMEOUT;
+import static berlin.yuna.nano.core.config.TestConfig.await;
+import static berlin.yuna.nano.core.config.TestConfig.waitForStartUp;
+import static berlin.yuna.nano.core.model.Context.APP_PARAMS;
+import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_LEVEL;
+import static berlin.yuna.nano.core.model.Context.CONFIG_PARALLEL_SHUTDOWN;
+import static berlin.yuna.nano.core.model.Context.CONFIG_PROFILES;
+import static berlin.yuna.nano.core.model.Context.CONTEXT_CLASS_KEY;
+import static berlin.yuna.nano.core.model.Context.CONTEXT_LOG_QUEUE_KEY;
+import static berlin.yuna.nano.core.model.Context.CONTEXT_NANO_KEY;
+import static berlin.yuna.nano.core.model.Context.CONTEXT_PARENT_KEY;
+import static berlin.yuna.nano.core.model.Context.CONTEXT_TRACE_ID_KEY;
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_SHUTDOWN;
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_UNHANDLED;
+import static berlin.yuna.nano.core.model.Context.tryExecute;
 import static berlin.yuna.nano.helper.NanoUtils.waitForCondition;
 import static berlin.yuna.nano.model.TestService.TEST_EVENT;
+import static berlin.yuna.nano.services.http.HttpService.EVENT_HTTP_REQUEST;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Execution(ExecutionMode.CONCURRENT)
 class NanoTest {
 
-    //TODO: Logger: change format on runtime
-    //TODO: Logger exclude package pattern config
-    //TODO: extract logger as a service
-
     @Test
     void configFilesTest() {
-        final Nano nano = new Nano();
+        final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL));
         assertThat(nano.context().get(String.class, CONFIG_PROFILES)).isEqualTo("default, local, dev, prod");
         assertThat(nano.context().getList(String.class, "_scanned_profiles")).containsExactly("local", "default", "dev", "prod");
         assertThat(nano.context().get(String.class, "test_placeholder_fallback")).isEqualTo("fallback should be used 1");
@@ -99,6 +113,7 @@ class NanoTest {
         assertThat(nano).isNotNull();
     }
 
+    @Disabled("No args constructor test is changing the log level of the test. Since the java logger is not stateless, it affects the other tests.")
     @RepeatedTest(TEST_REPEAT)
     void constructorNoArgsTest() {
         final Nano noArgs = new Nano();
@@ -160,18 +175,6 @@ class NanoTest {
         assertThat(config.logger().level()).isEqualTo(TEST_LOG_LEVEL);
         assertThat(config.stop(this.getClass()).waitForStop().isReady()).isFalse();
     }
-
-//    @RepeatedTest(TEST_REPEAT)
-//    void printHelpMenu() throws Exception {
-//        final int statusCode = catchSystemExit(() -> {
-//            final Nano config = new Nano(Map.of(CONFIG_LOG_LEVEL, INFO, APP_HELP, true));
-//            assertThat(config).isNotNull();
-//            assertThat(config.logger().level()).isEqualTo(TEST_LOG_LEVEL);
-//            config.stop(this.getClass());
-//        });
-//        assertThat(statusCode).isEqualTo(0);
-//    }
-
 
     @RepeatedTest(TEST_REPEAT)
     void toStringTest() {
@@ -294,6 +297,44 @@ class NanoTest {
         assertThat(nano.stop(this.getClass()).waitForStop().isReady()).isFalse();
     }
 
+    @RepeatedTest(TEST_REPEAT)
+    void errorHandlerTest() throws InterruptedException {
+        final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL));
+        final CountDownLatch trigger = new CountDownLatch(2);
+
+        nano.subscribeEvent(EVENT_APP_UNHANDLED, event -> {
+            trigger.countDown();
+            event.acknowledge();
+        });
+
+        // Event with error
+        nano.subscribeEvent(EVENT_HTTP_REQUEST, event -> {
+            throw new RuntimeException("Nothing to see here, just a test exception");
+        });
+
+        nano.context(NanoTest.class).sendEvent(EVENT_HTTP_REQUEST, "test");
+
+        // Execution with error
+        nano.context(NanoTest.class).run(() -> {
+            throw new RuntimeException("Nothing to see here, just a test exception");
+        });
+
+        assertThat(trigger.await(TEST_TIMEOUT, MILLISECONDS)).isTrue();
+        assertThat(nano.stop(this.getClass()).waitForStop().isReady()).isFalse();
+    }
+
+    @RepeatedTest(TEST_REPEAT)
+    void setLogQueue() {
+        final LogQueue logQueue = new LogQueue();
+        final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL), logQueue);
+
+        assertThat(nano.context()).containsEntry(CONTEXT_LOG_QUEUE_KEY, logQueue);
+        assertThat(nano.context(NanoTest.class)).containsEntry(CONTEXT_LOG_QUEUE_KEY, logQueue);
+
+        waitForStartUp(nano, 1);
+        assertThat(nano.stop(this.getClass()).waitForStop().isReady()).isFalse();
+    }
+
     private static void stopAndTestNano(final Nano nano, final TestService service) {
         assertThat(nano.isReady()).isTrue();
         assertThat(nano.createdAtMs()).isPositive();
@@ -319,6 +360,5 @@ class NanoTest {
         assertThat(service.startCount()).isEqualTo(1);
         assertThat(service.failures()).isEmpty();
         assertThat(service.stopCount()).isEqualTo(1);
-//        assertThat(service.events()).hasSizeBetween(1, 3);
     }
 }

@@ -31,7 +31,7 @@ import static berlin.yuna.nano.core.NanoBase.standardiseKey;
 import static berlin.yuna.nano.core.model.Context.CONFIG_PROFILES;
 import static java.util.Arrays.stream;
 
-@SuppressWarnings({"UnusedReturnValue", "java:S6548"})
+@SuppressWarnings({"UnusedReturnValue", "java:S6548", "java:S2386"})
 public class NanoUtils {
 
     public static final String LINE_SEPARATOR = System.lineSeparator();

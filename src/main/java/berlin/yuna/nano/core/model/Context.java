@@ -18,12 +18,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 import java.util.logging.Formatter;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static berlin.yuna.nano.core.model.Service.threadsOf;
@@ -366,7 +363,7 @@ public class Context extends ConcurrentTypeMap {
         try {
             return threadsOf(this, services);
         } catch (final Exception exception) {
-            handleExecutionExceptions(this, new Unhandled(this, services.length == 1 ? services[0] : services, exception), () -> "Error while executing [" + stream(services).map(Service::name).distinct().collect(Collectors.joining()) + "]");
+            sendEventError(services.length == 1 ? services[0] : services, exception);
             Thread.currentThread().interrupt();
             return new NanoThread[0];
         }
@@ -661,7 +658,7 @@ public class Context extends ConcurrentTypeMap {
 
     @SuppressWarnings("java:S3358")
     protected Context(final Context parent, final Class<?> clazz, final boolean empty) {
-        super(empty? null : parent);
+        super(empty ? null : parent);
         final Class<?> resolvedClass = clazz != null ? clazz : (parent == null ? Context.class : parent.clazz());
         this.put(CONTEXT_NANO_KEY, parent != null ? parent.get(Nano.class, CONTEXT_NANO_KEY) : null);
         this.put(CONTEXT_CLASS_KEY, resolvedClass);
@@ -672,14 +669,6 @@ public class Context extends ConcurrentTypeMap {
 
     private Class<?> clazz() {
         return this.getOpt(Class.class, CONTEXT_CLASS_KEY).orElse(Context.class);
-    }
-
-    public static void handleExecutionExceptions(final Context context, final Unhandled payload, final Supplier<String> errorMsg) {
-        final AtomicBoolean wasHandled = new AtomicBoolean(false);
-        context.nano().sendEvent(EVENT_APP_UNHANDLED, context, payload, result -> wasHandled.set(true), false);
-        if (!wasHandled.get()) {
-            context.logger().error(payload.exception(), errorMsg);
-        }
     }
 
     public static void tryExecute(final ExRunnable operation) {
