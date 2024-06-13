@@ -85,7 +85,7 @@ public class HttpObject extends HttpRequest {
     protected TypeMap pathParams;
     protected int statusCode = -1;
     protected Long timeoutMs;
-    protected HttpExchange exchange;
+    protected final HttpExchange exchange;
 
     // common modifiable fields
     public static final String HTTP_EXCEPTION_HEADER = "#throwable#";

@@ -7,7 +7,6 @@ import berlin.yuna.nano.helper.NanoUtils;
 import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.helper.logger.logic.LogQueue;
 import berlin.yuna.nano.helper.logger.logic.NanoLogger;
-import berlin.yuna.nano.services.metric.model.MetricType;
 import berlin.yuna.nano.services.metric.model.MetricUpdate;
 import berlin.yuna.typemap.model.FunctionOrNull;
 

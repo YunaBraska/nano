@@ -143,7 +143,7 @@ public class HttpService extends Service {
 //            // Load the private key
 //            final byte[] keyBytes = Files.readAllBytes(Paths.get(keyFilePath));
 //            final PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
-//            KeyFactory kf = KeyFactory.getInstance("RSA"); // TODO: TRY & ERROR loop for all Algorithmn
+//            KeyFactory kf = KeyFactory.getInstance("RSA"); // TODO: TRY & ERROR loop for all Algorithm
 //            final PrivateKey privateKey = kf.generatePrivate(spec);
 //
 //            // Create a keystore

@@ -11,7 +11,8 @@
 [Services](../services/README.md) are extensions for Nano which are independent managed programs that are running in the
 background.
 They are usually designed to be accessed by [Events](../events/README.md).
-Nano has default [Services](../services/README.md) like [HttpService](httpservice/README.md), `MetricService`, `LogQueue`
+Nano has default [Services](../services/README.md)
+like [HttpService](httpservice/README.md), [MetricService](metricservice/README.md), `LogQueue`
 
 ## Start Services
 
