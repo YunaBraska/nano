@@ -29,6 +29,7 @@ import static berlin.yuna.nano.core.model.Context.EVENT_APP_HEARTBEAT;
 import static berlin.yuna.nano.core.model.Context.EVENT_APP_SHUTDOWN;
 import static berlin.yuna.nano.helper.NanoUtils.generateNanoName;
 import static berlin.yuna.nano.services.metric.logic.MetricService.EVENT_METRIC_UPDATE;
+import static berlin.yuna.nano.services.metric.model.MetricType.GAUGE;
 import static java.lang.System.lineSeparator;
 import static java.util.Arrays.asList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -132,8 +133,8 @@ public class Nano extends NanoServices<Nano> {
         }
         logger.info(() -> "Started [{}] in [{}]", generateNanoName("%s%.0s%.0s%.0s"), NanoUtils.formatDuration(readyTime));
         printSystemInfo();
-        sendEvent(EVENT_METRIC_UPDATE, context, new MetricUpdate(MetricType.GAUGE, "application.started.time", initTime, null), result -> {}, false);
-        sendEvent(EVENT_METRIC_UPDATE, context, new MetricUpdate(MetricType.GAUGE, "application.ready.time", readyTime, null), result -> {}, false);
+        sendEvent(EVENT_METRIC_UPDATE, context, new MetricUpdate(GAUGE, "application.started.time", initTime, null), result -> {}, false);
+        sendEvent(EVENT_METRIC_UPDATE, context, new MetricUpdate(GAUGE, "application.ready.time", readyTime, null), result -> {}, false);
         subscribeEvent(EVENT_APP_SHUTDOWN, event -> event.acknowledge(() -> CompletableFuture.runAsync(() -> shutdown(context(this.getClass())))));
         // INIT CLEANUP TASK - just for safety
         subscribeEvent(EVENT_APP_HEARTBEAT, event -> new HashSet<>(schedulers).stream().filter(scheduler -> scheduler.isShutdown() || scheduler.isTerminated()).forEach(schedulers::remove));

@@ -94,29 +94,21 @@ public static void main(final String[] args) {
 
 ## Configuration
 
+| [Config](../../context/README.md#configuration) | Type      | Default                       | Description                                     |
+|-------------------------------------------------|-----------|-------------------------------|-------------------------------------------------|
+| `app_service_http_port `                        | `Integer` | `8080`, `8081`, ... (dynamic) | (HttpService) Port                              |
+| `app_service_http_version`                      | `Integer` | `2`                           | (HttpClient) Http Version 1 or 2                |
+| `app_service_http_max_retries`                  | `Integer` | `3`                           | (HttpClient) Maximum number of retries          |
+| `app_service_http_con_timeoutMs`                | `Integer` | `5000`                        | (HttpClient) Connection timeout in milliseconds |
+| `app_service_http_read_timeoutMs`               | `Integer` | `10000`                       | (HttpClient) Read timeout in milliseconds       |
+| `app_service_http_follow_redirects`             | `Boolean` | `true`                        | (HttpClient) Follow redirects                   |
+
 ## Events
 
-| In/Out | [Event](../../events/README.md) | Payload                        | Response     | Description                                                                                                                                                                          |
-|--------|---------------------------------|--------------------------------|--------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 🔲     | `EVENT_HTTP_REQUEST`            | `HttpObject`                   | `HttpObject` | Triggered when an HTTP request is received.<br/>If a response is returned for this event, it is sent back to the client.                                                             |
-| 🔲     | `EVENT_HTTP_REQUEST_UNHANDLED`  | `HttpObject`                   | `HttpObject` | Triggered when an HTTP request is received but not handled.<br/>If a response is returned for this event, it is sent back to the client.<br/>Else client will receive a `404         |
-| 🔲     | `EVENT_APP_UNHANDLED`           | `HttpObject`                   | `HttpObject` | Triggered when an exception occurs while handling an HTTP request.<br/>If a response is returned for this event, it is sent back to the client.<br/>Else client will receive a `500` |
-| 🔳     | `EVENT_HTTP_REQUEST`            | `HttpObject`<br/>`HttpRequest` | `HttpObject` | Listening for HTTP request to send and returns a HTTP response                                                                                                                       |
+| In 🔲 <br/> Out 🔳 | [Event](../../events/README.md) | Payload                        | Response     | Description                                                                                                                                                                          |
+|--------------------|---------------------------------|--------------------------------|--------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 🔲                 | `EVENT_HTTP_REQUEST`            | `HttpObject`                   | `HttpObject` | Triggered when an HTTP request is received.<br/>If a response is returned for this event, it is sent back to the client.                                                             |
+| 🔲                 | `EVENT_HTTP_REQUEST_UNHANDLED`  | `HttpObject`                   | `HttpObject` | Triggered when an HTTP request is received but not handled.<br/>If a response is returned for this event, it is sent back to the client.<br/>Else client will receive a `404         |
+| 🔲                 | `EVENT_APP_UNHANDLED`           | `HttpObject`                   | `HttpObject` | Triggered when an exception occurs while handling an HTTP request.<br/>If a response is returned for this event, it is sent back to the client.<br/>Else client will receive a `500` |
+| 🔳                 | `EVENT_HTTP_REQUEST`            | `HttpObject`<br/>`HttpRequest` | `HttpObject` | Listening for HTTP request to send and returns a HTTP response                                                                                                                       |
 
-```mermaid
-flowchart TD
-    services(((Services))) -.-> metricService[MetricService]
-    services -.-> httpService[HttpService]
-    services -.-> logQueue[LogQueue]
-    metricService <--> events[Event]
-    httpService <--> events[Event]
-    logQueue <--> events[Event]
-    events[Event] <--> function[Custom Function]
-    
-    style services fill:#E3F2FD,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
-    style events fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
-    style httpService fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
-    style metricService fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
-    style logQueue fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
-    style function fill:#E3F2FD,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
-```
