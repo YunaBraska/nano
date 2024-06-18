@@ -21,6 +21,7 @@ import static berlin.yuna.nano.core.config.TestConfig.TEST_REPEAT;
 import static berlin.yuna.nano.core.config.TestConfig.TEST_TIMEOUT;
 import static berlin.yuna.nano.core.config.TestConfig.await;
 import static berlin.yuna.nano.core.config.TestConfig.waitForStartUp;
+import static berlin.yuna.nano.core.model.Context.APP_HELP;
 import static berlin.yuna.nano.core.model.Context.APP_PARAMS;
 import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_LEVEL;
 import static berlin.yuna.nano.core.model.Context.CONFIG_PARALLEL_SHUTDOWN;
@@ -32,7 +33,6 @@ import static berlin.yuna.nano.core.model.Context.CONTEXT_PARENT_KEY;
 import static berlin.yuna.nano.core.model.Context.CONTEXT_TRACE_ID_KEY;
 import static berlin.yuna.nano.core.model.Context.EVENT_APP_SHUTDOWN;
 import static berlin.yuna.nano.core.model.Context.EVENT_APP_UNHANDLED;
-import static berlin.yuna.nano.core.model.Context.tryExecute;
 import static berlin.yuna.nano.helper.NanoUtils.waitForCondition;
 import static berlin.yuna.nano.model.TestService.TEST_EVENT;
 import static berlin.yuna.nano.services.http.HttpService.EVENT_HTTP_REQUEST;
@@ -53,14 +53,13 @@ class NanoTest {
         assertThat(nano.context().get(String.class, "resource_key1")).isEqualTo("AA");
         assertThat(nano.context().get(String.class, "resource_key2")).isEqualTo("CC");
         assertThat(nano.context()).doesNotContainKey("test_placeholder_fallback_empty");
-        nano.stop(this.getClass());
+        assertThat(nano.stop(this.getClass()).waitForStop().isReady()).isFalse();
     }
 
     @RepeatedTest(TEST_REPEAT)
     void stopViaMethod() {
         final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL));
-        assertThat(nano.stop(this.getClass()).waitForStop()
-        ).isNotNull().isEqualTo(nano);
+        assertThat(nano.stop(this.getClass()).waitForStop()).isNotNull().isEqualTo(nano);
     }
 
     @RepeatedTest(TEST_REPEAT)
@@ -88,7 +87,7 @@ class NanoTest {
     void shutdownServicesInParallelTest_Sync() throws InterruptedException {
         final CountDownLatch latch = new CountDownLatch(8);
         final TestService testService = new TestService();
-        testService.doOnStop(context -> tryExecute(latch::countDown));
+        testService.doOnStop(context -> context.tryExecute(latch::countDown));
 
         final Nano nano1 = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL), testService, testService, testService, testService);
         final Nano nano2 = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL, CONFIG_PARALLEL_SHUTDOWN, true), testService, testService, testService, testService);
@@ -170,7 +169,7 @@ class NanoTest {
 
     @RepeatedTest(TEST_REPEAT)
     void printParameterTest() {
-        final Nano config = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL, APP_PARAMS, true));
+        final Nano config = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL, APP_PARAMS, true, APP_HELP, true));
         assertThat(config).isNotNull();
         assertThat(config.logger().level()).isEqualTo(TEST_LOG_LEVEL);
         assertThat(config.stop(this.getClass()).waitForStop().isReady()).isFalse();
@@ -266,8 +265,8 @@ class NanoTest {
         final CountDownLatch scheduler2Triggered = new CountDownLatch(1);
         final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL));
 
-        nano.run(scheduler1Triggered::countDown, timer, MILLISECONDS);
-        nano.run(scheduler2Triggered::countDown, timer, timer * 2, MILLISECONDS, () -> false);
+        nano.run(null, scheduler1Triggered::countDown, timer, MILLISECONDS);
+        nano.run(null, scheduler2Triggered::countDown, timer, timer * 2, MILLISECONDS, () -> false);
 
         assertThat(scheduler1Triggered.await(TEST_TIMEOUT, MILLISECONDS)).isTrue();
         assertThat(scheduler2Triggered.await(TEST_TIMEOUT, MILLISECONDS)).isTrue();
@@ -282,12 +281,12 @@ class NanoTest {
         final CountDownLatch trigger = new CountDownLatch(2);
         waitForStartUp(nano);
 
-        nano.run(() -> {
+        nano.run(nano::context, () -> {
             trigger.countDown();
             throw new RuntimeException("Nothing to see here, just a test exception");
         }, timer, MILLISECONDS);
 
-        nano.run(() -> {
+        nano.run(nano::context, () -> {
             trigger.countDown();
             throw new RuntimeException("Nothing to see here, just a test exception");
         }, timer, timer * 2, MILLISECONDS, () -> false);

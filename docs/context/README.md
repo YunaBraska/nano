@@ -90,16 +90,18 @@ Example: `test.placeholder.value=${placeholder_value:fallback}`
 
 ### Default Configurations
 
-| Config Name                         | Type    | Description                                                                                                                           |
-|-------------------------------------|---------|---------------------------------------------------------------------------------------------------------------------------------------|
-| help                                | Boolean | Lists available config keys without starting the application                                                                          |
-| app_params_print                    | Boolean | Prints all configured values                                                                                                          |
-| app_profiles                        | String  | Is config for application profiles                                                                                                    | 
-| app_log_level                       | String  | Log level for the application `INFO`, `DEBUG`, `FATAL`, `ERROR`, `WARN`                                                               |
-| app_log_formatter                   | String  | Log formatter `console` or `json`                                                                                                     |
-| app_log_queue_size                  | String  | Log queue size. A full queue means that log messages will start to wait to be executed - only available when using `LogQueue` Service |
-| app_thread_pool_shutdown_timeout_ms | String  | Timeout for thread pool shutdown in milliseconds                                                                                      |
-| app_service_shutdown_parallel       | Boolean | Enable or disable parallel service shutdown. Enabled = Can increase the shutdown performance                                          |
+| Config Name                         | Type    | Description                                                                                                                                                                       |
+|-------------------------------------|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| app_env_prod                        | Boolean | Enable or disable behaviour e.g. exit codes. This is useful in prod environments specially on error cases. default = `false`                                                      |
+| app_log_formatter                   | String  | Log formatter `console` or `json`                                                                                                                                                 |
+| app_log_level                       | String  | Log level for the application `INFO`, `DEBUG`, `FATAL`, `ERROR`, `WARN`                                                                                                           |
+| app_log_queue_size                  | String  | Log queue size. A full queue means that log messages will start to wait to be executed - only available when using `LogQueue` Service                                             |
+| app_oom_shutdown_threshold          | String  | Sets the threshold for heap in percentage to send an `EVENT_APP_OOM`. default = `98`, disabled = `-1`. If the event is unhandled, tha pp will try to shutdown with last resources |
+| app_params_print                    | Boolean | Prints all configured values                                                                                                                                                      |
+| app_profiles                        | String  | Is config for application profiles                                                                                                                                                |
+| app_thread_pool_shutdown_timeout_ms | String  | Timeout for thread pool shutdown in milliseconds                                                                                                                                  |
+| app_service_shutdown_parallel       | Boolean | Enable or disable parallel service shutdown. Enabled = Can increase the shutdown performance                                                                                      |
+| help                                | Boolean | Lists available config keys without starting the application                                                                                                                      |
 
 
 ```mermaid

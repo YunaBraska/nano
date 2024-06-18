@@ -9,6 +9,8 @@ import berlin.yuna.nano.helper.logger.logic.NanoLogger;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
 import berlin.yuna.typemap.logic.ArgsDecoder;
 
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryUsage;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.LinkedHashSet;
@@ -22,8 +24,10 @@ import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 import static berlin.yuna.nano.core.model.Context.APP_HELP;
+import static berlin.yuna.nano.core.model.Context.CONFIG_ENV_PROD;
 import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_FORMATTER;
 import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_LEVEL;
+import static berlin.yuna.nano.core.model.Context.CONTEXT_LOGGER_KEY;
 import static berlin.yuna.nano.core.model.Context.EVENT_APP_LOG_LEVEL;
 import static berlin.yuna.nano.core.model.Context.EVENT_APP_LOG_QUEUE;
 import static berlin.yuna.nano.helper.NanoUtils.addConfig;
@@ -63,9 +67,8 @@ public abstract class NanoBase<T extends NanoBase<T>> {
         this.context = readConfigs(args);
         if (configs != null)
             configs.forEach((key, value) -> context.computeIfAbsent(convertObj(key, String.class), add -> ofNullable(convertObj(value, String.class)).orElse("")));
-        this.logger = new NanoLogger(this)
-            .level(context.getOpt(LogLevel.class, CONFIG_LOG_LEVEL).orElse(LogLevel.DEBUG))
-            .formatter(context.getOpt(Formatter.class, CONFIG_LOG_FORMATTER).orElseGet(() -> LogFormatRegister.getLogFormatter("console")));
+        this.logger = new NanoLogger(this).level(context.getOpt(LogLevel.class, CONFIG_LOG_LEVEL).orElse(LogLevel.DEBUG)).formatter(context.getOpt(Formatter.class, CONFIG_LOG_FORMATTER).orElseGet(() -> LogFormatRegister.getLogFormatter("console")));
+        context.put(CONTEXT_LOGGER_KEY, logger);
         displayHelpMenu();
         subscribeEvent(EVENT_APP_LOG_LEVEL, event -> event.payloadOpt(LogLevel.class).or(() -> event.payloadOpt(Level.class).map(LogLevel::nanoLogLevelOf)).map(this::setLogLevel).ifPresent(nano -> event.acknowledge()));
         subscribeEvent(EVENT_APP_LOG_QUEUE, event -> event.payloadOpt(LogQueue.class).map(logger::logQueue).ifPresent(nano -> event.acknowledge()));
@@ -185,6 +188,16 @@ public abstract class NanoBase<T extends NanoBase<T>> {
     }
 
     /**
+     * Calculates the memory usage of the application in percentage.
+     *
+     * @return Memory usage in percentage, rounded to two decimal places.
+     */
+    public double heapMemoryUsage() {
+        final MemoryUsage heapMemoryUsage = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
+        return BigDecimal.valueOf((double) heapMemoryUsage.getUsed() / heapMemoryUsage.getMax()).setScale(2, RoundingMode.HALF_UP).doubleValue();
+    }
+
+    /**
      * Retrieves the creation timestamp of the instance.
      *
      * @return The timestamp of creation in milliseconds.
@@ -212,8 +225,9 @@ public abstract class NanoBase<T extends NanoBase<T>> {
     protected void displayHelpMenu() {
         if (context.getOpt(Boolean.class, APP_HELP).filter(helpCalled -> helpCalled).isPresent()) {
             final int keyLength = CONFIG_KEYS.keySet().stream().mapToInt(String::length).max().orElse(0);
-            logger.info(() -> "Available configs keys: " + lineSeparator() + CONFIG_KEYS.keySet().stream().map(s -> String.format("%-" + keyLength + "s  %s", s, s)).collect(Collectors.joining(lineSeparator())));
-            System.exit(0);
+            logger.info(() -> "Available configs keys: " + lineSeparator() + CONFIG_KEYS.entrySet().stream().sorted(Map.Entry.comparingByKey()).map(conf -> String.format("%-" + keyLength + "s  %s", conf.getKey(), conf.getValue())).collect(Collectors.joining(lineSeparator())));
+            if (context.getOpt(Boolean.class, CONFIG_ENV_PROD).orElse(false))
+                System.exit(0);
         }
     }
 

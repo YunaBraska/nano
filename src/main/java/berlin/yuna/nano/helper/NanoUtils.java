@@ -22,6 +22,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.zip.DeflaterInputStream;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPInputStream;
@@ -30,6 +32,7 @@ import java.util.zip.GZIPOutputStream;
 import static berlin.yuna.nano.core.NanoBase.standardiseKey;
 import static berlin.yuna.nano.core.model.Context.CONFIG_PROFILES;
 import static java.util.Arrays.stream;
+import static java.util.Optional.ofNullable;
 
 @SuppressWarnings({"UnusedReturnValue", "java:S6548", "java:S2386"})
 public class NanoUtils {
@@ -288,6 +291,36 @@ public class NanoUtils {
             NANO_NAMES[1][random.nextInt(NANO_NAMES[1].length)],
             NANO_NAMES[2][random.nextInt(NANO_NAMES[2].length)]
         );
+    }
+
+    /**
+     * Handles a Java error by logging it and shutting down the application.
+     * Note: it's likely that the application won't handle OOM errors. For OOM see {@link Context#CONFIG_OOM_SHUTDOWN_THRESHOLD}.
+     *
+     * @param context The context to use for logging and shutting down the application.
+     * @param error   The error to handle.
+     */
+    @SuppressWarnings("java:S106") // Standard outputs used instead of logger
+    public static void handleJavaError(final Supplier<Context> context, final Throwable error) {
+        if (error instanceof Error) {
+            ofNullable(context).map(Supplier::get).ifPresentOrElse(ctx -> ctx.logger().fatal(error, () -> "It seems like the dark side of the JVM has struck again. Your scenario [{}]. May the garbage collector be with you!", error.getMessage()), () -> System.err.println(error.getMessage()));
+            System.exit(1);
+        }
+    }
+
+    public static void tryExecute(final Supplier<Context> context, final ExRunnable operation) {
+        tryExecute(context, operation, null);
+    }
+
+    public static void tryExecute(final Supplier<Context> context, final ExRunnable operation, final Consumer<Throwable> consumer) {
+        try {
+            operation.run();
+        } catch (final Throwable exception) {
+            handleJavaError(context, exception);
+            if (consumer != null) {
+                consumer.accept(exception);
+            }
+        }
     }
 
     private NanoUtils() {

@@ -90,6 +90,7 @@ public class HttpService extends Service {
                 server.setExecutor(context.nano().threadPool());
                 server.createContext("/", exchange -> {
                     final HttpObject request = new HttpObject(exchange);
+                    System.out.println("request = " + request);
                     try {
                         final AtomicBoolean internalError = new AtomicBoolean(false);
                         context.sendEventReturn(EVENT_HTTP_REQUEST, request).peek(setError(internalError)).responseOpt(HttpObject.class).ifPresentOrElse(

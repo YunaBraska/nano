@@ -18,6 +18,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_SHUTDOWN;
+import static berlin.yuna.nano.helper.NanoUtils.handleJavaError;
 import static java.util.Optional.ofNullable;
 
 public class NanoThread {
@@ -72,8 +74,7 @@ public class NanoThread {
                 task.run();
                 isComplete.set(true, state -> onCompleteCallbacks.forEach(onComplete -> onComplete.accept(this, null)));
             } catch (final Throwable error) {
-                //TODO: handle OutOfMemory
-                //TODO: handle InternalError
+                handleJavaError(context, error);
                 isComplete.set(true, state -> {
                     if (!onCompleteCallbacks.isEmpty())
                         onCompleteCallbacks.forEach(onComplete -> onComplete.accept(this, error));
@@ -134,7 +135,7 @@ public class NanoThread {
         for (final NanoThread thread : threads) {
             thread.onComplete((nt, error) -> {
                 latch.countDown();
-                if (latch.getCount() <= 0 && onComplete != null) {
+                if (!(error instanceof Error) && latch.getCount() <= 0 && onComplete != null) {
                     onComplete.run();
                 }
             });

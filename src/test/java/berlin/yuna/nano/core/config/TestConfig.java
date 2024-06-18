@@ -7,7 +7,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
-import static berlin.yuna.nano.core.model.Context.tryExecute;
+import static berlin.yuna.nano.helper.NanoUtils.tryExecute;
 import static berlin.yuna.nano.helper.NanoUtils.waitForCondition;
 import static java.util.Optional.ofNullable;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -57,7 +57,7 @@ public class TestConfig {
         final long startTime = System.currentTimeMillis();
         final AtomicReference<T> result = new AtomicReference<>(null);
         while (result.get() == null && (System.currentTimeMillis() - startTime) < timeoutMs) {
-            ofNullable(waitFor.get()).ifPresentOrElse(result::set, () -> tryExecute(() -> Thread.sleep(100)));
+            ofNullable(waitFor.get()).ifPresentOrElse(result::set, () -> tryExecute(null, () -> Thread.sleep(100)));
         }
         return result.get();
     }

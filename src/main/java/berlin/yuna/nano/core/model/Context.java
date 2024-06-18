@@ -4,6 +4,7 @@ import berlin.yuna.nano.core.Nano;
 import berlin.yuna.nano.core.NanoServices;
 import berlin.yuna.nano.core.NanoThreads;
 import berlin.yuna.nano.helper.ExRunnable;
+import berlin.yuna.nano.helper.NanoUtils;
 import berlin.yuna.nano.helper.event.EventChannelRegister;
 import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.helper.logger.LogFormatRegister;
@@ -52,6 +53,8 @@ public class Context extends ConcurrentTypeMap {
     public static final String CONFIG_LOG_QUEUE_SIZE = registerConfig("app_log_queue_size", "Log queue size. A full queue means that log messages will start to wait to be executed (see " + LogQueue.class.getSimpleName() + ")");
     public static final String CONFIG_THREAD_POOL_TIMEOUT_MS = registerConfig("app_thread_pool_shutdown_timeout_ms", "Timeout for thread pool shutdown in milliseconds (see " + NanoThreads.class.getSimpleName() + ")");
     public static final String CONFIG_PARALLEL_SHUTDOWN = registerConfig("app_service_shutdown_parallel", "Enable or disable parallel service shutdown (see " + NanoServices.class.getSimpleName() + "). Enabled = Can increase the shutdown performance on`true`");
+    public static final String CONFIG_OOM_SHUTDOWN_THRESHOLD = registerConfig("app_oom_shutdown_threshold", "Sets the threshold for heap in percentage to send an `EVENT_APP_OOM`. default = `98`, disabled = `-1`. If the event is unhandled, tha pp will try to shutdown with last resources");
+    public static final String CONFIG_ENV_PROD = registerConfig("app_env_prod", "Enable or disable behaviour e.g. exit codes. This is useful in prod environments specially on error cases. default = `false`");
 
     // Register event channels
     public static final int EVENT_APP_START = EventChannelRegister.registerChannelId("APP_START");
@@ -65,6 +68,7 @@ public class Context extends ConcurrentTypeMap {
     public static final int EVENT_APP_SCHEDULER_UNREGISTER = EventChannelRegister.registerChannelId("APP_SCHEDULER_UNREGISTER");
     public static final int EVENT_APP_UNHANDLED = EventChannelRegister.registerChannelId("EVENT_APP_UNHANDLED");
     public static final int EVENT_APP_ERROR = EventChannelRegister.registerChannelId("EVENT_APP_ERROR");
+    public static final int EVENT_APP_OOM = EventChannelRegister.registerChannelId("EVENT_APP_OOM");
     public static final int EVENT_APP_HEARTBEAT = EventChannelRegister.registerChannelId("EVENT_HEARTBEAT");
 
     static {
@@ -242,7 +246,7 @@ public class Context extends ConcurrentTypeMap {
      * @return Self for chaining
      */
     public Context run(final ExRunnable task, final long delay, final TimeUnit timeUnit) {
-        nano().run(task, delay, timeUnit);
+        nano().run(() -> this, task, delay, timeUnit);
         return this;
     }
 
@@ -257,7 +261,7 @@ public class Context extends ConcurrentTypeMap {
      * @return Self for chaining
      */
     public Context run(final ExRunnable task, final long delay, final long period, final TimeUnit unit, final BooleanSupplier until) {
-        nano().run(task, delay, period, unit, until);
+        nano().run(() -> this, task, delay, period, unit, until);
         return this;
     }
 
@@ -451,9 +455,9 @@ public class Context extends ConcurrentTypeMap {
         if (event.channelId() != EVENT_APP_UNHANDLED) {
             nano().sendEventSameThread(event.cache(EVENT_ORIGINAL_CHANNEL_ID, event.channelId()).channelId(EVENT_APP_UNHANDLED).error(throwable), false);
             if (!event.isAcknowledged())
-                logger().error(throwable, () -> "Event [{}]", event.nameOrg());
+                logger().error(throwable, () -> "Event [{}] went rogue.", event.nameOrg());
         } else {
-            logger().error(throwable, () -> "Event [{}]", event.nameOrg());
+            logger().error(throwable, () -> "Event [{}] went rogue.", event.nameOrg());
         }
         return this;
     }
@@ -671,18 +675,12 @@ public class Context extends ConcurrentTypeMap {
         return this.getOpt(Class.class, CONTEXT_CLASS_KEY).orElse(Context.class);
     }
 
-    public static void tryExecute(final ExRunnable operation) {
+    public void tryExecute(final ExRunnable operation) {
         tryExecute(operation, null);
     }
 
-    public static void tryExecute(final ExRunnable operation, final Consumer<Throwable> consumer) {
-        try {
-            operation.run();
-        } catch (final Exception exception) {
-            if (consumer != null) {
-                consumer.accept(exception);
-            }
-        }
+    public void tryExecute(final ExRunnable operation, final Consumer<Throwable> consumer) {
+        NanoUtils.tryExecute(() -> this, operation, consumer);
     }
 
     @Override
