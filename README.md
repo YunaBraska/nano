@@ -93,6 +93,24 @@ dependencies {
 }
 ```
 
+Simple Nano example with [HttpService](docs/services/httpservice/README.md) _(a default service)_
+```java
+public static void main(final String[] args) {
+    // Start Nano with HttpService
+    final Nano app = new Nano(args, new HttpService());
+
+    // listen to /hello
+    app.subscribeEvent(EVENT_HTTP_REQUEST, event -> event.payloadOpt(HttpObject.class)
+        .filter(HttpObject::isMethodGet)
+        .filter(request -> request.pathMatch("/hello"))
+        .ifPresent(request -> request.response().body(Map.of("Hello", System.getProperty("user.name"))).respond(event)));
+
+    // Override error handling for HTTP requests
+    app.subscribeEvent(EVENT_APP_UNHANDLED, event -> event.payloadOpt(HttpObject.class).ifPresent(request ->
+        request.response().body("Internal Server Error [" + event.error().getMessage() + "]").statusCode(500).respond(event)));
+}
+```
+
 ## 🔨 Build Nano
 
 add the native-image profile to your `pom.xml` and run `mvn package -Pnative-image`
