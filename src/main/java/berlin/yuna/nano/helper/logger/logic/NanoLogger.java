@@ -3,6 +3,7 @@ package berlin.yuna.nano.helper.logger.logic;
 import berlin.yuna.nano.helper.logger.model.LogErrorHandler;
 import berlin.yuna.nano.helper.logger.model.LogInfoHandler;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
+import berlin.yuna.typemap.model.TypeMap;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -12,6 +13,10 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+
+import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_LEVEL;
+import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_FORMATTER;
+import static berlin.yuna.nano.core.model.Context.CONTEXT_LOG_QUEUE_KEY;
 
 @SuppressWarnings({"unused", "UnusedReturnValue", "java:S1104"})
 public class NanoLogger {
@@ -138,6 +143,13 @@ public class NanoLogger {
                 javaLogger.log(logRecord);
             }
         }
+        return this;
+    }
+
+    public NanoLogger configure(final TypeMap config) {
+        config.getOpt(LogLevel.class, CONFIG_LOG_LEVEL).ifPresent(this::level);
+        config.getOpt(LogQueue.class, CONTEXT_LOG_QUEUE_KEY).ifPresent(this::logQueue);
+        config.getOpt(Formatter.class, CONFIG_LOG_FORMATTER).ifPresent(this::formatter);
         return this;
     }
 

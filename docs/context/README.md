@@ -4,7 +4,7 @@
 | [Events](../events/README.md)
 | [Logger](../logger/README.md)
 | [Schedulers](../schedulers/README.md)
-| [Services](../services/README.md) 
+| [Services](../services/README.md)
 
 # Context
 
@@ -26,14 +26,17 @@ information including type conversion.
   Integers
 * `context.traceId()` - Get the trace id of the current [Context](../context/README.md)
 * `context.logLevel()` - Get the log level of the current [Context](../context/README.md)
-* `context.logger.info(() -> "Hello {}", "World")` - Log a message with the [Logger](../logger/README.md) at the info level
-* `context.newContext(MyClass.class)` - Create a new [Context](../context/README.md) with a [Logger](../logger/README.md) for the specific class
+* `context.logger.info(() -> "Hello {}", "World")` - Log a message with the [Logger](../logger/README.md) at the info
+  level
+* `context.newContext(MyClass.class)` - Create a new [Context](../context/README.md) with
+  a [Logger](../logger/README.md) for the specific class
 
 #### Events
 
 * `context.registerChannelId("MyEventName")` - Register a new [Event](../events/README.md)  type and get the event id
 * `context.sendEvent(channelId, MyPayloadObject)` - Send an [Event](../events/README.md)  with a payload
-* `context.subscribeEvent(channelId, event -> System.out.println(event))` - Subscribe to an [Event](../events/README.md)  and execute the lambda
+* `context.subscribeEvent(channelId, event -> System.out.println(event))` - Subscribe to an [Event](../events/README.md)
+  and execute the lambda
   when the event is triggered
 * `context.broadcastEvent(channelId, MyPayloadObject)` - Broadcast an [Event](../events/README.md) with a payload
 * `context.eventNameOf(channelId)` - Get the name of an [Event](../events/README.md) from the event id
@@ -41,7 +44,8 @@ information including type conversion.
 
 #### Executors
 
-* `context.run(() -> System.out.println("Scheduled"), 128, 256, MILLISECONDS)` - Run a lambda on a [Schedulers](../schedulers/README.md) with a 128ms delay and 256ms period
+* `context.run(() -> System.out.println("Scheduled"), 128, 256, MILLISECONDS)` - Run a lambda on
+  a [Schedulers](../schedulers/README.md) with a 128ms delay and 256ms period
 * `context.run(() -> System.out.println("Async Task"))` - Run a lambda asynchronously
 * `context.runAwait(() -> System.out.println("Task 1"), ) -> System.out.println("Task 2"))` - Run a lambda
   asynchronously and wait for them to finish
@@ -103,6 +107,20 @@ Example: `test.placeholder.value=${placeholder_value:fallback}`
 | app_service_shutdown_parallel       | Boolean | Enable or disable parallel service shutdown. Enabled = Can increase the shutdown performance                                                                                      |
 | help                                | Boolean | Lists available config keys without starting the application                                                                                                                      |
 
+## Default Events
+
+| In 🔲 <br/> Out 🔳 | [Event](../events/README.md)     | Payload                       | Response | Description                                                                                                                                        |
+|--------------------|----------------------------------|-------------------------------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------|
+| 🔲                 | `EVENT_APP_START`                | `Nano`                        | `N/A`    | Triggered when the Application is started                                                                                                          |
+| 🔲                 | `EVENT_APP_SHUTDOWN`             | `null`                        | `N/A`    | Triggered when the Application shuts down, can be also manually produced to shut down the Application                                              |
+| 🔲                 | `EVENT_APP_SERVICE_REGISTER`     | `Service`                     | `N/A`    | Triggered when a [Service](../services/README.md) is started                                                                                       |
+| 🔲                 | `EVENT_APP_SERVICE_UNREGISTER`   | `Service`                     | `N/A`    | Triggered when a [Service](../services/README.md) is stopped                                                                                       |
+| 🔲                 | `EVENT_APP_SCHEDULER_REGISTER`   | `Scheduler`                   | `N/A`    | Triggered when a [Scheduler](../schedulers/README.md) is started                                                                                   |
+| 🔲                 | `EVENT_APP_SCHEDULER_UNREGISTER` | `Scheduler`                   | `N/A`    | Triggered when a [Scheduler](../schedulers/README.md) is stopped                                                                                   |
+| 🔲                 | `EVENT_APP_UNHANDLED`            | `Unhandled`, `HttpObject`,... | `N/A`    | Triggered when an unhandled error happened within the context                                                                                      |
+| 🔲                 | `EVENT_APP_OOM`                  | `Double`                      | `N/A`    | Triggered when the Application reached out of memory. When the event is not handled, the App will shutdown see config `app_oom_shutdown_threshold` |
+| 🔲                 | `EVENT_APP_HEARTBEAT`            | `Nano`                        | `N/A`    | Send every 256ms                                                                                                                                   |
+| 🔳                 | `EVENT_CONFIG_CHANGE`            | `TypeMap`                     | `N/A`    | Used to change configs on the fly                                                                                                                  |
 
 ```mermaid
 flowchart TD

@@ -5,13 +5,13 @@ import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.core.model.NanoThread;
 import berlin.yuna.nano.core.model.Service;
 import berlin.yuna.nano.helper.event.model.Event;
-import berlin.yuna.nano.helper.logger.logic.LogQueue;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
 import berlin.yuna.nano.services.http.model.ContentType;
 import berlin.yuna.nano.services.http.model.HttpHeaders;
 import berlin.yuna.nano.services.http.model.HttpObject;
 import berlin.yuna.nano.services.metric.model.MetricCache;
 import berlin.yuna.nano.services.metric.model.MetricUpdate;
+import berlin.yuna.typemap.model.TypeMap;
 
 import java.io.File;
 import java.lang.management.BufferPoolMXBean;
@@ -36,9 +36,9 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_LEVEL;
 import static berlin.yuna.nano.core.model.Context.EVENT_APP_HEARTBEAT;
-import static berlin.yuna.nano.core.model.Context.EVENT_APP_LOG_LEVEL;
-import static berlin.yuna.nano.core.model.Context.EVENT_APP_LOG_QUEUE;
+import static berlin.yuna.nano.core.model.Context.EVENT_CONFIG_CHANGE;
 import static berlin.yuna.nano.helper.NanoUtils.tryExecute;
 import static berlin.yuna.nano.helper.config.ConfigRegister.registerConfig;
 import static berlin.yuna.nano.helper.event.EventChannelRegister.registerChannelId;
@@ -102,11 +102,7 @@ public class MetricService extends Service {
         event
             .ifPresentAck(EVENT_APP_HEARTBEAT, Nano.class, this::updateMetrics)
             .ifPresentAck(EVENT_METRIC_UPDATE, MetricUpdate.class, this::updateMetric)
-            .ifPresent(EVENT_APP_LOG_LEVEL, LogLevel.class, level -> {
-                Arrays.stream(LogLevel.values()).filter(other -> other != level).forEach(other -> metrics.gaugeSet("logger", 0, Map.of("level", other.name())));
-                metrics.gaugeSet("logger", 1, Map.of("level", level.name()));
-            })
-            .ifPresent(EVENT_APP_LOG_QUEUE, LogQueue.class, logger::logQueue);
+            .ifPresent(EVENT_CONFIG_CHANGE, TypeMap.class, map -> map.getOpt(LogLevel.class, CONFIG_LOG_LEVEL).ifPresent(level -> metrics.gaugeSet("logger", 1, Map.of("level", level.name()))));
         addMetricsEndpoint(event);
 
     }

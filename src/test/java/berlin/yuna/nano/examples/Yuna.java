@@ -2,31 +2,27 @@ package berlin.yuna.nano.examples;
 
 import berlin.yuna.nano.core.Nano;
 import berlin.yuna.nano.core.model.Context;
-import berlin.yuna.nano.helper.logger.logic.LogQueue;
-import berlin.yuna.nano.helper.logger.model.LogLevel;
 import berlin.yuna.nano.services.http.HttpService;
-import berlin.yuna.nano.services.metric.logic.MetricService;
-import com.sun.tools.javac.Main;
 import org.junit.jupiter.api.Disabled;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.logging.Level;
 
-import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_FORMATTER;
 import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_LEVEL;
-import static berlin.yuna.nano.core.model.Context.CONFIG_OOM_SHUTDOWN_THRESHOLD;
+import static berlin.yuna.nano.core.model.Context.EVENT_CONFIG_CHANGE;
 
 @Disabled
 public class Yuna {
 
     public static void main(final String[] args) throws IOException, InterruptedException {
 
-        //TODO: config change event
-//
 //        // Plain Nano
         final Nano nano = new Nano(Map.of("help", true), new HttpService());
         final Context context = nano.context(Yuna.class);
-        context.put("_app_exit_code", 127);
+        nano.logger().info(() -> "Hello World 1");
+        context.sendEvent(EVENT_CONFIG_CHANGE, Map.of(CONFIG_LOG_LEVEL, Level.OFF));
+        nano.logger().info(() -> "Hello World 2");
         nano.stop(context);
 //
 //        // Nano with configuration
@@ -42,7 +38,6 @@ public class Yuna {
 //                .filter(request -> request.pathMatch("/hello"))
 //                .ifPresent(request -> request.response().body(System.getProperty("user.name")).send(event))
 //            );
-
 
 
         //TODO: Dynamic Queues to Services

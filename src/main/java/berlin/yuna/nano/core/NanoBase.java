@@ -4,10 +4,10 @@ import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.helper.LockedBoolean;
 import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.helper.logger.LogFormatRegister;
-import berlin.yuna.nano.helper.logger.logic.LogQueue;
 import berlin.yuna.nano.helper.logger.logic.NanoLogger;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
 import berlin.yuna.typemap.logic.ArgsDecoder;
+import berlin.yuna.typemap.model.TypeMap;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryUsage;
@@ -20,7 +20,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.logging.Formatter;
-import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 import static berlin.yuna.nano.core.model.Context.APP_HELP;
@@ -28,8 +27,7 @@ import static berlin.yuna.nano.core.model.Context.CONFIG_ENV_PROD;
 import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_FORMATTER;
 import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_LEVEL;
 import static berlin.yuna.nano.core.model.Context.CONTEXT_LOGGER_KEY;
-import static berlin.yuna.nano.core.model.Context.EVENT_APP_LOG_LEVEL;
-import static berlin.yuna.nano.core.model.Context.EVENT_APP_LOG_QUEUE;
+import static berlin.yuna.nano.core.model.Context.EVENT_CONFIG_CHANGE;
 import static berlin.yuna.nano.helper.NanoUtils.addConfig;
 import static berlin.yuna.nano.helper.NanoUtils.readConfigFiles;
 import static berlin.yuna.nano.helper.NanoUtils.resolvePlaceHolders;
@@ -70,8 +68,7 @@ public abstract class NanoBase<T extends NanoBase<T>> {
         this.logger = new NanoLogger(this).level(context.getOpt(LogLevel.class, CONFIG_LOG_LEVEL).orElse(LogLevel.DEBUG)).formatter(context.getOpt(Formatter.class, CONFIG_LOG_FORMATTER).orElseGet(() -> LogFormatRegister.getLogFormatter("console")));
         context.put(CONTEXT_LOGGER_KEY, logger);
         displayHelpMenu();
-        subscribeEvent(EVENT_APP_LOG_LEVEL, event -> event.payloadOpt(LogLevel.class).or(() -> event.payloadOpt(Level.class).map(LogLevel::nanoLogLevelOf)).map(this::setLogLevel).ifPresent(nano -> event.acknowledge()));
-        subscribeEvent(EVENT_APP_LOG_QUEUE, event -> event.payloadOpt(LogQueue.class).map(logger::logQueue).ifPresent(nano -> event.acknowledge()));
+        subscribeEvent(EVENT_CONFIG_CHANGE, event -> event.payloadOpt(TypeMap.class).map(this::putAll).ifPresent(nano -> event.acknowledge()));
     }
 
     /**
@@ -107,6 +104,12 @@ public abstract class NanoBase<T extends NanoBase<T>> {
      * @return An instance of {@link Event} that represents the event being processed. This object can be used for further operations or tracking.
      */
     abstract Event sendEventReturn(final int type, final Context context, final Object payload, final Consumer<Object> responseListener, final boolean broadCast);
+
+    public NanoBase<T> putAll(final TypeMap map) {
+        context.putAll(map);
+        logger.configure(map);
+        return this;
+    }
 
     /**
      * Initiates the shutdown process for the {@link Nano} instance.

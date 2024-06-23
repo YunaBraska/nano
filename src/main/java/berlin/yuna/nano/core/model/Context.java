@@ -14,8 +14,10 @@ import berlin.yuna.nano.helper.logger.model.LogLevel;
 import berlin.yuna.nano.services.http.model.ContentType;
 import berlin.yuna.nano.services.http.model.HttpMethod;
 import berlin.yuna.typemap.model.ConcurrentTypeMap;
+import berlin.yuna.typemap.model.TypeMap;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -59,9 +61,6 @@ public class Context extends ConcurrentTypeMap {
     // Register event channels
     public static final int EVENT_APP_START = EventChannelRegister.registerChannelId("APP_START");
     public static final int EVENT_APP_SHUTDOWN = EventChannelRegister.registerChannelId("APP_SHUTDOWN");
-    public static final int EVENT_APP_LOG_LEVEL = EventChannelRegister.registerChannelId("APP_LOGLEVEL");
-    public static final int EVENT_APP_LOG_QUEUE = EventChannelRegister.registerChannelId("APP_LOG_QUEUE_EVENT");
-    public static final int EVENT_APP_LOG_FORMATTER = EventChannelRegister.registerChannelId("APP_LOG_FORMATTER_EVENT");
     public static final int EVENT_APP_SERVICE_REGISTER = EventChannelRegister.registerChannelId("APP_SERVICE_REGISTER");
     public static final int EVENT_APP_SERVICE_UNREGISTER = EventChannelRegister.registerChannelId("APP_SERVICE_UNREGISTER");
     public static final int EVENT_APP_SCHEDULER_REGISTER = EventChannelRegister.registerChannelId("APP_SCHEDULER_REGISTER");
@@ -70,6 +69,7 @@ public class Context extends ConcurrentTypeMap {
     public static final int EVENT_APP_ERROR = EventChannelRegister.registerChannelId("EVENT_APP_ERROR");
     public static final int EVENT_APP_OOM = EventChannelRegister.registerChannelId("EVENT_APP_OOM");
     public static final int EVENT_APP_HEARTBEAT = EventChannelRegister.registerChannelId("EVENT_HEARTBEAT");
+    public static final int EVENT_CONFIG_CHANGE = EventChannelRegister.registerChannelId("EVENT_CONFIG_CHANGE");
 
     static {
         // Register type converters
@@ -199,6 +199,13 @@ public class Context extends ConcurrentTypeMap {
 
     //########## CHAINING HELPERS ##########
 
+    @Override
+    public void putAll(final Map<?, ?> map) {
+        super.putAll(map);
+        // Auto change logger
+        getOpt(NanoLogger.class, CONTEXT_LOGGER_KEY).ifPresent(logger -> logger.configure(map instanceof final TypeMap typeMap ? typeMap : new TypeMap(map)));
+    }
+
     /**
      * Puts a key-value pair into the context.
      *
@@ -210,6 +217,22 @@ public class Context extends ConcurrentTypeMap {
     public Context put(final Object key, final Object value) {
         // ConcurrentHashMap does not allow null keys or values.
         super.put(key, value != null ? value : "");
+        // Auto change logger
+        getOpt(NanoLogger.class, CONTEXT_LOGGER_KEY).ifPresent(logger -> logger.configure(new TypeMap().putReturn(key, value)));
+        return this;
+    }
+
+    /**
+     * Associates the specified value with the specified key in this map.
+     *
+     * @param key   the key with which the specified value is to be associated.
+     * @param value the value to be associated with the specified key.
+     * @return the updated {@link ConcurrentTypeMap} instance for chaining.
+     */
+    @Override
+    public Context putReturn(final Object key, final Object value) {
+        // ConcurrentHashMap does not allow null keys or values.
+        this.put(key, value);
         return this;
     }
 

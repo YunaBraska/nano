@@ -2,18 +2,16 @@ package berlin.yuna.nano.core.model;
 
 import berlin.yuna.nano.helper.LockedBoolean;
 import berlin.yuna.nano.helper.event.model.Event;
-import berlin.yuna.nano.helper.logger.logic.LogQueue;
 import berlin.yuna.nano.helper.logger.logic.NanoLogger;
-import berlin.yuna.nano.helper.logger.model.LogLevel;
 import berlin.yuna.nano.services.metric.model.MetricType;
 import berlin.yuna.nano.services.metric.model.MetricUpdate;
+import berlin.yuna.typemap.model.TypeMap;
 
 import java.util.Map;
 import java.util.function.Supplier;
 
-import static berlin.yuna.nano.core.model.Context.EVENT_APP_LOG_LEVEL;
-import static berlin.yuna.nano.core.model.Context.EVENT_APP_LOG_QUEUE;
 import static berlin.yuna.nano.core.model.Context.EVENT_APP_SERVICE_REGISTER;
+import static berlin.yuna.nano.core.model.Context.EVENT_CONFIG_CHANGE;
 import static berlin.yuna.nano.services.metric.logic.MetricService.EVENT_METRIC_UPDATE;
 import static java.util.Arrays.stream;
 
@@ -37,8 +35,7 @@ public abstract class Service {
     public abstract Object onFailure(final Event error);
 
     public void onEvent(final Event event) {
-        event.ifPresent(EVENT_APP_LOG_LEVEL, LogLevel.class, logger::level);
-        event.ifPresent(EVENT_APP_LOG_QUEUE, LogQueue.class, logger::logQueue);
+        event.ifPresent(EVENT_CONFIG_CHANGE, TypeMap.class, logger::configure);
     }
 
     public NanoLogger logger() {

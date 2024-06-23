@@ -27,15 +27,16 @@
 
 **Back to basics and forget about frameworks!**
 
-Nano is a lightweight concept which makes it easier for developer to write microservices in 
+Nano is a lightweight concept which makes it easier for developer to write microservices in
 **functional, fluent, chaining, plain, modern java** with a nano footprint.
 Nano is also designed to be fully compilable with [GraalVM](https://www.graalvm.org) to create native executables.
 
 ## 📐 Core Concept
 
 Nano handles threads for you and provides a basic construct for event driven architecture.
-It's providing a simple way to write microservices in a functional fluent and chaining style, so that **objects are less
-needed**. Nano provides full access to all internal components, resulting in very few private methods or fields.
+It's providing a simple way to write microservices in a functional fluent and chaining style.
+**Objects are less needed** thanks to the underlying [TypeMap](https://github.com/YunaBraska/type-map).
+Nano provides full access to all internal components, resulting in very few private methods or fields.
 
 [Read more...](docs/info/concept/README.md)
 
@@ -94,6 +95,7 @@ dependencies {
 ```
 
 Simple Nano example with [HttpService](docs/services/httpservice/README.md) _(a default service)_
+
 ```java
 public static void main(final String[] args) {
     // Start Nano with HttpService

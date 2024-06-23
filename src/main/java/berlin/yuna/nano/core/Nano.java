@@ -9,6 +9,7 @@ import berlin.yuna.nano.helper.logger.logic.LogQueue;
 import berlin.yuna.nano.helper.logger.logic.NanoLogger;
 import berlin.yuna.nano.services.metric.model.MetricUpdate;
 import berlin.yuna.typemap.model.FunctionOrNull;
+import berlin.yuna.typemap.model.TypeMap;
 
 import java.lang.management.ManagementFactory;
 import java.net.InetAddress;
@@ -31,6 +32,8 @@ import static berlin.yuna.nano.core.model.Context.CONTEXT_NANO_KEY;
 import static berlin.yuna.nano.core.model.Context.EVENT_APP_HEARTBEAT;
 import static berlin.yuna.nano.core.model.Context.EVENT_APP_OOM;
 import static berlin.yuna.nano.core.model.Context.EVENT_APP_SHUTDOWN;
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_START;
+import static berlin.yuna.nano.core.model.Context.EVENT_CONFIG_CHANGE;
 import static berlin.yuna.nano.helper.NanoUtils.generateNanoName;
 import static berlin.yuna.nano.helper.event.EventChannelRegister.eventNameOf;
 import static berlin.yuna.nano.services.metric.logic.MetricService.EVENT_METRIC_UPDATE;
@@ -125,6 +128,7 @@ public class Nano extends NanoServices<Nano> {
         subscribeEvent(EVENT_APP_SHUTDOWN, event -> event.acknowledge(() -> CompletableFuture.runAsync(() -> shutdown(event.context()))));
         // INIT CLEANUP TASK - just for safety
         subscribeEvent(EVENT_APP_HEARTBEAT, this::cleanUps);
+        sendEvent(EVENT_APP_START, context, this, result -> {}, true);
     }
 
     /**
@@ -231,7 +235,7 @@ public class Nano extends NanoServices<Nano> {
      * @return An instance of {@link Event} that represents the event being processed. This object can be used for further operations or tracking.
      */
     public Event sendEventReturn(final int channelId, final Context context, final Object payload, final Consumer<Object> responseListener, final boolean broadCast) {
-        final Event event = new Event(channelId, context, payload, responseListener);
+        final Event event = new Event(channelId, context, channelId == EVENT_CONFIG_CHANGE && payload instanceof final Map<?, ?> map ? new TypeMap(map) : payload, responseListener);
         if (responseListener == null) {
             sendEventSameThread(event, broadCast);
         } else {
