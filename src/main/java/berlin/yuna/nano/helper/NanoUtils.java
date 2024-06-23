@@ -1,14 +1,18 @@
 package berlin.yuna.nano.helper;
 
+import berlin.yuna.nano.core.Nano;
 import berlin.yuna.nano.core.NanoBase;
 import berlin.yuna.nano.core.NanoServices;
 import berlin.yuna.nano.core.NanoThreads;
 import berlin.yuna.nano.core.model.Context;
+import berlin.yuna.nano.core.model.NanoThread;
 import berlin.yuna.nano.core.model.Scheduler;
 import berlin.yuna.nano.core.model.Service;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,14 +22,19 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.zip.DeflaterInputStream;
+import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 import static berlin.yuna.nano.core.NanoBase.standardiseKey;
-import static berlin.yuna.nano.core.model.Config.CONFIG_PROFILES;
+import static berlin.yuna.nano.core.model.Context.CONFIG_PROFILES;
 import static java.util.Arrays.stream;
+import static java.util.Optional.ofNullable;
 
-@SuppressWarnings({"UnusedReturnValue", "java:S6548"})
+@SuppressWarnings({"UnusedReturnValue", "java:S6548", "java:S2386"})
 public class NanoUtils {
 
     public static final String LINE_SEPARATOR = System.lineSeparator();
@@ -135,6 +144,7 @@ public class NanoUtils {
             Service.class.getName(),
             NanoBase.class.getName(),
             NanoUtils.class.getName(),
+            NanoThread.class.getName(),
             NanoThreads.class.getName(),
             NanoServices.class.getName()
         );
@@ -159,7 +169,7 @@ public class NanoUtils {
 
     // ########## NANO CONFIGS ##########
     public static Context readConfigFiles(final Context context, final String profile) {
-        final Context result = context != null ? context : Context.createRootContext();
+        final Context result = context != null ? context : Context.createRootContext(Nano.class);
         final List<String> scannedProfiles = result.getList(ArrayList::new, String.class, "_scanned_profiles");
         if (scannedProfiles.contains(profile))
             return result;
@@ -184,7 +194,7 @@ public class NanoUtils {
 
     public static Context readProfiles(final Context result) {
         for (final String pConfig : new String[]{
-            CONFIG_PROFILES.id(),
+            CONFIG_PROFILES,
             "app_profile",
             "spring_profiles_active",
             "spring_profile_active",
@@ -231,6 +241,17 @@ public class NanoUtils {
         return context;
     }
 
+    public static byte[] encodeGzip(final byte[] data) {
+        try (final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+             final GZIPOutputStream gzipOutputStream = new GZIPOutputStream(outputStream)) {
+            gzipOutputStream.write(data);
+            gzipOutputStream.finish();
+            return outputStream.toByteArray();
+        } catch (final IOException ignored) {
+            return data;
+        }
+    }
+
     public static byte[] decodeGzip(final byte[] data) {
         try (final ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
              final GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
@@ -249,6 +270,17 @@ public class NanoUtils {
         }
     }
 
+    public static byte[] encodeDeflate(final byte[] data) {
+        try (final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+             final DeflaterOutputStream deflaterOutputStream = new DeflaterOutputStream(outputStream)) {
+            deflaterOutputStream.write(data);
+            deflaterOutputStream.finish();
+            return outputStream.toByteArray();
+        } catch (final IOException ignored) {
+            return data;
+        }
+    }
+
     public static String generateNanoName(final String format) {
         if (random == null) {
             random = new Random();
@@ -259,6 +291,36 @@ public class NanoUtils {
             NANO_NAMES[1][random.nextInt(NANO_NAMES[1].length)],
             NANO_NAMES[2][random.nextInt(NANO_NAMES[2].length)]
         );
+    }
+
+    /**
+     * Handles a Java error by logging it and shutting down the application.
+     * Note: it's likely that the application won't handle OOM errors. For OOM see {@link Context#CONFIG_OOM_SHUTDOWN_THRESHOLD}.
+     *
+     * @param context The context to use for logging and shutting down the application.
+     * @param error   The error to handle.
+     */
+    @SuppressWarnings("java:S106") // Standard outputs used instead of logger
+    public static void handleJavaError(final Supplier<Context> context, final Throwable error) {
+        if (error instanceof Error) {
+            ofNullable(context).map(Supplier::get).ifPresentOrElse(ctx -> ctx.logger().fatal(error, () -> "It seems like the dark side of the JVM has struck again. Your scenario [{}]. May the garbage collector be with you!", error.getMessage()), () -> System.err.println(error.getMessage()));
+            System.exit(1);
+        }
+    }
+
+    public static void tryExecute(final Supplier<Context> context, final ExRunnable operation) {
+        tryExecute(context, operation, null);
+    }
+
+    public static void tryExecute(final Supplier<Context> context, final ExRunnable operation, final Consumer<Throwable> consumer) {
+        try {
+            operation.run();
+        } catch (final Throwable exception) {
+            handleJavaError(context, exception);
+            if (consumer != null) {
+                consumer.accept(exception);
+            }
+        }
     }
 
     private NanoUtils() {

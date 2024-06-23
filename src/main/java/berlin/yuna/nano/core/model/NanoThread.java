@@ -9,11 +9,17 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.*;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_SHUTDOWN;
+import static berlin.yuna.nano.helper.NanoUtils.handleJavaError;
 import static java.util.Optional.ofNullable;
 
 public class NanoThread {
@@ -31,8 +37,6 @@ public class NanoThread {
 
     public NanoThread(final Context context) {
         this.context = context;
-        if (context != null)
-            context.logger(this.getClass());
     }
 
     public Context context() {
@@ -70,11 +74,13 @@ public class NanoThread {
                 task.run();
                 isComplete.set(true, state -> onCompleteCallbacks.forEach(onComplete -> onComplete.accept(this, null)));
             } catch (final Throwable error) {
-                //TODO: handle OutOfMemory
-                //TODO: handle InternalError
-                isComplete.set(true, state -> onCompleteCallbacks.forEach(onComplete -> onComplete.accept(this, error)));
-                ofNullable(context).filter(ctx -> onCompleteCallbacks.isEmpty()).map(Supplier::get).ifPresent(ctx -> ctx
-                    .sendEventError(task, error, () -> "Unhandled Exception [{}]", error.getClass().getSimpleName()));
+                handleJavaError(context, error);
+                isComplete.set(true, state -> {
+                    if (!onCompleteCallbacks.isEmpty())
+                        onCompleteCallbacks.forEach(onComplete -> onComplete.accept(this, error));
+                    else
+                        ofNullable(context).map(Supplier::get).ifPresent(ctx -> ctx.sendEventError(task, error));
+                });
             } finally {
                 activeNanoThreadCount.decrementAndGet();
             }
@@ -129,7 +135,7 @@ public class NanoThread {
         for (final NanoThread thread : threads) {
             thread.onComplete((nt, error) -> {
                 latch.countDown();
-                if (latch.getCount() <= 0 && onComplete != null) {
+                if (!(error instanceof Error) && latch.getCount() <= 0 && onComplete != null) {
                     onComplete.run();
                 }
             });

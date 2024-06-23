@@ -5,14 +5,13 @@ import berlin.yuna.nano.core.model.Service;
 import berlin.yuna.nano.helper.ExRunnable;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import static berlin.yuna.nano.core.model.Config.CONFIG_PARALLEL_SHUTDOWN;
-import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_SERVICE_REGISTER;
-import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_SERVICE_UNREGISTER;
+import static berlin.yuna.nano.core.model.Context.CONFIG_PARALLEL_SHUTDOWN;
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_SERVICE_REGISTER;
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_SERVICE_UNREGISTER;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.unmodifiableList;
 
@@ -87,17 +86,15 @@ public abstract class NanoServices<T extends NanoServices<T>> extends NanoThread
      * @param context The {@link Context} in which the services are shut down.
      */
     protected void shutdownServices(final Context context) {
-        if (context.getOpt(Boolean.class, CONFIG_PARALLEL_SHUTDOWN.id()).orElse(false)) {
+        if (context.getOpt(Boolean.class, CONFIG_PARALLEL_SHUTDOWN).orElse(false)) {
             try {
                 context.runAwait(services.stream().map(service -> (ExRunnable) () -> unregisterService(context, service)).toArray(ExRunnable[]::new));
             } catch (final Exception err) {
-                logger.fatal(err, () -> "[{}] shutdown error", Service.class.getSimpleName());
+                logger.fatal(err, () -> "Service [{}] shutdown error. Looks like the Death Star blew up again.", Service.class.getSimpleName());
                 Thread.currentThread().interrupt();
             }
         } else {
-            final List<Service> servicesList = new ArrayList<>(services);
-            Collections.reverse(servicesList);
-            servicesList.forEach(service -> unregisterService(context, service));
+            new ArrayList<>(services).reversed().forEach(service -> unregisterService(context, service));
         }
     }
 
@@ -129,7 +126,7 @@ public abstract class NanoServices<T extends NanoServices<T>> extends NanoThread
             try {
                 service.stop(() -> context);
             } catch (final Exception e) {
-                logger.warn(e, () -> "Stop [{}] error", service.name());
+                logger.warn(e, () -> "Stop [{}] error. Somebody call the Ghostbusters!", service.name());
             }
         }
         return (T) this;

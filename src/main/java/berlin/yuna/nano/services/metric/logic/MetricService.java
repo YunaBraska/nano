@@ -1,30 +1,49 @@
 package berlin.yuna.nano.services.metric.logic;
 
-import berlin.yuna.nano.core.model.Config;
+import berlin.yuna.nano.core.Nano;
 import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.core.model.NanoThread;
 import berlin.yuna.nano.core.model.Service;
-import berlin.yuna.nano.core.model.Unhandled;
 import berlin.yuna.nano.helper.event.model.Event;
-import berlin.yuna.nano.helper.logger.logic.LogQueue;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
 import berlin.yuna.nano.services.http.model.ContentType;
 import berlin.yuna.nano.services.http.model.HttpHeaders;
 import berlin.yuna.nano.services.http.model.HttpObject;
 import berlin.yuna.nano.services.metric.model.MetricCache;
 import berlin.yuna.nano.services.metric.model.MetricUpdate;
-import berlin.yuna.nano.core.Nano;
+import berlin.yuna.typemap.model.TypeMap;
 
 import java.io.File;
-import java.lang.management.*;
-import java.util.*;
+import java.lang.management.BufferPoolMXBean;
+import java.lang.management.ClassLoadingMXBean;
+import java.lang.management.CompilationMXBean;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryPoolMXBean;
+import java.lang.management.MemoryType;
+import java.lang.management.MemoryUsage;
+import java.lang.management.OperatingSystemMXBean;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static berlin.yuna.nano.helper.event.model.EventType.*;
+import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_LEVEL;
+import static berlin.yuna.nano.core.model.Context.EVENT_APP_HEARTBEAT;
+import static berlin.yuna.nano.core.model.Context.EVENT_CONFIG_CHANGE;
+import static berlin.yuna.nano.helper.NanoUtils.tryExecute;
+import static berlin.yuna.nano.helper.config.ConfigRegister.registerConfig;
+import static berlin.yuna.nano.helper.event.EventChannelRegister.registerChannelId;
+import static berlin.yuna.nano.services.http.HttpService.EVENT_HTTP_REQUEST;
+
 
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class MetricService extends Service {
@@ -34,22 +53,32 @@ public class MetricService extends Service {
     protected String influx;
     protected String wavefront;
 
+    // Register configurations
+    public static final String CONFIG_METRIC_SERVICE_BASE_PATH = registerConfig("app_service_metrics_base_url", "Base path for the metric service");
+    public static final String CONFIG_METRIC_SERVICE_PROMETHEUS_PATH = registerConfig("app_service_prometheus_metrics_url", "Prometheus path for the metric service");
+    public static final String CONFIG_METRIC_SERVICE_INFLUX_PATH = registerConfig("app_service_influx_metrics_url", "Influx path for the metric service");
+    public static final String CONFIG_METRIC_SERVICE_WAVEFRONT_PATH = registerConfig("app_service_wavefront_metrics_url", "Wavefront path for the metric service");
+    public static final String CONFIG_METRIC_SERVICE_DYNAMO_PATH = registerConfig("app_service_dynamo_metrics_url", "Dynamo path for the metric service");
+
+    // Register event channels
+    public static final int EVENT_METRIC_UPDATE = registerChannelId("EVENT_METRIC_UPDATE");
+
     public MetricService() {
         super(null, false);
     }
 
     @Override
     public void start(final Supplier<Context> contextSupplier) {
-        AtomicReference<Optional<String>> basePath = new AtomicReference<>(Optional.empty());
+        final AtomicReference<Optional<String>> basePath = new AtomicReference<>(Optional.empty());
         isReady.set(false, true, run -> {
-            updateSystemMetrics();
-            basePath.set(Optional.ofNullable(contextSupplier.get().get(String.class, Config.CONFIG_METRIC_SERVICE_BASE_PATH.id())).or(() -> Optional.of("/metrics")));
+            updateSystemMetrics(contextSupplier);
+            basePath.set(Optional.ofNullable(contextSupplier.get().get(String.class, CONFIG_METRIC_SERVICE_BASE_PATH)).or(() -> Optional.of("/metrics")));
         });
 
-        prometheusPath = contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_PROMETHEUS_PATH.id()).orElseGet(() -> basePath.get().map(base -> base + "/prometheus").orElse(null));
-        dynamoPath = contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_DYNAMO_PATH.id()).orElseGet(() -> basePath.get().map(base -> base + "/dynamo").orElse(null));
-        influx = contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_INFLUX_PATH.id()).orElseGet(() -> basePath.get().map(base -> base + "/influx").orElse(null));
-        wavefront = contextSupplier.get().getOpt(String.class, Config.CONFIG_METRIC_SERVICE_WAVEFRONT_PATH.id()).orElseGet(() -> basePath.get().map(base -> base + "/wavefront").orElse(null));
+        prometheusPath = contextSupplier.get().getOpt(String.class, CONFIG_METRIC_SERVICE_PROMETHEUS_PATH).orElseGet(() -> basePath.get().map(base -> base + "/prometheus").orElse(null));
+        dynamoPath = contextSupplier.get().getOpt(String.class, CONFIG_METRIC_SERVICE_DYNAMO_PATH).orElseGet(() -> basePath.get().map(base -> base + "/dynamo").orElse(null));
+        influx = contextSupplier.get().getOpt(String.class, CONFIG_METRIC_SERVICE_INFLUX_PATH).orElseGet(() -> basePath.get().map(base -> base + "/influx").orElse(null));
+        wavefront = contextSupplier.get().getOpt(String.class, CONFIG_METRIC_SERVICE_WAVEFRONT_PATH).orElseGet(() -> basePath.get().map(base -> base + "/wavefront").orElse(null));
     }
 
     @Override
@@ -63,7 +92,7 @@ public class MetricService extends Service {
     }
 
     @Override
-    public Object onFailure(final Unhandled error) {
+    public Object onFailure(final Event error) {
         return null;
     }
 
@@ -73,16 +102,12 @@ public class MetricService extends Service {
         event
             .ifPresentAck(EVENT_APP_HEARTBEAT, Nano.class, this::updateMetrics)
             .ifPresentAck(EVENT_METRIC_UPDATE, MetricUpdate.class, this::updateMetric)
-            .ifPresent(EVENT_APP_LOG_LEVEL, LogLevel.class, level -> {
-                Arrays.stream(LogLevel.values()).filter(other -> other != level).forEach(other -> metrics.gaugeSet("logger", 0, Map.of("level", other.name())));
-                metrics.gaugeSet("logger", 1, Map.of("level", level.name()));
-            })
-            .ifPresent(EVENT_APP_LOG_QUEUE, LogQueue.class, logger::logQueue);
+            .ifPresent(EVENT_CONFIG_CHANGE, TypeMap.class, map -> map.getOpt(LogLevel.class, CONFIG_LOG_LEVEL).ifPresent(level -> metrics.gaugeSet("logger", 1, Map.of("level", level.name()))));
         addMetricsEndpoint(event);
 
     }
 
-    protected void addMetricsEndpoint(Event event) {
+    protected void addMetricsEndpoint(final Event event) {
         event
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
                 Optional.ofNullable(prometheusPath)
@@ -92,7 +117,8 @@ public class MetricService extends Service {
                         request.response()
                             .statusCode(200)
                             .body(metrics.prometheus())
-                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event)
+                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN))
+                            .respond(event)
                     )
             )
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
@@ -103,7 +129,8 @@ public class MetricService extends Service {
                         request.response()
                             .statusCode(200)
                             .body(metrics.dynatrace())
-                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event)
+                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN))
+                            .respond(event)
                     )
             )
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
@@ -114,7 +141,8 @@ public class MetricService extends Service {
                         request.response()
                             .statusCode(200)
                             .body(metrics.influx())
-                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event)
+                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN))
+                            .respond(event)
                     )
             )
             .ifPresent(EVENT_HTTP_REQUEST, HttpObject.class, request ->
@@ -125,7 +153,8 @@ public class MetricService extends Service {
                         request.response()
                             .statusCode(200)
                             .body(metrics.wavefront())
-                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN)).send(event)
+                            .headerMap(Map.of(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN))
+                            .respond(event)
                     )
             );
     }
@@ -145,15 +174,15 @@ public class MetricService extends Service {
 
     public MetricService updateMetrics(final Nano nano) {
         updateNanoMetrics(nano);
-        updateCpuMetrics();
-        updateDiscMetrics();
-        updateMemoryMetrics();
-        updatePoolMetrics();
-        updateThreadMetrics();
-        updateBufferMetrics();
-        updateClassLoaderMetrics();
-        updateCompilerMetrics();
-        Context.tryExecute(() -> {
+        updateCpuMetrics(nano::context);
+        updateDiscMetrics(nano::context);
+        updateMemoryMetrics(nano::context);
+        updatePoolMetrics(nano::context);
+        updateThreadMetrics(nano::context);
+        updateBufferMetrics(nano::context);
+        updateClassLoaderMetrics(nano::context);
+        updateCompilerMetrics(nano);
+        nano.context().tryExecute(() -> {
             metrics.gaugeSet("service.metrics.gauges", metrics.gauges().size());
             metrics.gaugeSet("service.metrics.timers", metrics.timers().size());
             metrics.gaugeSet("service.metrics.counters", metrics.counters().size());
@@ -162,8 +191,8 @@ public class MetricService extends Service {
         return this;
     }
 
-    public void updateCompilerMetrics() {
-        Context.tryExecute(() -> {
+    public void updateCompilerMetrics(final Nano nano) {
+        nano.context().tryExecute(() -> {
             final CompilationMXBean compilationMXBean = ManagementFactory.getCompilationMXBean();
             if (compilationMXBean.isCompilationTimeMonitoringSupported()) {
                 metrics.gaugeSet("jvm.compilation.time.ms", compilationMXBean.getTotalCompilationTime());
@@ -171,16 +200,16 @@ public class MetricService extends Service {
         });
     }
 
-    public void updateClassLoaderMetrics() {
-        Context.tryExecute(() -> {
+    public void updateClassLoaderMetrics(final Supplier<Context> context) {
+        tryExecute(context, () -> {
             final ClassLoadingMXBean classLoadingMXBean = ManagementFactory.getClassLoadingMXBean();
             metrics.gaugeSet("jvm.classes.loaded", classLoadingMXBean.getLoadedClassCount());
             metrics.gaugeSet("jvm.classes.unloaded", classLoadingMXBean.getUnloadedClassCount());
         });
     }
 
-    public void updateBufferMetrics() {
-        Context.tryExecute(() -> {
+    public void updateBufferMetrics(final Supplier<Context> context) {
+        tryExecute(context, () -> {
             final String suffix = ".bytes";
             for (final BufferPoolMXBean pool : ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class)) {
                 final Map<String, String> tags = new HashMap<>();
@@ -192,13 +221,13 @@ public class MetricService extends Service {
         });
     }
 
-    public void updateThreadMetrics() {
-        Context.tryExecute(() -> {
+    public void updateThreadMetrics(final Supplier<Context> context) {
+        tryExecute(context, () -> {
             metrics.gaugeSet("jvm.threads.live", Thread.activeCount());
             metrics.gaugeSet("jvm.threads.nano", NanoThread.activeNanoThreads());
             metrics.gaugeSet("jvm.threads.carrier", NanoThread.activeCarrierThreads());
         });
-        Context.tryExecute(() -> {
+        tryExecute(context, () -> {
             final ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
             metrics.gaugeSet("jvm.threads.daemon", threadMXBean.getDaemonThreadCount());
             metrics.gaugeSet("jvm.threads.live", threadMXBean.getThreadCount());
@@ -211,8 +240,8 @@ public class MetricService extends Service {
         });
     }
 
-    public void updatePoolMetrics() {
-        Context.tryExecute(() -> {
+    public void updatePoolMetrics(final Supplier<Context> context) {
+        tryExecute(context, () -> {
             final List<MemoryPoolMXBean> pools = ManagementFactory.getMemoryPoolMXBeans();
             for (final MemoryPoolMXBean pool : pools) {
                 final String area = pool.getType() == MemoryType.HEAP ? "heap" : "nonheap";
@@ -225,8 +254,8 @@ public class MetricService extends Service {
         });
     }
 
-    public void updateMemoryMetrics() {
-        Context.tryExecute(() -> {
+    public void updateMemoryMetrics(final Supplier<Context> context) {
+        tryExecute(context, () -> {
             final Runtime runtime = Runtime.getRuntime();
             metrics.gaugeSet("system.cpu.cores", runtime.availableProcessors());
             metrics.gaugeSet("jvm.memory.max.bytes", runtime.maxMemory());
@@ -234,16 +263,16 @@ public class MetricService extends Service {
         });
     }
 
-    public void updateDiscMetrics() {
-        Context.tryExecute(() -> {
+    public void updateDiscMetrics(final Supplier<Context> context) {
+        tryExecute(context, () -> {
             final File disk = new File("/");
             metrics.gaugeSet("disk.free.bytes", disk.getFreeSpace());
             metrics.gaugeSet("disk.total.bytes", disk.getTotalSpace());
         });
     }
 
-    public void updateCpuMetrics() {
-        Context.tryExecute(() -> {
+    public void updateCpuMetrics(final Supplier<Context> context) {
+        tryExecute(context, () -> {
             final OperatingSystemMXBean osMXBean = ManagementFactory.getOperatingSystemMXBean();
             if (osMXBean instanceof final com.sun.management.OperatingSystemMXBean sunOsMXBean) {
                 metrics.gaugeSet("process.cpu.usage", sunOsMXBean.getProcessCpuLoad());
@@ -254,7 +283,7 @@ public class MetricService extends Service {
     }
 
     public void updateNanoMetrics(final Nano nano) {
-        Context.tryExecute(() -> {
+        tryExecute(nano::context, () -> {
             nano.services().stream()
                 .collect(Collectors.groupingBy(service -> service.getClass().getSimpleName(), Collectors.counting()))
                 .forEach((className, count) -> metrics.gaugeSet("application.services", count, Map.of("class", className)));
@@ -263,17 +292,17 @@ public class MetricService extends Service {
         });
     }
 
-    public void updateSystemMetrics() {
+    public void updateSystemMetrics(final Supplier<Context> context) {
         final String numberRegex = "\\D";
         metrics.gaugeSet("application.pid", ProcessHandle.current().pid());
-        updateJavaVersion();
-        updateArch();
-        updateOs();
-        Context.tryExecute(() -> metrics.gaugeSet("system.version", Double.parseDouble(System.getProperty("os.version").replaceAll(numberRegex, ""))));
+        updateJavaVersion(context);
+        updateArch(context);
+        updateOs(context);
+        tryExecute(context, () -> metrics.gaugeSet("system.version", Double.parseDouble(System.getProperty("os.version").replaceAll(numberRegex, ""))));
     }
 
-    public void updateOs() {
-        Context.tryExecute(() -> {
+    public void updateOs(final Supplier<Context> context) {
+        tryExecute(context, () -> {
             String osName = System.getProperty("os.name");
             osName = osName == null ? "" : osName.toLowerCase();
             final List<String> osPrefixes = List.of("linux", "mac", "windows", "aix", "irix", "hp-ux", "os/400", "freebsd", "openbsd", "netbsd", "os/2", "solaris", "sunos", "mips", "z/os");
@@ -285,8 +314,8 @@ public class MetricService extends Service {
         });
     }
 
-    public void updateArch() {
-        Context.tryExecute(() -> {
+    public void updateArch(final Supplier<Context> context) {
+        tryExecute(context, () -> {
             final String metricName = "system.arch.bit";
             String arch = System.getProperty("os.arch");
             arch = arch == null ? "" : arch.toLowerCase();
@@ -301,8 +330,8 @@ public class MetricService extends Service {
         });
     }
 
-    public void updateJavaVersion() {
-        Context.tryExecute(() -> {
+    public void updateJavaVersion(final Supplier<Context> context) {
+        tryExecute(context, () -> {
             String version = System.getProperty("java.version");
             version = version.startsWith("1.") ? version.substring(2) : version;
             version = version.contains(".") ? version.substring(0, version.indexOf(".")) : version;

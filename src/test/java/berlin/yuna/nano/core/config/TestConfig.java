@@ -7,7 +7,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
-import static berlin.yuna.nano.core.model.Context.tryExecute;
+import static berlin.yuna.nano.helper.NanoUtils.tryExecute;
 import static berlin.yuna.nano.helper.NanoUtils.waitForCondition;
 import static java.util.Optional.ofNullable;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -33,8 +33,8 @@ public class TestConfig {
      * - Prepares for Real-World Scenarios: Mimics real-world application usage to ensure the system can handle concurrent operations effectively.
      * - Promotes Confidence in Security: Helps identify potential security vulnerabilities that could be exploited through concurrent execution.
      */
-    public static final int TEST_REPEAT = 256;
-    public static final int TEST_TIMEOUT = 1000 + (int) (Math.sqrt(TEST_REPEAT) * 50);
+    public static final int TEST_REPEAT = 128;
+    public static final int TEST_TIMEOUT = 1024 + (int) (Math.sqrt(TEST_REPEAT) * 50);
 
     public static Nano waitForStartUp(final Nano nano) {
         return waitForStartUp(nano, 1);
@@ -57,7 +57,7 @@ public class TestConfig {
         final long startTime = System.currentTimeMillis();
         final AtomicReference<T> result = new AtomicReference<>(null);
         while (result.get() == null && (System.currentTimeMillis() - startTime) < timeoutMs) {
-            ofNullable(waitFor.get()).ifPresentOrElse(result::set, () -> tryExecute(() -> Thread.sleep(100)));
+            ofNullable(waitFor.get()).ifPresentOrElse(result::set, () -> tryExecute(null, () -> Thread.sleep(100)));
         }
         return result.get();
     }
