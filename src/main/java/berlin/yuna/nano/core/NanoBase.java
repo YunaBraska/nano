@@ -1,15 +1,16 @@
 package berlin.yuna.nano.core;
 
-import berlin.yuna.nano.core.model.Config;
 import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.helper.LockedBoolean;
 import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.helper.logger.LogFormatRegister;
-import berlin.yuna.nano.helper.logger.logic.LogQueue;
 import berlin.yuna.nano.helper.logger.logic.NanoLogger;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
 import berlin.yuna.typemap.logic.ArgsDecoder;
+import berlin.yuna.typemap.model.TypeMap;
 
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryUsage;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.LinkedHashSet;
@@ -19,15 +20,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.logging.Formatter;
-import java.util.logging.Level;
 import java.util.stream.Collectors;
 
-import static berlin.yuna.nano.helper.NanoUtils.*;
-import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_LOG_LEVEL;
-import static berlin.yuna.nano.helper.event.model.EventType.EVENT_APP_LOG_QUEUE;
+import static berlin.yuna.nano.core.model.Context.APP_HELP;
+import static berlin.yuna.nano.core.model.Context.CONFIG_ENV_PROD;
+import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_FORMATTER;
+import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_LEVEL;
+import static berlin.yuna.nano.core.model.Context.CONTEXT_LOGGER_KEY;
+import static berlin.yuna.nano.core.model.Context.EVENT_CONFIG_CHANGE;
+import static berlin.yuna.nano.helper.NanoUtils.addConfig;
+import static berlin.yuna.nano.helper.NanoUtils.readConfigFiles;
+import static berlin.yuna.nano.helper.NanoUtils.resolvePlaceHolders;
 import static berlin.yuna.typemap.logic.TypeConverter.convertObj;
 import static java.lang.System.lineSeparator;
-import static java.util.Arrays.stream;
 import static java.util.Optional.ofNullable;
 
 /**
@@ -35,10 +40,10 @@ import static java.util.Optional.ofNullable;
  *
  * @param <T> The type of the {@link NanoBase} implementation, used for method chaining.
  */
-@SuppressWarnings({"unused", "UnusedReturnValue"})
+@SuppressWarnings({"unused", "UnusedReturnValue", "java:S2386"})
 public abstract class NanoBase<T extends NanoBase<T>> {
 
-    protected final Context rootContext;
+    protected final Context context;
     protected final long createdAtMs;
     protected final NanoLogger logger;
     protected final Map<Integer, Set<Consumer<Event>>> listeners = new ConcurrentHashMap<>();
@@ -46,6 +51,7 @@ public abstract class NanoBase<T extends NanoBase<T>> {
     protected final AtomicInteger eventCount = new AtomicInteger(0);
     @SuppressWarnings("java:S2386")
     public static final Map<Integer, String> EVENT_TYPES = new ConcurrentHashMap<>();
+    public static final Map<String, String> CONFIG_KEYS = new ConcurrentHashMap<>();
     public static final AtomicInteger EVENT_ID_COUNTER = new AtomicInteger(0);
 
     /**
@@ -56,15 +62,13 @@ public abstract class NanoBase<T extends NanoBase<T>> {
      */
     protected NanoBase(final Map<Object, Object> configs, final String... args) {
         this.createdAtMs = System.currentTimeMillis();
-        this.rootContext = readConfigs(args);
+        this.context = readConfigs(args);
         if (configs != null)
-            configs.forEach((key, value) -> rootContext.computeIfAbsent(convertObj(key, String.class), add -> ofNullable(convertObj(value, String.class)).orElse("")));
-        this.logger = new NanoLogger(this)
-            .level(rootContext.getOpt(LogLevel.class, Config.CONFIG_LOG_LEVEL.id()).orElse(LogLevel.DEBUG))
-            .formatter(rootContext.getOpt(Formatter.class, Config.CONFIG_LOG_FORMATTER.id()).orElseGet(() -> LogFormatRegister.getLogFormatter("console")));
+            configs.forEach((key, value) -> context.computeIfAbsent(convertObj(key, String.class), add -> ofNullable(convertObj(value, String.class)).orElse("")));
+        this.logger = new NanoLogger(this).level(context.getOpt(LogLevel.class, CONFIG_LOG_LEVEL).orElse(LogLevel.DEBUG)).formatter(context.getOpt(Formatter.class, CONFIG_LOG_FORMATTER).orElseGet(() -> LogFormatRegister.getLogFormatter("console")));
+        context.put(CONTEXT_LOGGER_KEY, logger);
         displayHelpMenu();
-        subscribeEvent(EVENT_APP_LOG_LEVEL, event -> event.payloadOpt(LogLevel.class).or(() -> event.payloadOpt(Level.class).map(LogLevel::nanoLogLevelOf)).map(this::setLogLevel).ifPresent(nano -> event.acknowledge()));
-        subscribeEvent(EVENT_APP_LOG_QUEUE, event -> event.payloadOpt(LogQueue.class).map(logger::logQueue).ifPresent(nano -> event.acknowledge()));
+        subscribeEvent(EVENT_CONFIG_CHANGE, event -> event.payloadOpt(TypeMap.class).map(this::putAll).ifPresent(nano -> event.acknowledge()));
     }
 
     /**
@@ -73,11 +77,11 @@ public abstract class NanoBase<T extends NanoBase<T>> {
      * @param clazz The class for which the {@link Context} is to be created.
      * @return A new {@link Context} instance associated with the given class.
      */
-    abstract Context newContext(final Class<?> clazz);
+    abstract Context context(final Class<?> clazz);
 
     /**
      * Sends an event to {@link Nano#listeners} and {@link Nano#services}.
-     * Used {@link Context#sendEvent(int, Object)} from {@link Nano#newContext(Class)} instead of the core method.
+     * Used {@link Context#sendEvent(int, Object)} from {@link Nano#context(Class)} instead of the core method.
      *
      * @param type             The integer representing the type of the event. This typically corresponds to a specific kind of event.
      * @param context          The {@link Context} in which the event is created and processed. It provides environmental data and configurations.
@@ -100,6 +104,12 @@ public abstract class NanoBase<T extends NanoBase<T>> {
      * @return An instance of {@link Event} that represents the event being processed. This object can be used for further operations or tracking.
      */
     abstract Event sendEventReturn(final int type, final Context context, final Object payload, final Consumer<Object> responseListener, final boolean broadCast);
+
+    public NanoBase<T> putAll(final TypeMap map) {
+        context.putAll(map);
+        logger.configure(map);
+        return this;
+    }
 
     /**
      * Initiates the shutdown process for the {@link Nano} instance.
@@ -138,26 +148,26 @@ public abstract class NanoBase<T extends NanoBase<T>> {
     /**
      * Registers an event listener for a specific event type.
      *
-     * @param eventType The integer identifier of the event type.
+     * @param channelId The integer identifier of the event type.
      * @param listener  The consumer function that processes the {@link Event}.
      * @return Self for chaining
      */
     @SuppressWarnings({"unchecked"})
-    public T subscribeEvent(final int eventType, final Consumer<Event> listener) {
-        listeners.computeIfAbsent(eventType, value -> new LinkedHashSet<>()).add(listener);
+    public T subscribeEvent(final int channelId, final Consumer<Event> listener) {
+        listeners.computeIfAbsent(channelId, value -> new LinkedHashSet<>()).add(listener);
         return (T) this;
     }
 
     /**
      * Removes a registered event listener for a specific event type.
      *
-     * @param eventType The integer identifier of the event type.
+     * @param channelId The integer identifier of the event type.
      * @param listener  The consumer function to be removed.
      * @return Self for chaining
      */
     @SuppressWarnings({"unchecked"})
-    public T unsubscribeEvent(final int eventType, final Consumer<Event> listener) {
-        listeners.computeIfAbsent(eventType, value -> new LinkedHashSet<>()).remove(listener);
+    public T unsubscribeEvent(final int channelId, final Consumer<Event> listener) {
+        listeners.computeIfAbsent(channelId, value -> new LinkedHashSet<>()).remove(listener);
         return (T) this;
     }
 
@@ -178,6 +188,16 @@ public abstract class NanoBase<T extends NanoBase<T>> {
     public double usedMemoryMB() {
         final Runtime runtime = Runtime.getRuntime();
         return BigDecimal.valueOf((double) (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024)).setScale(2, RoundingMode.HALF_UP).doubleValue();
+    }
+
+    /**
+     * Calculates the memory usage of the application in percentage.
+     *
+     * @return Memory usage in percentage, rounded to two decimal places.
+     */
+    public double heapMemoryUsage() {
+        final MemoryUsage heapMemoryUsage = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
+        return BigDecimal.valueOf((double) heapMemoryUsage.getUsed() / heapMemoryUsage.getMax()).setScale(2, RoundingMode.HALF_UP).doubleValue();
     }
 
     /**
@@ -206,9 +226,11 @@ public abstract class NanoBase<T extends NanoBase<T>> {
      * Displays a help menu with available configuration keys and their descriptions and exits.
      */
     protected void displayHelpMenu() {
-        if (rootContext.getOpt(Boolean.class, Config.APP_HELP.id()).filter(helpCalled -> helpCalled).isPresent()) {
-            logger.info(() -> "Available configs keys: " + lineSeparator() + stream(Config.values()).map(config -> String.format("%-" + stream(Config.values()).map(Config::id).mapToInt(String::length).max().orElse(0) + "s  %s", config, config.description())).collect(Collectors.joining(lineSeparator())));
-            System.exit(0);
+        if (context.getOpt(Boolean.class, APP_HELP).filter(helpCalled -> helpCalled).isPresent()) {
+            final int keyLength = CONFIG_KEYS.keySet().stream().mapToInt(String::length).max().orElse(0);
+            logger.info(() -> "Available configs keys: " + lineSeparator() + CONFIG_KEYS.entrySet().stream().sorted(Map.Entry.comparingByKey()).map(conf -> String.format("%-" + keyLength + "s  %s", conf.getKey(), conf.getValue())).collect(Collectors.joining(lineSeparator())));
+            if (context.getOpt(Boolean.class, CONFIG_ENV_PROD).orElse(false))
+                System.exit(0);
         }
     }
 
@@ -222,7 +244,8 @@ public abstract class NanoBase<T extends NanoBase<T>> {
         final Context result = readConfigFiles(null, "");
         System.getenv().forEach((key, value) -> addConfig(result, key, value));
         System.getProperties().forEach((key, value) -> addConfig(result, key, value));
-        ArgsDecoder.argsOf(String.join(" ", args)).forEach((key, value) -> addConfig(result, key, value));
+        if (args != null)
+            ArgsDecoder.argsOf(String.join(" ", args)).forEach((key, value) -> addConfig(result, key, value));
         return resolvePlaceHolders(result);
     }
 
@@ -235,7 +258,7 @@ public abstract class NanoBase<T extends NanoBase<T>> {
     @SuppressWarnings("unchecked")
     protected T setLogLevel(final LogLevel level) {
         logger.level(level);
-        rootContext.put(Config.CONFIG_LOG_LEVEL.id(), level);
+        context.put(CONFIG_LOG_LEVEL, level);
         logger.trace(() -> "New {} [{}]", LogLevel.class.getSimpleName(), level);
         return (T) this;
     }
@@ -247,7 +270,13 @@ public abstract class NanoBase<T extends NanoBase<T>> {
      */
     @SuppressWarnings("java:S3358") // Ternary operator should not be nested
     public static String standardiseKey(final Object key) {
-        return key == null ? null : convertObj(key, String.class).replace('.', '_').replace('-', '_').trim().toLowerCase();
+        return key == null ? null : convertObj(key, String.class)
+            .replace('.', '_')
+            .replace('-', '_')
+            .replace('+', '_')
+            .replace(':', '_')
+            .trim()
+            .toLowerCase();
     }
 
 }

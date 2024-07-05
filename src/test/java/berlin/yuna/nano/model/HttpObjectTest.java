@@ -1,11 +1,7 @@
 package berlin.yuna.nano.model;
 
-import berlin.yuna.nano.core.Nano;
 import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.helper.event.model.Event;
-import berlin.yuna.nano.services.http.HttpService;
-import berlin.yuna.nano.services.http.logic.HttpClient;
-import berlin.yuna.nano.services.http.logic.HttpClientTest;
 import berlin.yuna.nano.services.http.model.HttpHeaders;
 import berlin.yuna.nano.services.http.model.HttpMethod;
 import berlin.yuna.nano.services.http.model.HttpObject;
@@ -28,12 +24,24 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import static berlin.yuna.nano.core.config.TestConfig.TEST_LOG_LEVEL;
-import static berlin.yuna.nano.core.model.Config.CONFIG_LOG_LEVEL;
-import static berlin.yuna.nano.helper.event.model.EventType.EVENT_HTTP_REQUEST;
-import static berlin.yuna.nano.services.http.model.ContentType.*;
-import static berlin.yuna.nano.services.http.model.HttpHeaders.*;
+import static berlin.yuna.nano.services.http.HttpService.EVENT_HTTP_REQUEST;
+import static berlin.yuna.nano.services.http.model.ContentType.APPLICATION_JSON;
+import static berlin.yuna.nano.services.http.model.ContentType.APPLICATION_PDF;
+import static berlin.yuna.nano.services.http.model.ContentType.TEXT_PLAIN;
+import static berlin.yuna.nano.services.http.model.ContentType.WILDCARD;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.ACCEPT;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.ACCEPT_ENCODING;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.ACCEPT_LANGUAGE;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.AUTHORIZATION;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.CACHE_CONTROL;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.CONTENT_LENGTH;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.CONTENT_RANGE;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.CONTENT_TYPE;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.HOST;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.REFERER;
+import static berlin.yuna.nano.services.http.model.HttpHeaders.USER_AGENT;
 import static java.nio.charset.StandardCharsets.US_ASCII;
+import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class HttpObjectTest {
@@ -58,7 +66,7 @@ class HttpObjectTest {
         assertThat(httpObject.path()).isEqualTo("/notifications/indicator");
         assertThat(httpObject.accepts()).containsExactly(APPLICATION_JSON);
         assertThat(httpObject.acceptEncodings()).containsExactly("gzip", "deflate");
-        assertThat(httpObject.acceptLanguages()).containsExactly(Locale.UK, Locale.ENGLISH);
+        assertThat(httpObject.acceptLanguages()).containsExactly(Locale.UK, ENGLISH);
         assertThat(httpObject.header(HOST)).isEqualTo("example.com");
         assertThat(httpObject.header(REFERER)).isEqualTo("https://example.com/test");
         assertThat(httpObject.userAgent()).isEqualTo("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15");
@@ -66,13 +74,13 @@ class HttpObjectTest {
     }
 
     @Test
-    void testSendResponse() {
-        final Event event = new Event(EVENT_HTTP_REQUEST, Context.createRootContext(), new HttpObject().methodType(HttpMethod.GET).path("/create"), null);
+    void testRespondResponse() {
+        final Event event = new Event(EVENT_HTTP_REQUEST, Context.createRootContext(HttpObjectTest.class), new HttpObject().methodType(HttpMethod.GET).path("/create"), null);
 
         event.payloadOpt(HttpObject.class)
             .filter(HttpObject::isMethodGet)
             .filter(request -> request.pathMatch("/create"))
-            .ifPresent(request -> request.response().statusCode(201).body("success").send(event));
+            .ifPresent(request -> request.response().statusCode(201).body("success").respond(event));
 
         assertThat(event.responseOpt(HttpObject.class)).isPresent();
         assertThat(event.response(HttpObject.class).statusCode()).isEqualTo(201);
@@ -191,8 +199,8 @@ class HttpObjectTest {
         assertThat(new HttpObject().contentType("application/json", "TexT/Plain").hasContentType(APPLICATION_JSON.value(), TEXT_PLAIN.value(), APPLICATION_PDF.value())).isFalse();
 
         // General
-        assertThat(new HttpObject().contentTypes()).containsExactly(APPLICATION_OCTET_STREAM);
-        assertThat(new HttpObject().contentType()).isEqualTo(APPLICATION_OCTET_STREAM);
+        assertThat(new HttpObject().contentTypes()).containsExactly(TEXT_PLAIN);
+        assertThat(new HttpObject().contentType()).isEqualTo(TEXT_PLAIN);
     }
 
     @Test
@@ -340,6 +348,11 @@ class HttpObjectTest {
     void testPathMatcher() {
         // no ending /
         final HttpObject httpObject1 = new HttpObject().path("/aa/bb/cc/dd?myNumber=2468");
+        assertThat(httpObject1.pathMatch("/aa/*/cc/*")).isTrue();
+        assertThat(httpObject1.pathMatch("/aa/*/**")).isTrue();
+        assertThat(httpObject1.pathMatch("/aa/**")).isTrue();
+        assertThat(httpObject1.pathMatch("/**")).isTrue();
+        assertThat(httpObject1.pathMatch("/*")).isTrue();
         assertThat(httpObject1.pathMatch("/aa/bb/cc/dd")).isTrue();
         assertThat(httpObject1.pathMatch("/aa/bb/cc/dd/")).isTrue();
         assertThat(httpObject1.pathMatch("/aa/{value1}/cc/{value2}/ee")).isFalse();
@@ -353,6 +366,11 @@ class HttpObjectTest {
 
         // with ending /
         final HttpObject httpObject2 = new HttpObject().path("/aa/bb/cc/dd/?myNumber=2468");
+        assertThat(httpObject2.pathMatch("/aa/*/cc/*/")).isTrue();
+        assertThat(httpObject2.pathMatch("/aa/*/**/")).isTrue();
+        assertThat(httpObject2.pathMatch("/aa/**/")).isTrue();
+        assertThat(httpObject2.pathMatch("/**/")).isTrue();
+        assertThat(httpObject2.pathMatch("/*/")).isTrue();
         assertThat(httpObject2.pathMatch("/aa/bb/cc/dd")).isTrue();
         assertThat(httpObject2.pathMatch("/aa/bb/cc/dd/")).isTrue();
         assertThat(httpObject2.pathMatch("/aa/{value1}/cc/{value2}/ee")).isFalse();
@@ -360,7 +378,7 @@ class HttpObjectTest {
         assertThat(httpObject2.pathMatch("/aa/{value1}/cc/d")).isFalse();
         assertThat(httpObject2.pathMatch("/aa/{value1}/cc/{value2}")).isTrue();
         assertThat(httpObject2.pathMatch("/aa/{value1}/cc/{value2}/")).isTrue();
-        assertThat(httpObject1.pathParam("value1")).isEqualTo("bb");
+        assertThat(httpObject2.pathParam("value1")).isEqualTo("bb");
         assertThat(httpObject2.pathParams().get(String.class, "value2")).isEqualTo("dd");
         assertThat(httpObject2.queryParams().get(Integer.class, "myNumber")).isEqualTo(2468);
 
@@ -418,7 +436,7 @@ class HttpObjectTest {
             .containsEntry(ACCEPT_ENCODING, List.of("gzip, deflate"))
             .containsEntry(ACCEPT, List.of(WILDCARD.value()))
             .containsEntry(CACHE_CONTROL, List.of("no-cache"))
-            .containsEntry(CONTENT_TYPE, List.of(APPLICATION_OCTET_STREAM.value()))
+            .containsEntry(CONTENT_TYPE, List.of(TEXT_PLAIN.value()))
             .containsEntry(CONTENT_LENGTH, List.of("0"))
         ;
 
@@ -427,7 +445,7 @@ class HttpObjectTest {
             .doesNotContainKey(ACCEPT_ENCODING)
             .doesNotContainKey(ACCEPT)
             .containsEntry(CACHE_CONTROL, List.of("no-cache"))
-            .containsEntry(CONTENT_TYPE, List.of(APPLICATION_OCTET_STREAM.value()))
+            .containsEntry(CONTENT_TYPE, List.of(TEXT_PLAIN.value()))
             .containsEntry(CONTENT_LENGTH, List.of("0"))
         ;
     }
@@ -440,7 +458,8 @@ class HttpObjectTest {
         assertThat(new HttpObject().sizeRequest(false).sizeRequest()).isFalse();
         assertThat(new HttpObject().size()).isZero();
         assertThat(new HttpObject().body(body).size()).isEqualTo(body.getBytes().length);
-        assertThat(new HttpObject().body(body).header(CONTENT_LENGTH, 999).size()).isEqualTo(999);
+        assertThat(new HttpObject().body(body).header(CONTENT_LENGTH, 999).size()).isEqualTo(11);
+        assertThat(new HttpObject().body(body).header(CONTENT_LENGTH, 999).header(CONTENT_LENGTH)).isEqualTo("999");
         assertThat(new HttpObject().body(body).header(CONTENT_RANGE, "bytes 0-0/666").size()).isEqualTo(666);
     }
 
@@ -487,23 +506,25 @@ class HttpObjectTest {
 
     @Test
     void testAuthToken() {
-        assertThat(new HttpObject().header(AUTHORIZATION, "Bearer 123").authToken()).containsExactly("123");
-        assertThat(new HttpObject().header(AUTHORIZATION, "Basic QWxhZGRpbjpPcGVuU2VzYW1l").authToken()).containsExactly("Aladdin", "OpenSesame");
-        assertThat(new HttpObject().header(AUTHORIZATION, "123ABC").authToken()).containsExactly("123ABC");
+        assertThat(new HttpObject().header(AUTHORIZATION, "Bearer 123").authTokens()).containsExactly("123");
+        assertThat(new HttpObject().header(AUTHORIZATION, "123ABC").authTokens()).containsExactly("123ABC");
+        assertThat(new HttpObject().header(AUTHORIZATION, "Basic QWxhZGRpbjpPcGVuU2VzYW1l").authTokens()).containsExactly("Aladdin", "OpenSesame");
+        assertThat(new HttpObject().header(AUTHORIZATION, "Basic QWxhZGRpbjpPcGVuU2VzYW1l").authToken()).isEqualTo("Aladdin");
+        assertThat(new HttpObject().header(AUTHORIZATION, "Basic QWxhZGRpbjpPcGVuU2VzYW1l").authToken(1)).isEqualTo("OpenSesame");
     }
 
     @Test
     void testHeaderLanguage() {
         final HttpObject httpObject = new HttpObject().header(ACCEPT_LANGUAGE, "en-US,en;q=0.9,de;q=0.8");
         assertThat(httpObject.acceptLanguage()).isEqualTo(Locale.of("en", "us"));
-        assertThat(httpObject.acceptLanguages()).containsExactly(Locale.of("en", "us"), Locale.ENGLISH, Locale.GERMAN);
+        assertThat(httpObject.acceptLanguages()).containsExactly(Locale.of("en", "us"), ENGLISH, Locale.GERMAN);
 
         // General
-        assertThat(new HttpObject().acceptLanguages()).isEmpty();
-        assertThat(new HttpObject().acceptLanguage()).isNull();
-        assertThat(new HttpObject().acceptLanguages(Locale.UK, Locale.ENGLISH, Locale.GERMAN).acceptLanguages()).containsExactly(Locale.UK, Locale.ENGLISH, Locale.GERMAN);
-        assertThat(new HttpObject().acceptLanguages(null).acceptLanguages()).isEmpty();
-        assertThat(new HttpObject().acceptLanguages(new Locale[0]).acceptLanguages()).isEmpty();
+        assertThat(new HttpObject().acceptLanguages()).containsExactly(ENGLISH);
+        assertThat(new HttpObject().acceptLanguage()).isEqualTo(ENGLISH);
+        assertThat(new HttpObject().acceptLanguages(Locale.UK, ENGLISH, Locale.GERMAN).acceptLanguages()).containsExactly(Locale.UK, ENGLISH, Locale.GERMAN);
+        assertThat(new HttpObject().acceptLanguages((Locale[]) null).acceptLanguages()).containsExactly(ENGLISH);
+        assertThat(new HttpObject().acceptLanguages(new Locale[0]).acceptLanguages()).containsExactly(ENGLISH);
     }
 
     @Test

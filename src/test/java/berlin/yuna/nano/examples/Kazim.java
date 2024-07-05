@@ -5,11 +5,14 @@ import berlin.yuna.nano.helper.logger.logic.LogQueue;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
 import berlin.yuna.nano.services.http.HttpService;
 import berlin.yuna.nano.services.metric.logic.MetricService;
+import org.junit.jupiter.api.Disabled;
 
 import java.util.Map;
 
-import static berlin.yuna.nano.core.model.Config.*;
+import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_FORMATTER;
+import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_LEVEL;
 
+@Disabled
 public class Kazim {
 
     public static void main(String[] args) {

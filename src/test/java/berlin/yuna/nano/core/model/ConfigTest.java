@@ -1,18 +1,16 @@
 package berlin.yuna.nano.core.model;
 
-import berlin.yuna.nano.core.config.TestConfig;
-import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.Test;
 
-import static berlin.yuna.nano.core.model.Config.APP_HELP;
+import static berlin.yuna.nano.helper.config.ConfigRegister.configDescriptionOf;
+import static berlin.yuna.nano.helper.config.ConfigRegister.registerConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ConfigTest {
 
-    @RepeatedTest(TestConfig.TEST_REPEAT)
+    @Test
     void testNewConfig() {
-        assertThat(APP_HELP).isNotNull();
-        assertThat(APP_HELP).hasToString("help");
-        assertThat(APP_HELP.id()).isEqualTo("help");
-        assertThat(APP_HELP.description()).isEqualTo("Lists available config keys (see " + Config.class.getSimpleName() + ")");
+        assertThat(registerConfig("AA:BB.CC-DD+ff", "ABC123")).isEqualTo("aa_bb_cc_dd_ff");
+        assertThat(configDescriptionOf("AA:BB.CC-DD+ff")).isEqualTo("ABC123");
     }
 }

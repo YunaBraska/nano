@@ -3,39 +3,53 @@ package berlin.yuna.nano.helper.logger.logic;
 import berlin.yuna.nano.helper.logger.model.LogErrorHandler;
 import berlin.yuna.nano.helper.logger.model.LogInfoHandler;
 import berlin.yuna.nano.helper.logger.model.LogLevel;
+import berlin.yuna.typemap.model.TypeMap;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
-import java.util.logging.*;
+import java.util.logging.Formatter;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
-@SuppressWarnings({"unused", "UnusedReturnValue"})
+import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_LEVEL;
+import static berlin.yuna.nano.core.model.Context.CONFIG_LOG_FORMATTER;
+import static berlin.yuna.nano.core.model.Context.CONTEXT_LOG_QUEUE_KEY;
+
+@SuppressWarnings({"unused", "UnusedReturnValue", "java:S1104"})
 public class NanoLogger {
+
+    //TODO: Logger: change format on runtime
+    //TODO: Logger exclude package pattern config
+    //TODO: extract logger as a service
+
     public static final Formatter DEFAULT_LOG_FORMATTER = new LogFormatterJson();
     public static final LogInfoHandler DEFAULT_LOG_INFO_HANDLER = new LogInfoHandler(DEFAULT_LOG_FORMATTER);
     public static final LogErrorHandler DEFAULT_LOG_ERROR_HANDLER = new LogErrorHandler(DEFAULT_LOG_FORMATTER);
-    protected final Logger logger;
+    protected final Logger javaLogger;
     // cause the log level of java is not thread safe
     // FIXME: create very own logger as every config of the java logger is not thread safe
     protected final AtomicReference<LogLevel> level = new AtomicReference<>(LogLevel.DEBUG);
     protected LogQueue logQueue;
-    public static AtomicInteger MAX_LOG_NAME_LENGTH = new AtomicInteger(10);
+    public static final AtomicInteger MAX_LOG_NAME_LENGTH = new AtomicInteger(10);
 
     public NanoLogger(final Object object) {
         this(object.getClass());
     }
 
     public NanoLogger(final Class<?> clazz) {
-        logger = Logger.getLogger(clazz.getName());
-        logger.setUseParentHandlers(false);
-        logger.setLevel(Level.ALL);
+        javaLogger = Logger.getLogger(clazz.getName());
+        javaLogger.setUseParentHandlers(false);
+        javaLogger.setLevel(Level.ALL);
         addHandlerIfAbsent(DEFAULT_LOG_INFO_HANDLER);
         addHandlerIfAbsent(DEFAULT_LOG_ERROR_HANDLER);
         MAX_LOG_NAME_LENGTH.updateAndGet(length -> Math.max(length, clazz.getSimpleName().length()));
     }
 
-    public Logger logger() {
-        return logger;
+    public Logger javaLogger() {
+        return javaLogger;
     }
 
     public LogQueue logQueue() {
@@ -48,11 +62,11 @@ public class NanoLogger {
     }
 
     public Formatter formatter() {
-        return logger.getHandlers().length > 0 ? logger.getHandlers()[0].getFormatter() : null;
+        return javaLogger.getHandlers().length > 0 ? javaLogger.getHandlers()[0].getFormatter() : null;
     }
 
     public NanoLogger formatter(final Formatter formatter) {
-        for (final Handler handler : logger.getHandlers()) {
+        for (final Handler handler : javaLogger.getHandlers()) {
             handler.setFormatter(formatter);
         }
         return this;
@@ -60,13 +74,11 @@ public class NanoLogger {
 
     public NanoLogger level(final LogLevel level) {
         this.level.set(level);
-//        logger.setLevel(level.toJavaLogLevel());
         return this;
     }
 
     public LogLevel level() {
         return level.get();
-//        return nanoLogLevelOf(logger.getLevel());
     }
 
     public NanoLogger fatal(final Supplier<String> message, final Object... params) {
@@ -126,11 +138,18 @@ public class NanoLogger {
             final LogRecord logRecord = new LogRecord(level.toJavaLogLevel(), message.get());
             logRecord.setParameters(params);
             logRecord.setThrown(thrown);
-            logRecord.setLoggerName(logger.getName());
-            if (logQueue == null || !logQueue.log(logger, logRecord)) {
-                logger.log(logRecord);
+            logRecord.setLoggerName(javaLogger.getName());
+            if (logQueue == null || !logQueue.log(javaLogger, logRecord)) {
+                javaLogger.log(logRecord);
             }
         }
+        return this;
+    }
+
+    public NanoLogger configure(final TypeMap config) {
+        config.getOpt(LogLevel.class, CONFIG_LOG_LEVEL).ifPresent(this::level);
+        config.getOpt(LogQueue.class, CONTEXT_LOG_QUEUE_KEY).ifPresent(this::logQueue);
+        config.getOpt(Formatter.class, CONFIG_LOG_FORMATTER).ifPresent(this::formatter);
         return this;
     }
 
@@ -140,11 +159,11 @@ public class NanoLogger {
     }
 
     protected void addHandlerIfAbsent(final Handler newHandler) {
-        for (final Handler existingHandler : logger.getHandlers()) {
+        for (final Handler existingHandler : javaLogger.getHandlers()) {
             if (existingHandler.getClass().equals(newHandler.getClass())) {
                 return;
             }
         }
-        logger.addHandler(newHandler);
+        javaLogger.addHandler(newHandler);
     }
 }
