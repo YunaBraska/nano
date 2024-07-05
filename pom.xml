@@ -110,10 +110,6 @@
                         **  Match zero or more directories
                         ?   Match a single character
                         -->
-                        <exclude>**/*/config/**/*</exclude>
-                        <exclude>**/*/model/**/*</exclude>
-                        <exclude>**/*/domain/**/*</exclude>
-                        <exclude>**/*/persistence/**/*</exclude>
                         <exclude>**/*/target/**/*</exclude>
                     </excludes>
                 </configuration>

@@ -64,10 +64,9 @@ class NanoTest {
 
     @RepeatedTest(TEST_REPEAT)
     void stopViaEvent() {
-        assertThat(new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL))
-            .context(this.getClass())
-            .sendEvent(EVENT_APP_SHUTDOWN, this)
-        ).isNotNull();
+        final Context actual = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL)).context(this.getClass()).sendEvent(EVENT_APP_SHUTDOWN, this);
+        assertThat(actual).isNotNull();
+        assertThat(actual.nano().stop(this.getClass()).waitForStop()).isNotNull().isEqualTo(actual.nano());
     }
 
     @RepeatedTest(TEST_REPEAT)
@@ -99,6 +98,8 @@ class NanoTest {
         assertThat(nano2.waitForStop().isReady()).isFalse();
         nano1.shutdown(this.getClass());
         assertThat(await(latch)).isTrue();
+        assertThat(nano1.waitForStop()).isNotNull().isEqualTo(nano1);
+        assertThat(nano2.waitForStop()).isNotNull().isEqualTo(nano2);
     }
 
     @RepeatedTest(TEST_REPEAT)
@@ -110,6 +111,7 @@ class NanoTest {
 
         final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TEST_LOG_LEVEL, CONFIG_PARALLEL_SHUTDOWN, true), testService).shutdown(this.getClass());
         assertThat(nano).isNotNull();
+        assertThat(nano.stop(this.getClass()).waitForStop()).isNotNull().isEqualTo(nano);
     }
 
     @Disabled("No args constructor test is changing the log level of the test. Since the java logger is not stateless, it affects the other tests.")
@@ -155,7 +157,7 @@ class NanoTest {
         assertThat(lazyServices).isNotNull();
         assertThat(lazyServices.logger().level()).isEqualTo(TEST_LOG_LEVEL);
         waitForStartUp(lazyServices);
-        lazyServices.stop(this.getClass());
+        assertThat(lazyServices.stop(this.getClass()).waitForStop().isReady()).isFalse();
     }
 
     @RepeatedTest(TEST_REPEAT)
@@ -164,7 +166,7 @@ class NanoTest {
         assertThat(lazyServices).isNotNull();
         assertThat(lazyServices.logger().level()).isEqualTo(TEST_LOG_LEVEL);
         waitForStartUp(lazyServices);
-        lazyServices.stop(this.getClass());
+        assertThat(lazyServices.stop(this.getClass()).waitForStop().isReady()).isFalse();
     }
 
     @RepeatedTest(TEST_REPEAT)
@@ -242,6 +244,7 @@ class NanoTest {
 
         nano.shutdown(context);
         assertThat(service.stopCount()).isEqualTo(1);
+        assertThat(nano.waitForStop()).isNotNull().isEqualTo(nano);
     }
 
     @RepeatedTest(TEST_REPEAT)
@@ -359,5 +362,6 @@ class NanoTest {
         assertThat(service.startCount()).isEqualTo(1);
         assertThat(service.failures()).isEmpty();
         assertThat(service.stopCount()).isEqualTo(1);
+        assertThat(nano.waitForStop()).isNotNull().isEqualTo(nano);
     }
 }
