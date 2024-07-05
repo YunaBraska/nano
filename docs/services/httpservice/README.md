@@ -4,15 +4,14 @@
 > / [**HttpService**](README.md)
 
 * [Usage](#usage)
-  * [Start Http Service](#start-http-service)
-  * [Handle HTTP Requests](#handle-http-requests)
+    * [Start HTTP Service](#start-http-service)
+    * [Handle HTTP Requests](#handle-http-requests)
 * [Configuration](#configuration)
 * [Events](#events)
-* [Start Services](#start-services)
 
 # Http Service
 
-Is a default [Services](../services/README.md) of Nano which is responsible for handling basic HTTP requests.
+Is a default [Services](../../services/README.md) of Nano which is responsible for handling basic HTTP requests.
 Each request is processed in its own Thread.
 Support for Https/SSL is coming soon.
 
@@ -20,7 +19,7 @@ Support for Https/SSL is coming soon.
 
 ### Start Http Service
 
-A) As startup [Service](../services/README.md): `new Nano(new HttpService())`
+A) As startup [Service](../../services/README.md): `new Nano(new HttpService())`
 
 B) Contextual `context.run(new HttpService())` - this way its possible to provide a custom configuration.
 

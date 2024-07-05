@@ -12,6 +12,17 @@ The [Logger](../logger/README.md) is a simple wrapper around the build in java l
 and `json`. 
 Note: the logger is still under construction.
 
+```mermaid
+flowchart LR
+    logger(((Logger))) --> javaLogger[JavaLogger]
+    logger --> logQueue[LogQueue]
+    logQueue --> javaLogger
+    
+    style logger fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
+    style javaLogger fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
+    style logQueue fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
+```
+
 ## Placeholder
 
 The logger supports placeholders in the message string. The placeholders are replaced by the arguments passed to the
@@ -40,14 +51,3 @@ java.util.logging.Formatter)
 
 The [Logger](../logger/README.md) supports a `LogQueue` which can be used to not block the main thread when logging.
 Nano comes with a default `LogQueue` Service which can be added as any other services like: `new Nano(new LogQueue())`
-
-```mermaid
-flowchart TD
-    logger(((Logger))) --> javaLogger[JavaLogger]
-    logger --> logQueue[LogQueue]
-    logQueue --> javaLogger
-    
-    style logger fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
-    style javaLogger fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
-    style logQueue fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
-```

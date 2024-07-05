@@ -640,7 +640,7 @@ public class Context extends ConcurrentTypeMap {
      * or if the input is null or empty.
      */
     public Optional<Integer> channelIdOf(final String channelName) {
-        return EventChannelRegister.evenIdOf(channelName);
+        return EventChannelRegister.eventIdOf(channelName);
     }
 
     /**

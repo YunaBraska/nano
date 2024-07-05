@@ -70,7 +70,7 @@ other simple Java objects.
 For example, HTTP requests can be converted to `TypeInfo`, `TypeMap` or `TypeList`, which lazily convert fields to
 the requested type. _See [TypeMap](https://github.com/YunaBraska/type-map) for more information._
 If an object cannot be converted, it is straightforward to register a custom type conversion.
-These TypeMaps and TypeLists are used extensively, such as in events and the context.
+These [TypeMaps](https://github.com/YunaBraska/type-map) and TypeLists are used extensively, such as in events and the context.
 
 ### Configuration Management ⚙️
 

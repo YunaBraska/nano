@@ -8,13 +8,29 @@
 
 # Context
 
-The [Context](../context/README.md) object is the main and overwhelming object that is passed around in Nano.
+The [Context](../context/README.md) object is the main and overwhelming object that is passed around in Nano and accessible at any time.
 It is used to interact with the core
 components: [Logger](../logger/README.md), [Events](../events/README.md) , [Services](../services/README.md), [Schedulers](../schedulers/README.md),
 traces and
 [configuration](#configuration).
 There is **no need to create any custom config** class as the [Context](../context/README.md) contains all needed
 information including type conversion.
+
+```mermaid
+flowchart TD
+    context(((Context))) --> nano[Nano]
+    context --> logger[Logger]
+    context --> events[Events]
+    context --> services[Services]
+    context --> schedulers[Schedulers]
+    
+    style nano fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
+    style context fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
+    style logger fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
+    style events fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
+    style services fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
+    style schedulers fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
+```
 
 ### Examples
 
@@ -122,18 +138,3 @@ Example: `test.placeholder.value=${placeholder_value:fallback}`
 | 🔲                 | `EVENT_APP_HEARTBEAT`            | `Nano`                        | `N/A`    | Send every 256ms                                                                                                                                   |
 | 🔳                 | `EVENT_CONFIG_CHANGE`            | `TypeMap`                     | `N/A`    | Used to change configs on the fly                                                                                                                  |
 
-```mermaid
-flowchart TD
-    context(((Context))) --> nano[Nano]
-    context --> logger[Logger]
-    context --> events[Events]
-    context --> services[Services]
-    context --> schedulers[Services]
-    
-    style nano fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
-    style context fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
-    style logger fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
-    style events fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
-    style services fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
-    style schedulers fill:#90CAF9,stroke:#1565C0,stroke-width:1px,color:#1A237E,rx:2%,ry:2%
-```

@@ -45,7 +45,7 @@ static {
     String myChanelName = EventChannelRegister.eventNameOf(MY_EVENT_CHANNEL_ID);
 
     // Getting a channelId by name
-    int MY_EVENT_CHANNEL_ID = EventChannelRegister.evenIdOf("my_channel_name");
+    int MY_EVENT_CHANNEL_ID = EventChannelRegister.eventIdOf("my_channel_name");
 
     // checking if a channel is registered
     boolean isChannelAvailable = ConfigRegister.isChannelIdAvailable("my_config_key");
@@ -65,7 +65,7 @@ static {
     // Register a log formatter
     LogFormatRegister.registerLogFormatter("xml", new XmlLogFormatter());
 
-    // Getting a log formatter by id
+    // Getting a log formatter by name
     Formatter jsonFormatter = LogFormatRegister.getLogFormatter("json");
 }
 ```

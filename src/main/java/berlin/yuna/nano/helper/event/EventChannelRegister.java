@@ -20,7 +20,7 @@ public class EventChannelRegister {
      *         if it already exists. Returns -1 if the input is null or empty.
      */
     public static int registerChannelId(final String channelName) {
-        return ofNullable(channelName).filter(NanoUtils::hasText).map(name -> evenIdOf(channelName).orElseGet(() -> {
+        return ofNullable(channelName).filter(NanoUtils::hasText).map(name -> eventIdOf(channelName).orElseGet(() -> {
             final int channelId = EVENT_ID_COUNTER.incrementAndGet();
             EVENT_TYPES.put(channelId, channelName);
             return channelId;
@@ -45,7 +45,7 @@ public class EventChannelRegister {
      * @return An {@link Optional} containing the ID of the event type if found, or empty if not found
      *         or if the input is null or empty.
      */
-    public static Optional<Integer> evenIdOf(final String channelName) {
+    public static Optional<Integer> eventIdOf(final String channelName) {
         return NanoUtils.hasText(channelName) ? EVENT_TYPES.entrySet().stream().filter(type -> type.getValue().equals(channelName)).map(Map.Entry::getKey).findFirst() : Optional.empty();
     }
 

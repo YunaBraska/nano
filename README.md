@@ -30,6 +30,7 @@
 Nano is a lightweight concept which makes it easier for developer to write microservices in
 **functional, fluent, chaining, plain, modern java** with a nano footprint.
 Nano is also designed to be fully compilable with [GraalVM](https://www.graalvm.org) to create native executables.
+To enhance efficiency and performance, Nano utilizes non-blocking virtual threads from [Project Loom](https://jdk.java.net/loom/).
 
 ## 📐 Core Concept
 

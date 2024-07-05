@@ -4,15 +4,14 @@
 > / [**HttpService**](README.md)
 
 * [Usage](#usage)
-    * [Start Http Service](#start-http-service)
-    * [Handle HTTP Requests](#handle-http-requests)
+  * [Start Metric Service](#start-metric-service)
+  * [Create Custom Metrics](#create-custom-metrics)
 * [Configuration](#configuration)
 * [Events](#events)
-* [Start Services](#start-services)
 
 # Metric Service
 
-Is a default [Services](../services/README.md) of Nano which is responsible for collecting metrics.
+Is a default [Services](../../services/README.md) of Nano which is responsible for collecting metrics.
 This service solves only basic metrics.
 Currently, there is no mechanism to push metrics to other applications.
 The standard and best practice is to use a dedicated metric collector like Prometheus and poll for metrics.
@@ -27,7 +26,7 @@ of `Influx`, `Dynamo`, `Wavefront` and `Prometheus`.
 
 ### Start Metric Service
 
-A) As startup [Service](../services/README.md): `new Nano(new MetricService())`
+A) As startup [Service](../../services/README.md): `new Nano(new MetricService())`
 
 B) Contextual `context.run(new MetricService())` - this way its possible to provide a custom configuration.
 

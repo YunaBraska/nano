@@ -10,7 +10,7 @@ These [Events](../../events/README.md) are send to the `EVENT_APP_UNHANDLED` cha
 ## Error Channel
 
 The channel `EVENT_APP_UNHANDLED` is used for all errors and also unhandled http events.
-_See [HttpService](../../services/http/README.md) for more information._
+_See [HttpService](../../services/httpservice/README.md) for more information._
 Therefore, its necessary to filter the right events to catch. Error events usually have a non nullable `error` property.
 
 ## Handle Error

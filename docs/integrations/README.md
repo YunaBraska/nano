@@ -43,9 +43,9 @@ public class SomeService {
 }
 ```
 
-* Graceful shutdown using `DisposableBean`
-
 Nano has a graceful shutdown by itself, but it could be useful to trigger it from a Spring bean.
+
+* Graceful shutdown using `DisposableBean`
 
 ```java
 
@@ -66,8 +66,6 @@ public class NanoManager implements DisposableBean {
 ```
 
 * Graceful shutdown using `@PreDestroy` annotation
-
-Nano has a graceful shutdown by itself, but it could be useful to trigger it from a Spring bean.
 
 ```java
 
