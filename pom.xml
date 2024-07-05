@@ -7,6 +7,8 @@
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
+    <name>nano</name>
+    <description>Tiny java tool - back to basics!</description>
     <url>https://github.com/YunaBraska/nano</url>
 
     <scm>
