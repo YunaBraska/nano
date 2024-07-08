@@ -353,11 +353,9 @@ public class Context extends ConcurrentTypeMap {
      * @return {@link NanoThread}s
      */
     public final NanoThread[] runReturn(final ExRunnable... runnable) {
-        return stream(runnable).map(task -> new NanoThread(this).run(
-            this.nano() == null ? null : nano().threadPool(),
-            () -> this.nano() == null ? null : nano().contextEmpty(clazz()),
-            task
-        )).toArray(NanoThread[]::new);
+        return this.nano() != null
+            ? nano().runReturn(this, runnable)
+            : stream(runnable).map(task -> new NanoThread().run(null, () -> this, task)).toArray(NanoThread[]::new);
     }
 
     /**
@@ -368,7 +366,7 @@ public class Context extends ConcurrentTypeMap {
      * @return {@link NanoThread}s
      */
     public final NanoThread[] runReturnHandled(final Consumer<Unhandled> onFailure, final ExRunnable... runnable) {
-        return stream(runnable).map(task -> new NanoThread(this)
+        return stream(runnable).map(task -> new NanoThread()
             .onComplete((thread, error) -> {
                 if (error != null)
                     onFailure.accept(new Unhandled(this, thread, error));
@@ -474,9 +472,9 @@ public class Context extends ConcurrentTypeMap {
      */
     public Context sendEventError(final Object payload, final Throwable throwable) {
         // prevent loops
-        final Event event = payload instanceof final Event evt ? evt : new Event(EVENT_APP_ERROR, this, payload, null);
+        final Event event = payload instanceof final Event evt ? evt : new Event(EVENT_APP_ERROR, false, this, payload, null);
         if (event.channelId() != EVENT_APP_UNHANDLED) {
-            nano().sendEventSameThread(event.cache(EVENT_ORIGINAL_CHANNEL_ID, event.channelId()).channelId(EVENT_APP_UNHANDLED).error(throwable), false);
+            nano().sendEventSameThread(event.cache(EVENT_ORIGINAL_CHANNEL_ID, event.channelId()).channelId(EVENT_APP_UNHANDLED).error(throwable));
             if (!event.isAcknowledged())
                 logger().error(throwable, () -> "Event [{}] went rogue.", event.nameOrg());
         } else {

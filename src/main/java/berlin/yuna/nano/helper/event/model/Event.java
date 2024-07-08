@@ -20,6 +20,7 @@ public class Event {
     protected final Context context;
     protected final Consumer<Object> responseListener;
     protected final Object payload;
+    protected final boolean broadCast;
     protected TypeMap cache;
     protected Object response;
     protected Throwable error;
@@ -31,12 +32,14 @@ public class Event {
      * This event object can be used to trigger specific actions or responses based on the event type and payload.
      *
      * @param channelId        The integer representing the type of the event. This typically corresponds to a specific kind of event.
+     * @param broadCast        A boolean flag indicating whether the event should be broadcasted to all listeners or not.
      * @param context          The {@link Context} in which the event is created and processed. It provides environmental data and configurations.
      * @param payload          The data or object that is associated with this event. This can be any relevant information that needs to be passed along with the event.
      * @param responseListener A consumer that handles the response of the event processing. It can be used to execute actions based on the event's outcome or data.
      */
-    public Event(final int channelId, final Context context, final Object payload, final Consumer<Object> responseListener) {
+    public Event(final int channelId, final boolean broadCast, final Context context, final Object payload, final Consumer<Object> responseListener) {
         this.context = context;
+        this.broadCast = broadCast;
         this.channelId = channelId;
         this.responseListener = responseListener;
         this.payload = payload;
@@ -199,6 +202,10 @@ public class Event {
     public Event error(final Throwable error) {
         this.error = error;
         return this;
+    }
+
+    public boolean broadCast() {
+        return broadCast;
     }
 
     @Override

@@ -25,7 +25,7 @@ class ServiceTest {
         final Nano nano = new Nano(Map.of(CONFIG_LOG_LEVEL, TestConfig.TEST_LOG_LEVEL));
         final Context context = nano.context(this.getClass());
         final TestService service = new TestService();
-        final Event error = new Event(999, context, "TEST ERROR_AA", null).error(new RuntimeException("TEST ERROR_BB"));
+        final Event error = new Event(999, false, context, "TEST ERROR_AA", null).error(new RuntimeException("TEST ERROR_BB"));
 
         assertThat(service).isNotNull();
         assertThat(service.createdAtMs()).isGreaterThan(startTime);
@@ -43,7 +43,7 @@ class ServiceTest {
         service.onFailure(error);
         assertThat(service.failures()).hasSize(1).contains(error);
 
-        final Event event = new Event(EVENT_APP_UNHANDLED, context, error, null);
+        final Event event = new Event(EVENT_APP_UNHANDLED, false, context, error, null);
         service.onEvent(event);
         assertThat(service.getEvent(EVENT_APP_UNHANDLED)).isNotNull().has(new Condition<>(e -> e.payload(Event.class) == error, "Should contain payload with error"));
 

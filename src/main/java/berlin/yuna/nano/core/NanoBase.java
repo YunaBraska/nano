@@ -16,7 +16,9 @@ import java.math.RoundingMode;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.logging.Formatter;
@@ -47,7 +49,9 @@ public abstract class NanoBase<T extends NanoBase<T>> {
     protected final long createdAtMs;
     protected final NanoLogger logger;
     protected final Map<Integer, Set<Consumer<Event>>> listeners = new ConcurrentHashMap<>();
+    protected final Map<Integer, BlockingQueue<Event>> channelQueues = new ConcurrentHashMap<>();
     protected final LockedBoolean isReady = new LockedBoolean(true);
+    protected final AtomicBoolean queueSutdown = new AtomicBoolean(false);
     protected final AtomicInteger eventCount = new AtomicInteger(0);
     @SuppressWarnings("java:S2386")
     public static final Map<Integer, String> EVENT_TYPES = new ConcurrentHashMap<>();

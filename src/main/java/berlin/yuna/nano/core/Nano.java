@@ -3,6 +3,7 @@ package berlin.yuna.nano.core;
 import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.core.model.NanoThread;
 import berlin.yuna.nano.core.model.Service;
+import berlin.yuna.nano.helper.ExRunnable;
 import berlin.yuna.nano.helper.NanoUtils;
 import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.helper.logger.logic.LogQueue;
@@ -14,12 +15,15 @@ import berlin.yuna.typemap.model.TypeMap;
 import java.lang.management.ManagementFactory;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -35,11 +39,14 @@ import static berlin.yuna.nano.core.model.Context.EVENT_APP_SHUTDOWN;
 import static berlin.yuna.nano.core.model.Context.EVENT_APP_START;
 import static berlin.yuna.nano.core.model.Context.EVENT_CONFIG_CHANGE;
 import static berlin.yuna.nano.helper.NanoUtils.generateNanoName;
+import static berlin.yuna.nano.helper.NanoUtils.tryExecute;
+import static berlin.yuna.nano.helper.NanoUtils.waitForCondition;
 import static berlin.yuna.nano.helper.event.EventChannelRegister.eventNameOf;
 import static berlin.yuna.nano.services.metric.logic.MetricService.EVENT_METRIC_UPDATE;
 import static berlin.yuna.nano.services.metric.model.MetricType.GAUGE;
 import static java.lang.System.lineSeparator;
 import static java.util.Arrays.asList;
+import static java.util.Arrays.stream;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.stream.Collectors.joining;
@@ -209,6 +216,16 @@ public class Nano extends NanoServices<Nano> {
     }
 
     /**
+     * Executes one or multiple runnable asynchronously.
+     *
+     * @param runnable function to execute.
+     * @return {@link NanoThread}s
+     */
+    public NanoThread[] runReturn(final Context context, final ExRunnable... runnable) {
+        return stream(runnable).map(task -> new NanoThread().run(threadPool(), () -> context, task)).toArray(NanoThread[]::new);
+    }
+
+    /**
      * Sends an event with the specified parameters, either broadcasting it to all listeners or sending it to a targeted listener asynchronously if a response listener is provided.
      *
      * @param channelId        The integer representing the channelId of the event. This typically corresponds to a specific action or state change.
@@ -235,36 +252,84 @@ public class Nano extends NanoServices<Nano> {
      * @return An instance of {@link Event} that represents the event being processed. This object can be used for further operations or tracking.
      */
     public Event sendEventReturn(final int channelId, final Context context, final Object payload, final Consumer<Object> responseListener, final boolean broadCast) {
-        final Event event = new Event(channelId, context, channelId == EVENT_CONFIG_CHANGE && payload instanceof final Map<?, ?> map ? new TypeMap(map) : payload, responseListener);
-        if (responseListener == null) {
-            sendEventSameThread(event, broadCast);
+        return sendEventReturn(new Event(channelId, broadCast, context, channelId == EVENT_CONFIG_CHANGE && payload instanceof final Map<?, ?> map ? new TypeMap(map) : payload, responseListener));
+    }
+
+    /**
+     * Processes an {@link Event} with the given parameters and decides on the execution path based on the presence of a response listener and the broadcast flag.
+     * If a response listener is provided, the event is processed asynchronously; otherwise, it is processed in the current thread.
+     *
+     * @param event The event to be submitted for processing.
+     * @return The {@link Nano} instance, allowing for method chaining.
+     */
+    public Nano sendEvent(final Event event) {
+        sendEventReturn(event);
+        return this;
+    }
+
+    /**
+     * Processes an {@link Event} with the given parameters and decides on the execution path based on the presence of a response listener and the broadcast flag.
+     * If a response listener is provided, the event is processed asynchronously; otherwise, it is processed in the current thread.
+     *
+     * @param event The event to be submitted for processing.
+     * @return {@link Event} from the input that represents the event being processed. This object can be used for further operations or tracking.
+     */
+    public Event sendEventReturn(final Event event) {
+        if (queueSutdown.get() || event.responseListener() == null) {
+            sendEventSameThread(event);
         } else {
-            //FIXME: batch processing to avoid too many threads?
-            context.run(() -> sendEventSameThread(event, broadCast));
+            queueEvent(event.channelId(), event);
         }
         return event;
+    }
+
+    /**
+     * Queues an event for asynchronous processing.
+     *
+     * @param channelId The integer representing the channelId of the event, identifying the nature or action of the event.
+     * @param event     The event to be queued for processing.
+     */
+    protected void queueEvent(final int channelId, final Event event) {
+        try {
+            channelQueues.computeIfAbsent(channelId, channel -> {
+                // TODO: send metric async queue
+                final BlockingQueue<Event> queue = new LinkedBlockingQueue<>();
+                runReturn(context, () -> {
+                    while (!queueSutdown.get()) {
+                        final List<Event> batch = new ArrayList<>(10);
+                        batch.add(queue.take());
+                        final int batchSize = queue.drainTo(batch, 9);
+                        if (batchSize > 1)
+                            System.out.println("!!!!!! Batch size: " + batchSize);
+                        runReturn(context, () -> batch.stream().filter(evt -> evt.channelId() != -99).forEach(this::sendEventSameThread));
+                    }
+                });
+                return queue;
+            }).put(event);
+        } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /**
      * Sends an event on the same thread and determines whether to process it to the first listener.
      * Used {@link Context#sendEvent(int, Object)} from {@link Nano#context(Class)} instead of the core method.
      *
-     * @param event     The event to be processed.
-     * @param broadcast Whether to send the event only to the first matching listener or to all.
+     * @param event The event to be processed.
      * @return self for chaining
      */
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    public Nano sendEventSameThread(final Event event, final boolean broadcast) {
+    public Nano sendEventSameThread(final Event event) {
         eventCount.incrementAndGet();
         event.context().tryExecute(() -> {
             final boolean match = listeners.getOrDefault(event.channelId(), Collections.emptySet()).stream().anyMatch(listener -> {
                 event.context().tryExecute(() -> listener.accept(event), throwable -> event.context().sendEventError(event, throwable));
-                return !broadcast && event.isAcknowledged();
+                return !event.broadCast() && event.isAcknowledged();
             });
             if (!match) {
                 services.stream().filter(Service::isReady).anyMatch(service -> {
                     event.context().tryExecute(() -> service.onEvent(event), throwable -> event.context().sendEventError(event, service, throwable));
-                    return !broadcast && event.isAcknowledged();
+                    return !event.broadCast() && event.isAcknowledged();
                 });
             }
         });
@@ -389,6 +454,8 @@ public class Nano extends NanoServices<Nano> {
                 listeners.clear();
                 printSystemInfo();
                 logger.info(() -> "Stopped [{}] in [{}] with uptime [{}]", generateNanoName("%s%.0s%.0s%.0s"), NanoUtils.formatDuration(System.currentTimeMillis() - startTimeMs), NanoUtils.formatDuration(System.currentTimeMillis() - createdAtMs));
+                queueSutdown.set(true);
+                channelQueues.values().forEach(queue -> tryExecute(() -> context, () -> queue.put(new Event(-99, false, null, "Poison Pill - shutdown queue", null))));
                 threadPool.shutdown();
                 schedulers.clear();
             }, Nano.class.getSimpleName() + " Shutdown-Hook");

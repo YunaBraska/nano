@@ -65,7 +65,7 @@ public abstract class Service {
             context.sendEvent(EVENT_METRIC_UPDATE, new MetricUpdate(MetricType.GAUGE, "application.services.ready.time", System.currentTimeMillis() - startTime, Map.of("class", this.getClass().getSimpleName())), result -> {});
         }).onComplete((nanoThread, error) -> {
             if (error != null)
-                context.sendEventError(new Event(EVENT_APP_SERVICE_REGISTER, context, this, null), this, error);
+                context.sendEventError(new Event(EVENT_APP_SERVICE_REGISTER, false, context, this, null), this, error);
         });
     }
 
