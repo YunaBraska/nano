@@ -3,8 +3,8 @@ name: "MVN_RELEASE"
 on:
   workflow_dispatch:
     branches: [ main, master ]
-  schedule:
-    - cron: "0 7 * * *"
+#  schedule:
+#    - cron: "0 7 * * *"
 
 jobs:
   maven_update:
