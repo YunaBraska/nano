@@ -40,7 +40,8 @@ import java.util.stream.Stream;
 import java.util.zip.Inflater;
 
 import static berlin.yuna.nano.helper.NanoUtils.decodeGzip;
-import static berlin.yuna.nano.helper.NanoUtils.decoderDeflate;
+import static berlin.yuna.nano.helper.NanoUtils.decodeZip;
+import static berlin.yuna.nano.helper.NanoUtils.decodeDeflate;
 import static berlin.yuna.nano.helper.NanoUtils.generateNanoName;
 import static berlin.yuna.nano.helper.NanoUtils.split;
 import static berlin.yuna.nano.services.http.model.ContentType.APPLICATION_PROBLEM_JSON;
@@ -425,8 +426,10 @@ public class HttpObject extends HttpRequest {
         if (body.length > 2) {
             if ((body[0] & 0xFF) == (GZIP_MAGIC & 0xFF) && (body[1] & 0xFF) == ((GZIP_MAGIC >> 8) & 0xFF)) {
                 this.body = decodeGzip(body);
-            } else if (isDeflateCompressed()) {
-                this.body = decoderDeflate(body);
+            } else if (isZipCompressed(body)) {
+                this.body = decodeZip(body);
+            } else if (isDeflateCompressed(body)) {
+                this.body = decodeDeflate(body);
             } else {
                 this.body = body;
             }
@@ -1299,7 +1302,7 @@ public class HttpObject extends HttpRequest {
         return input.length() > removable.length() && input.endsWith(removable) ? input.substring(0, input.length() - removable.length()) : input;
     }
 
-    public boolean isDeflateCompressed() {
+    public boolean isDeflateCompressed(final byte[] body) {
         final Inflater inflater = new Inflater();
         try {
             inflater.setInput(body);
@@ -1310,5 +1313,14 @@ public class HttpObject extends HttpRequest {
         } catch (final Exception e) {
             return false; // If an error occurs, it likely wasn't compressed data
         }
+    }
+
+    public boolean isZipCompressed(final byte[] body) {
+        final int ZIP_MAGIC = 0x504B0304;
+        return body.length > 3
+            && (body[0] & 0xFF) == ((ZIP_MAGIC >> 24) & 0xFF)
+            && (body[1] & 0xFF) == ((ZIP_MAGIC >> 16) & 0xFF)
+            && (body[2] & 0xFF) == ((ZIP_MAGIC >> 8) & 0xFF)
+            && (body[3] & 0xFF) == (ZIP_MAGIC & 0xFF);
     }
 }

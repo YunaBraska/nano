@@ -28,6 +28,8 @@ import java.util.zip.DeflaterInputStream;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
+import java.util.zip.InflaterInputStream;
+import java.util.zip.ZipInputStream;
 
 import static berlin.yuna.nano.core.NanoBase.standardiseKey;
 import static berlin.yuna.nano.core.model.Context.CONFIG_PROFILES;
@@ -252,19 +254,19 @@ public class NanoUtils {
         }
     }
 
-    public static byte[] decodeGzip(final byte[] data) {
+    public static byte[] decodeZip(final byte[] data) {
         try (final ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
-             final GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
+             final ZipInputStream gzipInputStream = new ZipInputStream(inputStream)) {
             return gzipInputStream.readAllBytes();
         } catch (final Exception ignored) {
             return data;
         }
     }
 
-    public static byte[] decoderDeflate(final byte[] data) {
+    public static byte[] decodeGzip(final byte[] data) {
         try (final ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
-             final DeflaterInputStream deflaterInputStream = new DeflaterInputStream(inputStream)) {
-            return deflaterInputStream.readAllBytes();
+             final GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
+            return gzipInputStream.readAllBytes();
         } catch (final Exception ignored) {
             return data;
         }
@@ -276,6 +278,17 @@ public class NanoUtils {
             deflaterOutputStream.write(data);
             deflaterOutputStream.finish();
             return outputStream.toByteArray();
+        } catch (final Exception ignored) {
+            return data;
+        }
+    }
+
+    public static byte[] decodeDeflate(final byte[] data) {
+        try (final ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
+             final InflaterInputStream inflaterInputStream = new InflaterInputStream(inputStream);
+             final ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            inflaterInputStream.transferTo(out);
+            return out.toByteArray();
         } catch (final IOException ignored) {
             return data;
         }

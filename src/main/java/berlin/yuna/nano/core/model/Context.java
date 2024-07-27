@@ -16,6 +16,7 @@ import berlin.yuna.nano.services.http.model.HttpMethod;
 import berlin.yuna.typemap.model.ConcurrentTypeMap;
 import berlin.yuna.typemap.model.TypeMap;
 
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -23,6 +24,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.logging.Formatter;
 import java.util.stream.Stream;
 
@@ -280,11 +282,49 @@ public class Context extends ConcurrentTypeMap {
      * @param delay  The initial delay before executing the task.
      * @param period The period between successive task executions.
      * @param unit   The time unit of the initialDelay and period parameters.
+     * @return Self for chaining
+     */
+    public Context run(final ExRunnable task, final long delay, final long period, final TimeUnit unit) {
+        return run(task, delay, period, unit, () -> false);
+    }
+
+    /**
+     * Executes a task periodically, starting after an initial delay.
+     *
+     * @param task   The task to execute.
+     * @param delay  The initial delay before executing the task.
+     * @param period The period between successive task executions.
+     * @param unit   The time unit of the initialDelay and period parameters.
      * @param until  A BooleanSupplier indicating the termination condition. <code>true</code> stops the next execution.
      * @return Self for chaining
      */
     public Context run(final ExRunnable task, final long delay, final long period, final TimeUnit unit, final BooleanSupplier until) {
         nano().run(() -> this, task, delay, period, unit, until);
+        return this;
+    }
+
+    /**
+     * Executes a task periodically, starting after an initial delay.
+     *
+     * @param task   The task to execute.
+     * @param atTime The time of hour/minute/second to start the task.
+     * @return Self for chaining
+     */
+    public Context run(final ExRunnable task, final LocalTime atTime) {
+        nano().run(() -> this, task, atTime, () -> false);
+        return this;
+    }
+
+    /**
+     * Executes a task periodically, starting after an initial delay.
+     *
+     * @param task   The task to execute.
+     * @param atTime The time of hour/minute/second to start the task.
+     * @param until  A BooleanSupplier indicating the termination condition. <code>true</code> stops the next execution.
+     * @return Self for chaining
+     */
+    public Context run(final ExRunnable task, final LocalTime atTime, final BooleanSupplier until) {
+        nano().run(() -> this, task, atTime, until);
         return this;
     }
 
@@ -652,6 +692,30 @@ public class Context extends ConcurrentTypeMap {
      */
     public <S extends Service> S service(final Class<S> serviceClass) {
         return nano().service(serviceClass);
+    }
+
+    /**
+     * Waits for a {@link Service} of a specified type to be available within the given timeout.
+     *
+     * @param <S>          The type of the service to retrieve, which extends {@link Service}.
+     * @param serviceClass The class of the {@link Service} to retrieve.
+     * @param timeoutMs    The maximum time to wait, in milliseconds.
+     * @return The first instance of the specified {@link Service}, or null if not found within the timeout.
+     */
+    public <S extends Service> S service(final Class<S> serviceClass, final long timeoutMs) {
+        final long startTime = System.currentTimeMillis();
+        while (System.currentTimeMillis() - startTime < timeoutMs) {
+            final S service = service(serviceClass);
+            if (service != null)
+                return service;
+            try {
+                Thread.sleep(16);
+            } catch (final InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+                return null;
+            }
+        }
+        return null;
     }
 
     /**

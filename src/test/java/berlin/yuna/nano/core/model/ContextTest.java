@@ -2,15 +2,16 @@ package berlin.yuna.nano.core.model;
 
 import berlin.yuna.nano.core.Nano;
 import berlin.yuna.nano.core.config.TestConfig;
+import berlin.yuna.nano.helper.event.EventChannelRegister;
 import berlin.yuna.nano.helper.event.model.Event;
 import berlin.yuna.nano.model.TestService;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
+import java.time.LocalTime;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static berlin.yuna.nano.core.config.TestConfig.TEST_TIMEOUT;
@@ -21,6 +22,7 @@ import static berlin.yuna.nano.core.model.Context.CONTEXT_NANO_KEY;
 import static berlin.yuna.nano.core.model.Context.CONTEXT_TRACE_ID_KEY;
 import static berlin.yuna.nano.core.model.Context.EVENT_APP_HEARTBEAT;
 import static berlin.yuna.nano.helper.NanoUtils.waitForCondition;
+import static java.time.temporal.ChronoUnit.MILLIS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -28,6 +30,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @SuppressWarnings("java:S5778")
 @Execution(ExecutionMode.CONCURRENT)
 class ContextTest {
+
+    private static final int TEST_CHANNEL_ID = EventChannelRegister.registerChannelId("TEST_EVENT");
 
     @RepeatedTest(TestConfig.TEST_REPEAT)
     void testNewContext_withNano() throws InterruptedException {
@@ -61,8 +65,9 @@ class ContextTest {
         assertThat(event.channelId()).isEqualTo(channelId);
         assertThat(event.context()).isEqualTo(context);
         assertThat(event.isAcknowledged()).isFalse();
-        assertThat(eventLatch.await(1000, MILLISECONDS)).isTrue();
+        assertThat(eventLatch.await(TEST_TIMEOUT, MILLISECONDS)).isTrue();
         assertThat(eventLatch.getCount()).isZero();
+        assertThat(channelId).isEqualTo(TEST_CHANNEL_ID);
         assertThat(context.channelIdOf("TEST_EVENT")).contains(channelId);
         assertThat(context.eventNameOf(channelId)).isEqualTo("TEST_EVENT");
 
@@ -74,15 +79,23 @@ class ContextTest {
         assertThat(context.services(TestService.class)).containsExactly(testService);
 
         // Verify schedule once
-        final AtomicInteger schedulerAck = new AtomicInteger(0);
-        context.run(schedulerAck::incrementAndGet, 24, MILLISECONDS);
-        assertThat(waitForCondition(() -> schedulerAck.get() == 1, TEST_TIMEOUT))
-            .withFailMessage(() -> "schedulerAck \nExpected: 1 \n Actual: " + schedulerAck.get())
+        final CountDownLatch latch1 = new CountDownLatch(1);
+        context.run(latch1::countDown, 16, MILLISECONDS);
+        assertThat(latch1.await(TEST_TIMEOUT, MILLISECONDS))
+            .withFailMessage("latch1 \nExpected: 1 \n Actual: " + latch1.getCount())
             .isTrue();
+
         // Verify schedule multiple time with stop
-        context.run(schedulerAck::incrementAndGet, 0, 16, MILLISECONDS, () -> schedulerAck.get() == 4);
-        assertThat(waitForCondition(() -> schedulerAck.get() == 4, TEST_TIMEOUT))
-            .withFailMessage(() -> "schedulerAck \nExpected: 4 \n Actual: " + schedulerAck.get())
+        final CountDownLatch latch2 = new CountDownLatch(4);
+        context.run(latch2::countDown, 0, 16, MILLISECONDS);
+        assertThat(latch2.await(TEST_TIMEOUT, MILLISECONDS))
+            .withFailMessage("latch2 \nExpected: 4 \n Actual: " + latch2.getCount())
+            .isTrue();
+
+        final CountDownLatch latch3 = new CountDownLatch(1);
+        context.run(latch3::countDown, LocalTime.now().plus(16, MILLIS));
+        assertThat(latch3.await(TEST_TIMEOUT, MILLISECONDS))
+            .withFailMessage("latch3 \nExpected: 1 \n Actual: " + latch3.getCount())
             .isTrue();
 
         assertThat(nano.stop(this.getClass()).waitForStop().isReady()).isFalse();
