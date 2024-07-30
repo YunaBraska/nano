@@ -311,7 +311,7 @@ public class Nano extends NanoServices<Nano> {
         if (startupServices != null) {
             final List<Service> services = startupServices.apply(context);
             if (services != null) {
-                logger.debug(() -> "PreStartupServices count [{}] services [{}]", services.size(), services.stream().map(Service::name).distinct().collect(joining(", ")));
+                logger.debug(() -> "StartupServices [{}] services [{}]", services.size(), services.stream().map(Service::name).distinct().collect(joining(", ")));
                 final Map<Boolean, List<Service>> partitionedServices = services.stream().collect(Collectors.partitioningBy(LogQueue.class::isInstance));
                 // INIT ASYNC LOGGING
                 partitionedServices.getOrDefault(true, Collections.emptyList()).stream().findFirst().ifPresent(service -> {

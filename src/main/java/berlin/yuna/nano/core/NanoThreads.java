@@ -4,6 +4,9 @@ import berlin.yuna.nano.core.model.Context;
 import berlin.yuna.nano.core.model.Scheduler;
 import berlin.yuna.nano.helper.ExRunnable;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
@@ -24,6 +27,8 @@ import static berlin.yuna.nano.helper.NanoUtils.callerInfoStr;
 import static berlin.yuna.nano.helper.NanoUtils.getThreadName;
 import static berlin.yuna.nano.helper.NanoUtils.handleJavaError;
 import static java.util.Collections.unmodifiableSet;
+import static java.util.concurrent.TimeUnit.DAYS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 /**
  * The abstract base class for {@link Nano} framework providing thread handling functionalities.
@@ -109,6 +114,23 @@ public abstract class NanoThreads<T extends NanoThreads<T>> extends NanoBase<T> 
             }
         }, delay, period, unit);
         return (T) this;
+    }
+
+    /**
+     * Executes a task periodically, starting after an initial delay.
+     *
+     * @param task   The task to execute.
+     * @param atTime The time of hour/minute/second to start the task.
+     * @param until  A BooleanSupplier indicating the termination condition. <code>true</code> stops the next execution.
+     * @return Self for chaining
+     */
+    public T run(final Supplier<Context> context, final ExRunnable task, final LocalTime atTime, final BooleanSupplier until) {
+        final LocalDateTime now = LocalDateTime.now();
+        LocalDateTime nextRun = now.withHour(atTime.getHour()).withMinute(atTime.getMinute()).withSecond(atTime.getSecond());
+        if (now.isAfter(nextRun))
+            nextRun = nextRun.plusDays(1);
+
+        return run(context, task, Duration.between(now, nextRun).getSeconds(), DAYS.toSeconds(1), SECONDS, until);
     }
 
     /**
