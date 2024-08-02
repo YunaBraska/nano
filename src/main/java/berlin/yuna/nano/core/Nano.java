@@ -40,10 +40,10 @@ import static berlin.yuna.nano.core.model.Context.EVENT_APP_START;
 import static berlin.yuna.nano.core.model.Context.EVENT_CONFIG_CHANGE;
 import static berlin.yuna.nano.helper.NanoUtils.generateNanoName;
 import static berlin.yuna.nano.helper.NanoUtils.tryExecute;
-import static berlin.yuna.nano.helper.NanoUtils.waitForCondition;
 import static berlin.yuna.nano.helper.event.EventChannelRegister.eventNameOf;
 import static berlin.yuna.nano.services.metric.logic.MetricService.EVENT_METRIC_UPDATE;
 import static berlin.yuna.nano.services.metric.model.MetricType.GAUGE;
+import static java.lang.Integer.MAX_VALUE;
 import static java.lang.System.lineSeparator;
 import static java.util.Arrays.asList;
 import static java.util.Arrays.stream;
@@ -222,7 +222,7 @@ public class Nano extends NanoServices<Nano> {
      * @return {@link NanoThread}s
      */
     public NanoThread[] runReturn(final Context context, final ExRunnable... runnable) {
-        return stream(runnable).map(task -> new NanoThread().run(threadPool(), () -> context, task)).toArray(NanoThread[]::new);
+        return stream(runnable).map(task -> new NanoThread().run(threadPool, () -> context, task)).toArray(NanoThread[]::new);
     }
 
     /**
@@ -275,12 +275,9 @@ public class Nano extends NanoServices<Nano> {
      * @return {@link Event} from the input that represents the event being processed. This object can be used for further operations or tracking.
      */
     public Event sendEventReturn(final Event event) {
-        if (queueSutdown.get() || event.responseListener() == null) {
-            sendEventSameThread(event);
-        } else {
-            queueEvent(event.channelId(), event);
-        }
-        return event;
+        return event.responseListener() == null || threadPool.isShutdown() || threadPool.isTerminated()
+            ? sendEventSameThread(event)
+            : queueEvent(event.channelId(), event);
     }
 
     /**
@@ -289,19 +286,17 @@ public class Nano extends NanoServices<Nano> {
      * @param channelId The integer representing the channelId of the event, identifying the nature or action of the event.
      * @param event     The event to be queued for processing.
      */
-    protected void queueEvent(final int channelId, final Event event) {
+    protected Event queueEvent(final int channelId, final Event event) {
         try {
             channelQueues.computeIfAbsent(channelId, channel -> {
                 // TODO: send metric async queue
-                final BlockingQueue<Event> queue = new LinkedBlockingQueue<>();
-                runReturn(context, () -> {
-                    while (!queueSutdown.get()) {
+                final BlockingQueue<Event> queue = new LinkedBlockingQueue<>(MAX_VALUE);
+                runReturn(event.context(), () -> {
+                    while (!threadPool.isShutdown() && !threadPool.isTerminated()) {
                         final List<Event> batch = new ArrayList<>(10);
                         batch.add(queue.take());
                         final int batchSize = queue.drainTo(batch, 9);
-                        if (batchSize > 1)
-                            System.out.println("!!!!!! Batch size: " + batchSize);
-                        runReturn(context, () -> batch.stream().filter(evt -> evt.channelId() != -99).forEach(this::sendEventSameThread));
+                        runReturn(event.context(), batch.stream().filter(evt -> evt.channelId() != -99).map(evt -> (ExRunnable) () -> sendEventSameThread(evt)).toArray(ExRunnable[]::new));
                     }
                 });
                 return queue;
@@ -309,6 +304,7 @@ public class Nano extends NanoServices<Nano> {
         } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+        return event;
     }
 
     /**
@@ -316,10 +312,10 @@ public class Nano extends NanoServices<Nano> {
      * Used {@link Context#sendEvent(int, Object)} from {@link Nano#context(Class)} instead of the core method.
      *
      * @param event The event to be processed.
-     * @return self for chaining
+     * @return Event
      */
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    public Nano sendEventSameThread(final Event event) {
+    public Event sendEventSameThread(final Event event) {
         eventCount.incrementAndGet();
         event.context().tryExecute(() -> {
             final boolean match = listeners.getOrDefault(event.channelId(), Collections.emptySet()).stream().anyMatch(listener -> {
@@ -334,7 +330,7 @@ public class Nano extends NanoServices<Nano> {
             }
         });
         eventCount.decrementAndGet();
-        return this;
+        return event;
     }
 
     /**
@@ -451,12 +447,13 @@ public class Nano extends NanoServices<Nano> {
                 logger.debug(() -> "Shutdown Services count [{}] services [{}]", services.size(), services.stream().map(Service::getClass).map(Class::getSimpleName).distinct().collect(joining(", ")));
                 shutdownServices(this.context);
                 this.shutdownThreads();
+                threadPool.shutdown();
                 listeners.clear();
                 printSystemInfo();
+                channelQueues.values().stream().parallel().forEach(queue -> tryExecute(() -> context, () -> queue.put(new Event(-99, false, null, "Poison Pill - shutdown queue", null))));
+//                channelQueues.values().forEach(queue -> tryExecute(() -> context, () -> waitForCondition(queue::isEmpty, 1000)));
+//                channelQueues.clear();
                 logger.info(() -> "Stopped [{}] in [{}] with uptime [{}]", generateNanoName("%s%.0s%.0s%.0s"), NanoUtils.formatDuration(System.currentTimeMillis() - startTimeMs), NanoUtils.formatDuration(System.currentTimeMillis() - createdAtMs));
-                queueSutdown.set(true);
-                channelQueues.values().forEach(queue -> tryExecute(() -> context, () -> queue.put(new Event(-99, false, null, "Poison Pill - shutdown queue", null))));
-                threadPool.shutdown();
                 schedulers.clear();
             }, Nano.class.getSimpleName() + " Shutdown-Hook");
             sequence.start();

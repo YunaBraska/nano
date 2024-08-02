@@ -18,7 +18,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
-import static berlin.yuna.nano.core.model.Context.EVENT_APP_SHUTDOWN;
 import static berlin.yuna.nano.helper.NanoUtils.handleJavaError;
 import static java.util.Optional.ofNullable;
 
@@ -68,23 +67,29 @@ public class NanoThread {
 
     @SuppressWarnings("java:S1181") // Throwable is caught
     public NanoThread run(final ExecutorService executor, final Supplier<Context> context, final ExRunnable task) {
-        (executor != null ? executor : VIRTUAL_THREAD_POOL).submit(() -> {
-            try {
-                activeNanoThreadCount.incrementAndGet();
-                task.run();
-                isComplete.set(true, state -> onCompleteCallbacks.forEach(onComplete -> onComplete.accept(this, null)));
-            } catch (final Throwable error) {
-                handleJavaError(context, error);
-                isComplete.set(true, state -> {
-                    if (!onCompleteCallbacks.isEmpty())
-                        onCompleteCallbacks.forEach(onComplete -> onComplete.accept(this, error));
-                    else
-                        ofNullable(context).map(Supplier::get).ifPresent(ctx -> ctx.sendEventError(task, error));
-                });
-            } finally {
-                activeNanoThreadCount.decrementAndGet();
-            }
-        });
+        final ExecutorService exec = executor != null ? executor : VIRTUAL_THREAD_POOL;
+        if (exec.isShutdown() || exec.isTerminated())
+            return runTask(context, task);
+        exec.submit(() -> runTask(context, task));
+        return this;
+    }
+
+    protected NanoThread runTask(final Supplier<Context> context, final ExRunnable task) {
+        try {
+            activeNanoThreadCount.incrementAndGet();
+            task.run();
+            isComplete.set(true, state -> onCompleteCallbacks.forEach(onComplete -> onComplete.accept(this, null)));
+        } catch (final Throwable error) {
+            handleJavaError(context, error);
+            isComplete.set(true, state -> {
+                if (!onCompleteCallbacks.isEmpty())
+                    onCompleteCallbacks.forEach(onComplete -> onComplete.accept(this, error));
+                else
+                    ofNullable(context).map(Supplier::get).ifPresent(ctx -> ctx.sendEventError(task, error));
+            });
+        } finally {
+            activeNanoThreadCount.decrementAndGet();
+        }
         return this;
     }
 

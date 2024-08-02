@@ -75,7 +75,7 @@ class HttpObjectTest {
 
     @Test
     void testRespondResponse() {
-        final Event event = new Event(EVENT_HTTP_REQUEST, Context.createRootContext(HttpObjectTest.class), new HttpObject().methodType(HttpMethod.GET).path("/create"), null);
+        final Event event = new Event(EVENT_HTTP_REQUEST, false, Context.createRootContext(HttpObjectTest.class), new HttpObject().methodType(HttpMethod.GET).path("/create"), null);
 
         event.payloadOpt(HttpObject.class)
             .filter(HttpObject::isMethodGet)

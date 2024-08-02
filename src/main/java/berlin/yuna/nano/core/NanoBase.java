@@ -51,7 +51,6 @@ public abstract class NanoBase<T extends NanoBase<T>> {
     protected final Map<Integer, Set<Consumer<Event>>> listeners = new ConcurrentHashMap<>();
     protected final Map<Integer, BlockingQueue<Event>> channelQueues = new ConcurrentHashMap<>();
     protected final LockedBoolean isReady = new LockedBoolean(true);
-    protected final AtomicBoolean queueSutdown = new AtomicBoolean(false);
     protected final AtomicInteger eventCount = new AtomicInteger(0);
     @SuppressWarnings("java:S2386")
     public static final Map<Integer, String> EVENT_TYPES = new ConcurrentHashMap<>();
